@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from '../SupabaseClient';
+import { supabase } from "../SupabaseClient";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,14 +22,21 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    console.log('Starting login process...', formData.email); // Debug log
 
     try {
+      console.log('Attempting to sign in...'); // Debug log
       const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login Error:', error); // Debug log
+        throw error;
+      }
+
+      console.log('User logged in:', user); // Debug log
 
       // Get user profile
       const { data: profile, error: profileError } = await supabase
@@ -38,9 +45,14 @@ const Login = () => {
         .eq('id', user.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile Fetch Error:', profileError); // Debug log
+        throw profileError;
+      }
 
-      // Store user info in local storage or context
+      console.log('Profile fetched:', profile); // Debug log
+
+      // Store user info in local storage
       localStorage.setItem('user', JSON.stringify({
         id: user.id,
         email: user.email,
@@ -54,6 +66,7 @@ const Login = () => {
 
       navigate('/');
     } catch (error) {
+      console.error('Login Process Error:', error); // Debug log
       toast({
         title: "Error",
         description: error.message,
@@ -63,7 +76,6 @@ const Login = () => {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">

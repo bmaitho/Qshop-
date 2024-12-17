@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { Toaster } from "@/components/ui/toaster";
 
@@ -13,13 +13,17 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import CategoryPage from './components/CategoryPage';
 import NotFound from './components/NotFound';
+import { useAuth } from './components/auth/AuthContext'; // Updated import path
 
 // Auth Guard Component
 const ProtectedRoute = ({ children }) => {
-  // Add your authentication logic here
-  const isAuthenticated = false; // Replace with your auth check
-  
-  if (!isAuthenticated) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>; // You can replace this with a proper loading component
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -28,8 +32,8 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <CartProvider>
-      <Router>
+    <Router>
+      <CartProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<StudentMarketplace />} />
@@ -70,8 +74,8 @@ function App() {
         
         {/* Toast Notifications */}
         <Toaster />
-      </Router>
-    </CartProvider>
+      </CartProvider>
+    </Router>
   );
 }
 

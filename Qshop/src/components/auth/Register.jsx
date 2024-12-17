@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from '../SupabaseClient';
+import { supabase } from "../SupabaseClient"; // Adjust path as needed
 
 const Register = () => {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    console.log('Starting registration process...', formData); // Debug log
 
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -40,26 +41,45 @@ const Register = () => {
 
     try {
       // Sign up with Supabase Auth
+      console.log('Attempting to sign up with Supabase...'); // Debug log
       const { data: { user }, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password
-      });
-
-      if (signUpError) throw signUpError;
-
-      // Create profile in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: user.id,
+        password: formData.password,
+        options: {
+          data: {
             phone: formData.phone,
             campus_location: formData.campusLocation,
             is_seller: formData.isSeller
           }
-        ]);
+        }
+      });
 
-      if (profileError) throw profileError;
+      if (signUpError) {
+        console.error('Signup Error:', signUpError); // Debug log
+        throw signUpError;
+      }
+
+      console.log('User created:', user); // Debug log
+
+      // Create profile in the profiles table
+      if (user) {
+        console.log('Creating profile...'); // Debug log
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: user.id,
+              phone: formData.phone,
+              campus_location: formData.campusLocation,
+              is_seller: formData.isSeller
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Profile Creation Error:', profileError); // Debug log
+          throw profileError;
+        }
+      }
 
       toast({
         title: "Success!",
@@ -68,6 +88,7 @@ const Register = () => {
 
       navigate('/login');
     } catch (error) {
+      console.error('Registration Error:', error); // Debug log
       toast({
         title: "Error",
         description: error.message,
@@ -77,6 +98,7 @@ const Register = () => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
