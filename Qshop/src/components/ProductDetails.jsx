@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { fetchProductById } from '../services/productService';
+import { fetchProductById } from '../components/productService';
 import { Heart, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {

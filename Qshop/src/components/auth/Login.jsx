@@ -4,24 +4,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '../SupabaseClient';
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    email: '',
+    password: ''
+  });
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Add your Supabase auth logic here
-      // const { error } = await supabase.auth.signIn({
-      //   email: e.target.email.value,
-      //   password: e.target.password.value,
-      // });
+      const { data: { user }, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      // if (error) throw error;
+      if (error) throw error;
+
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Store user info in local storage or context
+      localStorage.setItem('user', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        ...profile
+      }));
 
       toast({
         title: "Success!",
@@ -52,7 +76,9 @@ const Login = () => {
               <label htmlFor="email" className="text-sm font-medium">Email</label>
               <Input 
                 id="email"
-                type="email" 
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
                 placeholder="Enter your email"
                 required
               />
@@ -61,7 +87,9 @@ const Login = () => {
               <label htmlFor="password" className="text-sm font-medium">Password</label>
               <Input 
                 id="password"
-                type="password" 
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
                 placeholder="Enter your password"
                 required
               />
