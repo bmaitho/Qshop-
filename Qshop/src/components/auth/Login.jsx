@@ -22,60 +22,58 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    console.log('Starting login process...', formData.email); // Debug log
 
     try {
-      console.log('Attempting to sign in...'); // Debug log
-      const { data: { user }, error } = await supabase.auth.signInWithPassword({
+      // Sign in user
+      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (error) {
-        console.error('Login Error:', error); // Debug log
-        throw error;
+      if (signInError) throw signInError;
+
+      if (user) {
+        // Get user profile using proper query syntax
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle(); // Use maybeSingle() instead of single()
+
+        // Even if profile fetch fails, we can still proceed with basic user info
+        const userData = {
+          id: user.id,
+          email: user.email,
+          ...(profile || {}) // Spread profile data if it exists
+        };
+
+        // Store user info in local storage
+        localStorage.setItem('user', JSON.stringify(userData));
+
+        toast({
+          title: "Success!",
+          description: "You have successfully logged in.",
+        });
+
+        // If profile fetch failed but user auth succeeded, we might want to log it
+        if (profileError) {
+          console.warn('Profile fetch warning:', profileError);
+          // Optionally show a warning toast that some user data couldn't be loaded
+        }
+
+        navigate('/');
       }
-
-      console.log('User logged in:', user); // Debug log
-
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Profile Fetch Error:', profileError); // Debug log
-        throw profileError;
-      }
-
-      console.log('Profile fetched:', profile); // Debug log
-
-      // Store user info in local storage
-      localStorage.setItem('user', JSON.stringify({
-        id: user.id,
-        email: user.email,
-        ...profile
-      }));
-
-      toast({
-        title: "Success!",
-        description: "You have successfully logged in.",
-      });
-
-      navigate('/');
     } catch (error) {
-      console.error('Login Process Error:', error); // Debug log
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during login",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">

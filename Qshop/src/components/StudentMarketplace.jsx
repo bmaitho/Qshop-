@@ -1,3 +1,4 @@
+// src/components/StudentMarketplace.jsx
 import React from 'react';
 import Navbar from './Navbar';
 import ProductGrid from './ProductGrid';
@@ -20,7 +21,6 @@ const StudentMarketplace = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
-              {/* Filter content goes here */}
               <div className="space-y-4">
                 <h3 className="font-semibold">Categories</h3>
                 {/* Add filter options */}
@@ -39,9 +39,9 @@ const StudentMarketplace = () => {
           </div>
           
           {/* Main content */}
-          <main className="flex-1">
+          <div className="flex-1">
             <ProductGrid />
-          </main>
+          </div>
         </div>
       </div>
     </div>

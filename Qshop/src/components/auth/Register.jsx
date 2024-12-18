@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "../SupabaseClient"; // Adjust path as needed
+import { supabase } from '../SupabaseClient';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -27,7 +27,6 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    console.log('Starting registration process...', formData); // Debug log
 
     if (formData.password !== formData.confirmPassword) {
       toast({
@@ -40,65 +39,56 @@ const Register = () => {
     }
 
     try {
-      // Sign up with Supabase Auth
-      console.log('Attempting to sign up with Supabase...'); // Debug log
-      const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      // Step 1: Sign up the user
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            phone: formData.phone,
-            campus_location: formData.campusLocation,
-            is_seller: formData.isSeller
-          }
-        }
       });
 
-      if (signUpError) {
-        console.error('Signup Error:', signUpError); // Debug log
-        throw signUpError;
-      }
+      if (signUpError) throw signUpError;
 
-      console.log('User created:', user); // Debug log
+      if (data?.user) {
+        // Step 2: Set the auth context to the new user
+        await supabase.auth.setSession(data.session);
 
-      // Create profile in the profiles table
-      if (user) {
-        console.log('Creating profile...'); // Debug log
+        // Step 3: Insert the profile
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert([
-            {
-              id: user.id,
-              phone: formData.phone,
-              campus_location: formData.campusLocation,
-              is_seller: formData.isSeller
-            }
-          ]);
+          .insert({
+            id: data.user.id,
+            phone: formData.phone,
+            campus_location: formData.campusLocation,
+            is_seller: formData.isSeller,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
 
         if (profileError) {
-          console.error('Profile Creation Error:', profileError); // Debug log
-          throw profileError;
+          console.error('Profile creation error:', profileError);
+          toast({
+            title: "Error",
+            description: "Failed to create profile. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Success!",
+            description: "Registration successful. You can now log in.",
+          });
+          navigate('/login');
         }
       }
-
-      toast({
-        title: "Success!",
-        description: "Registration successful. Please check your email to verify your account.",
-      });
-
-      navigate('/login');
     } catch (error) {
-      console.error('Registration Error:', error); // Debug log
+      console.error('Registration error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during registration",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

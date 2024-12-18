@@ -1,27 +1,33 @@
+// src/components/ProductGrid.jsx
 import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
-import { fetchProducts } from '../components/productService';
+import { mockProducts } from '../context/mockData';
+import { useToast } from "@/components/ui/use-toast";
 
 const ProductGrid = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { toast } = useToast();
 
   useEffect(() => {
+    // Simulating API call with mock data
     const loadProducts = async () => {
       try {
-        const data = await fetchProducts();
-        setProducts(data);
-      } catch (err) {
-        setError('Failed to load products');
-        console.error(err);
+        // For now, we'll use mock data directly
+        setProducts(mockProducts);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load products",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     loadProducts();
-  }, []);
+  }, [toast]);
 
   if (loading) {
     return (
@@ -39,10 +45,10 @@ const ProductGrid = () => {
     );
   }
 
-  if (error) {
+  if (products.length === 0) {
     return (
       <div className="text-center py-10">
-        <p className="text-red-500">{error}</p>
+        <p className="text-gray-600">No products found</p>
       </div>
     );
   }
