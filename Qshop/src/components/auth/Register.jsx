@@ -4,15 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from '../SupabaseClient';
+import { useAuth } from './AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState({
     email: '',
     password: '',
+    fullName: '',
     confirmPassword: '',
     phone: '',
     campusLocation: '',
@@ -39,50 +41,32 @@ const Register = () => {
     }
 
     try {
-      // Step 1: Sign up the user
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error } = await signUp({
         email: formData.email,
         password: formData.password,
-      });
-
-      if (signUpError) throw signUpError;
-
-      if (data?.user) {
-        // Step 2: Set the auth context to the new user
-        await supabase.auth.setSession(data.session);
-
-        // Step 3: Insert the profile
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
+        options: {
+          data: {
+            full_name: formData.fullName,
             phone: formData.phone,
             campus_location: formData.campusLocation,
-            is_seller: formData.isSeller,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast({
-            title: "Error",
-            description: "Failed to create profile. Please try again.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Success!",
-            description: "Registration successful. You can now log in.",
-          });
-          navigate('/login');
+            is_seller: formData.isSeller
+          }
         }
-      }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success!",
+        description: "Registration successful. Please check your email to verify your account.",
+      });
+
+      navigate('/login');
     } catch (error) {
       console.error('Registration error:', error);
       toast({
         title: "Error",
-        description: error.message || "An error occurred during registration",
+        description: error.message || "Failed to create account",
         variant: "destructive",
       });
     } finally {
@@ -106,6 +90,17 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="fullName" className="text-sm font-medium">Full Name</label>
+              <Input 
+                id="fullName"
+                type="text"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Enter your full name"
                 required
               />
             </div>

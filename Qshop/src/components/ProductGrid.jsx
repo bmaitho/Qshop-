@@ -1,33 +1,40 @@
-// src/components/ProductGrid.jsx
+// ProductGrid.jsx
 import React, { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
-import { mockProducts } from '../context/mockData';
-import { useToast } from "@/components/ui/use-toast";
+import { supabase } from '../components/SupabaseClient';
 
 const ProductGrid = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Simulating API call with mock data
-    const loadProducts = async () => {
-      try {
-        // For now, we'll use mock data directly
-        setProducts(mockProducts);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load products",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchProducts();
+  }, []);
 
-    loadProducts();
-  }, [toast]);
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          profiles:seller_id (
+            id,
+            email,
+            campus_location
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (err) {
+      setError('Failed to load products');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -45,10 +52,10 @@ const ProductGrid = () => {
     );
   }
 
-  if (products.length === 0) {
+  if (error) {
     return (
       <div className="text-center py-10">
-        <p className="text-gray-600">No products found</p>
+        <p className="text-red-500">{error}</p>
       </div>
     );
   }

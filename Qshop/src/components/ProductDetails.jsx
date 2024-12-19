@@ -1,13 +1,11 @@
+// ProductDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { supabase } from '../components/SupabaseClient';
 import { useCart } from '../context/CartContext';
-import { fetchProductById } from '../components/productService';
 import { Heart, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import Navbar from './Navbar';
 
@@ -20,30 +18,122 @@ const ProductDetails = () => {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
-    const loadProduct = async () => {
-      try {
-        const data = await fetchProductById(id);
-        setProduct(data);
-      } catch (error) {
+    fetchProduct();
+    checkWishlistStatus();
+  }, [id]);
+
+  const fetchProduct = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          profiles:seller_id (
+            id,
+            email,
+            campus_location,
+            phone
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setProduct(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load product details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkWishlistStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('wishlist')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('product_id', id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      setIsWishlisted(!!data);
+    } catch (error) {
+      console.error('Error checking wishlist status:', error);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         toast({
           title: "Error",
-          description: "Failed to load product details",
+          description: "Please login to add items to wishlist",
           variant: "destructive",
         });
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    loadProduct();
-  }, [id, toast]);
+      if (isWishlisted) {
+        const { error } = await supabase
+          .from('wishlist')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('product_id', id);
 
-  const handleAddToCart = () => {
-    addToCart(product);
-    toast({
-      title: "Added to cart",
-      description: `${product.name} has been added to your cart`,
-    });
+        if (error) throw error;
+        setIsWishlisted(false);
+        toast({
+          title: "Success",
+          description: "Removed from wishlist",
+        });
+      } else {
+        const { error } = await supabase
+          .from('wishlist')
+          .insert([{
+            user_id: user.id,
+            product_id: id
+          }]);
+
+        if (error) throw error;
+        setIsWishlisted(true);
+        toast({
+          title: "Success",
+          description: "Added to wishlist",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update wishlist",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddToCart = async () => {
+    try {
+      await addToCart(product);
+      toast({
+        title: "Success",
+        description: `${product.name} has been added to your cart`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart",
+        variant: "destructive",
+      });
+    }
   };
 
   if (loading) {
@@ -79,12 +169,12 @@ const ProductDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="relative">
             <img 
-              src={product.image} 
+              src={product.image_url || "/api/placeholder/400/400"} 
               alt={product.name}
               className="w-full rounded-lg object-cover"
             />
             <button 
-              onClick={() => setIsWishlisted(!isWishlisted)}
+              onClick={toggleWishlist}
               className="absolute top-4 right-4 p-2 rounded-full bg-white/80 hover:bg-white"
             >
               <Heart 
@@ -98,11 +188,11 @@ const ProductDetails = () => {
               <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
               <div className="flex items-baseline space-x-4">
                 <span className="text-2xl font-bold text-orange-600">
-                  KES {product.price}
+                  KES {product.price?.toLocaleString()}
                 </span>
-                {product.originalPrice && (
+                {product.original_price && (
                   <span className="text-lg text-gray-500 line-through">
-                    KES {product.originalPrice}
+                    KES {product.original_price?.toLocaleString()}
                   </span>
                 )}
               </div>
@@ -112,14 +202,17 @@ const ProductDetails = () => {
               <CardContent className="p-4 space-y-4">
                 <div>
                   <h3 className="font-semibold mb-2">Product Details</h3>
+                  <p className="text-gray-600">{product.description}</p>
                   <p className="text-gray-600">Condition: {product.condition}</p>
-                  <p className="text-gray-600">Location: {product.location}</p>
+                  <p className="text-gray-600">Location: {product.location || product.profiles?.campus_location}</p>
                 </div>
 
                 <div>
                   <h3 className="font-semibold mb-2">Seller Information</h3>
-                  <p className="text-gray-600">Seller: {product.seller}</p>
-                  <p className="text-gray-600">Contact: {product.contact}</p>
+                  <p className="text-gray-600">Contact: {product.profiles?.email}</p>
+                  {product.profiles?.phone && (
+                    <p className="text-gray-600">Phone: {product.profiles.phone}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -134,11 +227,19 @@ const ProductDetails = () => {
               <Button
                 variant="outline"
                 onClick={() => {
-                  navigator.share({
-                    title: product.name,
-                    text: `Check out this ${product.name} on Qshop!`,
-                    url: window.location.href,
-                  });
+                  if (navigator.share) {
+                    navigator.share({
+                      title: product.name,
+                      text: `Check out this ${product.name} on Qshop!`,
+                      url: window.location.href,
+                    });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Success",
+                      description: "Link copied to clipboard!",
+                    });
+                  }
                 }}
               >
                 <Share2 className="h-5 w-5" />

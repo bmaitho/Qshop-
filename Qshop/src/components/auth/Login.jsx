@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "../SupabaseClient";
+import { useAuth } from './AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [formData, setFormData] = React.useState({
     email: '',
@@ -24,45 +25,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Sign in user
-      const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error } = await signIn({
         email: formData.email,
         password: formData.password,
       });
 
-      if (signInError) throw signInError;
+      if (error) throw error;
 
-      if (user) {
-        // Get user profile using proper query syntax
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle(); // Use maybeSingle() instead of single()
+      toast({
+        title: "Success!",
+        description: "You have successfully logged in.",
+      });
 
-        // Even if profile fetch fails, we can still proceed with basic user info
-        const userData = {
-          id: user.id,
-          email: user.email,
-          ...(profile || {}) // Spread profile data if it exists
-        };
-
-        // Store user info in local storage
-        localStorage.setItem('user', JSON.stringify(userData));
-
-        toast({
-          title: "Success!",
-          description: "You have successfully logged in.",
-        });
-
-        // If profile fetch failed but user auth succeeded, we might want to log it
-        if (profileError) {
-          console.warn('Profile fetch warning:', profileError);
-          // Optionally show a warning toast that some user data couldn't be loaded
-        }
-
-        navigate('/');
-      }
+      navigate('/');
     } catch (error) {
       toast({
         title: "Error",
