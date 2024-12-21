@@ -1,3 +1,4 @@
+// WishlistContext.jsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '../components/SupabaseClient';
@@ -17,10 +18,7 @@ export const WishlistProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('wishlist')
-        .select(`
-          *,
-          products (*)
-        `)
+        .select('*, product:products(*)')
         .eq('user_id', USER_ID);
 
       if (error) throw error;
@@ -32,6 +30,23 @@ export const WishlistProvider = ({ children }) => {
         description: "Failed to fetch wishlist items",
         variant: "destructive",
       });
+    }
+  };
+
+  const isInWishlist = async (productId) => {
+    try {
+      const { data, error } = await supabase
+        .from('wishlist')
+        .select('id')
+        .eq('user_id', USER_ID)
+        .eq('product_id', productId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return !!data;
+    } catch (error) {
+      console.error('Error checking wishlist status:', error);
+      return false;
     }
   };
 
@@ -82,10 +97,6 @@ export const WishlistProvider = ({ children }) => {
         variant: "destructive",
       });
     }
-  };
-
-  const isInWishlist = (productId) => {
-    return wishlist.some(item => item.product_id === productId);
   };
 
   return (

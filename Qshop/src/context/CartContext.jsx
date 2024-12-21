@@ -18,10 +18,7 @@ export const CartProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('cart')
-        .select(`
-          *,
-          products (*)
-        `)
+        .select('*, product:products(*)')
         .eq('user_id', USER_ID);
 
       if (error) throw error;
@@ -38,25 +35,26 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = async (product) => {
     try {
-      // Check if item already exists in cart
-      const { data: existingItem } = await supabase
+      // First check if the item exists in the cart
+      const { data: existingCartItem } = await supabase
         .from('cart')
         .select('*')
         .eq('user_id', USER_ID)
         .eq('product_id', product.id)
         .single();
 
-      if (existingItem) {
-        // Update quantity
-        const { error } = await supabase
+      if (existingCartItem) {
+        // Update quantity of existing item
+        const { error: updateError } = await supabase
           .from('cart')
-          .update({ quantity: existingItem.quantity + 1 })
-          .eq('id', existingItem.id);
+          .update({ quantity: existingCartItem.quantity + 1 })
+          .eq('user_id', USER_ID)
+          .eq('product_id', product.id);
 
-        if (error) throw error;
+        if (updateError) throw updateError;
       } else {
         // Add new item
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('cart')
           .insert([{
             user_id: USER_ID,
@@ -64,19 +62,19 @@ export const CartProvider = ({ children }) => {
             quantity: 1
           }]);
 
-        if (error) throw error;
+        if (insertError) throw insertError;
       }
 
       await fetchCart();
       toast({
         title: "Success",
-        description: "Item added to cart",
+        description: `${product.name} ${existingCartItem ? 'quantity updated' : 'added to cart'}`
       });
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('Error managing cart:', error);
       toast({
         title: "Error",
-        description: "Failed to add item to cart",
+        description: "Failed to update cart",
         variant: "destructive",
       });
     }
@@ -84,7 +82,7 @@ export const CartProvider = ({ children }) => {
 
   const updateQuantity = async (productId, quantity) => {
     try {
-      if (quantity === 0) {
+      if (quantity <= 0) {
         await removeFromCart(productId);
         return;
       }
@@ -119,7 +117,7 @@ export const CartProvider = ({ children }) => {
       await fetchCart();
       toast({
         title: "Success",
-        description: "Item removed from cart",
+        description: "Item removed from cart"
       });
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -142,7 +140,7 @@ export const CartProvider = ({ children }) => {
       setCart([]);
       toast({
         title: "Success",
-        description: "Cart cleared successfully",
+        description: "Cart cleared successfully"
       });
     } catch (error) {
       console.error('Error clearing cart:', error);
@@ -155,7 +153,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const total = cart.reduce((sum, item) => {
-    const itemPrice = item.products?.price || 0;
+    const itemPrice = item.product?.price || 0;
     return sum + (itemPrice * item.quantity);
   }, 0);
 
