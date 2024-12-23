@@ -1,4 +1,3 @@
-// ProductDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../components/SupabaseClient';
@@ -6,13 +5,12 @@ import { useCart } from '../context/CartContext';
 import { Heart, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { productToasts } from '../utils/toastConfig';
 import Navbar from './Navbar';
 
 const ProductDetails = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
-  const { toast } = useToast();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -28,9 +26,9 @@ const ProductDetails = () => {
         .from('products')
         .select(`
           *,
-          profiles:seller_id (
+          seller_details:seller_id (
             id,
-            email,
+            full_name,
             campus_location,
             phone
           )
@@ -41,11 +39,8 @@ const ProductDetails = () => {
       if (error) throw error;
       setProduct(data);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load product details",
-        variant: "destructive",
-      });
+      console.error('Error fetching product:', error);
+      productToasts.loadError();
     } finally {
       setLoading(false);
     }
@@ -61,7 +56,7 @@ const ProductDetails = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('product_id', id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
       setIsWishlisted(!!data);
@@ -70,15 +65,11 @@ const ProductDetails = () => {
     }
   };
 
-  const toggleWishlist = async () => {
+  const handleWishlist = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast({
-          title: "Error",
-          description: "Please login to add items to wishlist",
-          variant: "destructive",
-        });
+        productToasts.error("Please login to add items to wishlist");
         return;
       }
 
@@ -91,10 +82,7 @@ const ProductDetails = () => {
 
         if (error) throw error;
         setIsWishlisted(false);
-        toast({
-          title: "Success",
-          description: "Removed from wishlist",
-        });
+        productToasts.success("Removed from wishlist");
       } else {
         const { error } = await supabase
           .from('wishlist')
@@ -105,34 +93,26 @@ const ProductDetails = () => {
 
         if (error) throw error;
         setIsWishlisted(true);
-        toast({
-          title: "Success",
-          description: "Added to wishlist",
-        });
+        productToasts.success("Added to wishlist");
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update wishlist",
-        variant: "destructive",
-      });
+      productToasts.error();
     }
   };
 
   const handleAddToCart = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        productToasts.error("Please login to add items to cart");
+        return;
+      }
+      
       await addToCart(product);
-      toast({
-        title: "Success",
-        description: `${product.name} has been added to your cart`,
-      });
+      productToasts.success(`${product.name} added to cart`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive",
-      });
+      productToasts.error();
     }
   };
 
@@ -174,7 +154,7 @@ const ProductDetails = () => {
               className="w-full rounded-lg object-cover"
             />
             <button 
-              onClick={toggleWishlist}
+              onClick={handleWishlist}
               className="absolute top-4 right-4 p-2 rounded-full bg-white/80 hover:bg-white"
             >
               <Heart 
@@ -204,14 +184,14 @@ const ProductDetails = () => {
                   <h3 className="font-semibold mb-2">Product Details</h3>
                   <p className="text-gray-600">{product.description}</p>
                   <p className="text-gray-600">Condition: {product.condition}</p>
-                  <p className="text-gray-600">Location: {product.location || product.profiles?.campus_location}</p>
+                  <p className="text-gray-600">Location: {product.location || product.seller_details?.campus_location}</p>
                 </div>
 
                 <div>
                   <h3 className="font-semibold mb-2">Seller Information</h3>
-                  <p className="text-gray-600">Contact: {product.profiles?.email}</p>
-                  {product.profiles?.phone && (
-                    <p className="text-gray-600">Phone: {product.profiles.phone}</p>
+                  <p className="text-gray-600">Name: {product.seller_details?.full_name}</p>
+                  {product.seller_details?.phone_number && (
+                    <p className="text-gray-600">Phone: {product.seller_details.phone_number}</p>
                   )}
                 </div>
               </CardContent>
@@ -235,10 +215,7 @@ const ProductDetails = () => {
                     });
                   } else {
                     navigator.clipboard.writeText(window.location.href);
-                    toast({
-                      title: "Success",
-                      description: "Link copied to clipboard!",
-                    });
+                    productToasts.success("Link copied to clipboard!");
                   }
                 }}
               >

@@ -14,23 +14,26 @@ const ProductGrid = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log('Fetching products...');
       const { data, error } = await supabase
         .from('products')
         .select(`
           *,
           profiles:seller_id (
             id,
-            email,
+            full_name,
             campus_location
           )
         `)
         .order('created_at', { ascending: false });
 
+      console.log('Products response:', { data, error });
+
       if (error) throw error;
       setProducts(data || []);
     } catch (err) {
+      console.error('Error fetching products:', err);
       setError('Failed to load products');
-      console.error(err);
     } finally {
       setLoading(false);
     }

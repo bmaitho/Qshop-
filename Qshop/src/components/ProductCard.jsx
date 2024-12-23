@@ -1,178 +1,107 @@
-// ProductCard.jsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from '../components/SupabaseClient';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { cartToasts, wishlistToasts } from '../utils/toastConfig';
 
 const ProductCard = ({ product }) => {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const { addToCart } = useCart();
-  const { toast } = useToast();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
-    checkWishlistStatus();
-  }, [product.id]);
-
-  const checkWishlistStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('wishlist')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setIsWishlisted(!!data);
-    } catch (error) {
-      console.error('Error checking wishlist status:', error);
-    }
-  };
+    const status = isInWishlist(product.id);
+    setIsWishlisted(status);
+  }, [product.id, isInWishlist]);
 
   const handleWishlist = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "Please login to add items to wishlist",
-          variant: "destructive",
-        });
+      const token = JSON.parse(sessionStorage.getItem('token'));
+      if (!token) {
+        wishlistToasts.error("Please login to add items to wishlist");
         return;
       }
 
       if (isWishlisted) {
-        const { error } = await supabase
-          .from('wishlist')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('product_id', product.id);
-
-        if (error) throw error;
+        await removeFromWishlist(product.id);
         setIsWishlisted(false);
-        toast({
-          title: "Success",
-          description: "Removed from wishlist",
-        });
       } else {
-        const { error } = await supabase
-          .from('wishlist')
-          .insert([{
-            user_id: user.id,
-            product_id: product.id
-          }]);
-
-        if (error) throw error;
+        await addToWishlist(product);
         setIsWishlisted(true);
-        toast({
-          title: "Success",
-          description: "Added to wishlist",
-        });
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update wishlist",
-        variant: "destructive",
-      });
+      wishlistToasts.error();
     }
   };
 
   const handleAddToCart = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "Please login to add items to cart",
-          variant: "destructive",
-        });
+      const token = JSON.parse(sessionStorage.getItem('token'));
+      if (!token) {
+        cartToasts.error("Please login to add items to cart");
         return;
       }
 
       await addToCart(product);
-      toast({
-        title: "Success",
-        description: "Item added to cart",
-      });
+      cartToasts.addSuccess(product.name);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive",
-      });
+      cartToasts.error();
     }
   };
 
   return (
     <Link to={`/product/${product.id}`}>
-      <Card className="h-full hover:shadow-lg transition-shadow">
-        <CardHeader className="relative p-0">
+      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div className="relative">
           <img 
             src={product.image_url || "/api/placeholder/400/300"} 
             alt={product.name}
-            className="w-full h-48 object-cover rounded-t-lg"
+            className="w-full h-40 object-cover rounded-t-lg"
           />
           <button 
             onClick={handleWishlist}
-            className="absolute top-2 right-2 p-2 rounded-full bg-white/80 hover:bg-white"
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
           >
             <Heart 
-              className={`h-5 w-5 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
+              className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
             />
           </button>
-        </CardHeader>
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-          <div className="flex items-baseline mb-2">
-            <span className="text-xl font-bold text-orange-600">
+        </div>
+        
+        <div className="p-3">
+          <h3 className="font-medium text-sm mb-1 line-clamp-2 h-10">
+            {product.name}
+          </h3>
+          
+          <div className="flex items-baseline gap-2 mb-1">
+            <span className="text-lg font-bold text-orange-600">
               KES {product.price?.toLocaleString()}
             </span>
             {product.original_price && (
-              <span className="ml-2 text-sm text-gray-500 line-through">
+              <span className="text-xs text-gray-500 line-through">
                 KES {product.original_price?.toLocaleString()}
               </span>
             )}
           </div>
-          <div className="text-sm text-gray-600 mb-2">
+          
+          <div className="text-xs text-gray-600 mb-2 space-y-0.5">
             <p>Condition: {product.condition}</p>
             <p>Location: {product.location}</p>
           </div>
-        </CardContent>
-        <CardFooter>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  className="w-full bg-orange-600 hover:bg-orange-700"
-                  onClick={handleAddToCart}
-                >
-                  Add to Cart
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Add {product.name} to your cart</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </CardFooter>
-      </Card>
+          
+          <Button 
+            className="w-full text-sm py-1.5 h-auto"
+            onClick={handleAddToCart}
+          >
+            Add to Cart
+          </Button>
+        </div>
+      </div>
     </Link>
   );
 };

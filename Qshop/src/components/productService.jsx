@@ -1,5 +1,5 @@
-
-import { supabase } from './SupabaseClient';
+// productService.jsx
+import { supabase } from '../components/SupabaseClient';
 
 export const fetchProducts = async () => {
   try {
@@ -7,7 +7,7 @@ export const fetchProducts = async () => {
       .from('products')
       .select(`
         *,
-        profiles:seller_id (
+        seller:seller_id (
           id,
           email,
           campus_location
@@ -29,15 +29,14 @@ export const fetchProductById = async (id) => {
       .from('products')
       .select(`
         *,
-        profiles:seller_id (
+        profile:profiles!products_seller_id_fkey (
           id,
-          email,
           campus_location,
           phone
         )
       `)
       .eq('id', id)
-      .single();
+      .maybeSingle();
     
     if (error) throw error;
     return data;
@@ -53,7 +52,7 @@ export const searchProducts = async (query) => {
       .from('products')
       .select(`
         *,
-        profiles:seller_id (
+        seller:seller_id (
           id,
           email,
           campus_location
@@ -75,7 +74,7 @@ export const fetchProductsByCategory = async (category) => {
       .from('products')
       .select(`
         *,
-        profiles:seller_id (
+        seller:seller_id (
           id,
           email,
           campus_location
