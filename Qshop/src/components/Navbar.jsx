@@ -52,7 +52,7 @@ const Navbar = () => {
   };
 
   const navLinks = [
-    { name: 'Home', path: '/studentmarketplace' },
+    { name: 'Home', path: '/home' },
     {
       name: 'Categories',
       children: [
@@ -78,7 +78,12 @@ const Navbar = () => {
         },
       ],
     },
-    { name: 'Student Marketplace', path: '/marketplace' },  ];
+    { 
+      name: 'Student Marketplace', 
+      path: '/studentmarketplace',
+      highlight: true // Add this to highlight the marketplace link
+    },
+  ];
 
   const ProfileDropdown = () => (
     <DropdownMenu>
@@ -128,7 +133,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <Link to="/studentmarketplace" className="flex-shrink-0 flex items-center">
+          <Link to="/home" className="flex-shrink-0 flex items-center">
             <span className="text-2xl font-bold text-orange-600">QShop</span>
           </Link>
 
@@ -160,7 +165,11 @@ const Navbar = () => {
                 <Link
                   key={link.name}
                   to={link.path}
-                  className="text-gray-600 hover:text-orange-600 transition-colors"
+                  className={`transition-colors ${
+                    link.highlight 
+                      ? 'text-orange-600 hover:text-orange-700 font-semibold' 
+                      : 'text-gray-600 hover:text-orange-600'
+                  }`}
                 >
                   {link.name}
                 </Link>
@@ -257,7 +266,11 @@ const Navbar = () => {
                       <Link
                         key={link.name}
                         to={link.path}
-                        className="text-gray-600 hover:text-orange-600 transition-colors py-2"
+                        className={`transition-colors py-2 ${
+                          link.highlight 
+                            ? 'text-orange-600 hover:text-orange-700 font-semibold' 
+                            : 'text-gray-600 hover:text-orange-600'
+                        }`}
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         {link.name}

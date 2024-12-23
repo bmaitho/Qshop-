@@ -15,6 +15,7 @@ import Wishlist from './components/Wishlist';
 import Profile from './components/Profile';
 import CategoryPage from './components/CategoryPage';
 import NotFound from './components/NotFound';
+import Home from './components/Home';
 
 const App = () => {
   const [token, setToken] = useState(false);
@@ -27,7 +28,6 @@ const App = () => {
         const parsedToken = JSON.parse(storedToken);
         setToken(parsedToken);
       } catch (error) {
-        // Clear invalid token
         sessionStorage.removeItem('token');
       }
     }
@@ -46,8 +46,15 @@ const App = () => {
     <WishlistProvider>
       <CartProvider>
         <Routes>
+          {/* Public Routes */}
           <Route path="/signup" element={<SignUp />} />
           <Route path="/" element={<Login setToken={setToken} />} />
+          
+          {/* Protected Routes */}
+          <Route 
+            path="/home" 
+            element={token ? <Home token={token} /> : <Navigate to="/" />} 
+          />
           <Route 
             path="/studentmarketplace" 
             element={token ? <StudentMarketplace token={token} /> : <Navigate to="/" />} 
@@ -72,6 +79,8 @@ const App = () => {
             path="/category/:categoryName" 
             element={token ? <CategoryPage token={token} /> : <Navigate to="/" />} 
           />
+          
+          {/* Catch-all Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ToastContainer 
