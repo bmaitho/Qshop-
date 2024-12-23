@@ -51,10 +51,8 @@ const App = () => {
           <Route path="/" element={<Login setToken={setToken} />} />
           
           {/* Protected Routes */}
-          <Route 
-            path="/home" 
-            element={token ? <Home token={token} /> : <Navigate to="/" />} 
-          />
+          <Route path="/" element={<Login setToken={setToken} />} />
+           <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/" />} />
           <Route 
             path="/studentmarketplace" 
             element={token ? <StudentMarketplace token={token} /> : <Navigate to="/" />} 

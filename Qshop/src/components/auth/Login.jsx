@@ -42,7 +42,7 @@ const Login = ({ setToken }) => {
         autoClose: 2000,
       });
 
-      navigate('/studentmarketplace');
+      navigate('/home');
     } catch (error) {
       let errorMessage = 'Login failed';
       if (error.message.includes('Invalid')) {

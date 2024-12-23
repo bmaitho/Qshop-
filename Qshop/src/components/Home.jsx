@@ -124,7 +124,7 @@ const Home = () => {
             Join your fellow students in buying and selling course materials, 
             electronics, and more at student-friendly prices.
           </p>
-          <Link to="/marketplace">
+          <Link to="/studentmarketplace">
             <Button variant="outline" className="bg-white text-orange-600 hover:bg-orange-50">
               Explore Student Marketplace
               <ArrowRight className="ml-2 h-4 w-4" />
