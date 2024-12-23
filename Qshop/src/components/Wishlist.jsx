@@ -1,80 +1,69 @@
-// Wishlist.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useCart } from '../context/CartContext';
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from '../components/SupabaseClient';
+import { useWishlist } from '../context/WishlistContext';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './Navbar';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Wishlist = () => {
-  const [wishlist, setWishlist] = useState([]);
-  const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
-  const { toast } = useToast();
+  const { wishlist, removeFromWishlist, clearWishlist } = useWishlist();
+  const [quantities, setQuantities] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchWishlist();
-  }, []);
-
-  const fetchWishlist = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
-        .from('wishlist')
-        .select(`
-          *,
-          products (*)
-        `)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setWishlist(data || []);
-    } catch (error) {
-      console.error('Error fetching wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch wishlist items",
-        variant: "destructive",
+    if (wishlist && wishlist.length > 0) {
+      const initialQuantities = {};
+      wishlist.forEach(item => {
+        if (item?.products) {
+          initialQuantities[item.products.id] = 1;
+        }
       });
-    } finally {
-      setLoading(false);
+      setQuantities(initialQuantities);
     }
+    setLoading(false);
+  }, [wishlist]);
+
+  const handleRemoveFromWishlist = async (productId, productName) => {
+    await removeFromWishlist(productId, productName);
   };
 
-  const removeFromWishlist = async (productId) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from('wishlist')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('product_id', productId);
-
-      if (error) throw error;
-      setWishlist(wishlist.filter(item => item.product_id !== productId));
-      toast({
-        title: "Success",
-        description: "Item removed from wishlist",
-      });
-    } catch (error) {
-      console.error('Error removing from wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove item from wishlist",
-        variant: "destructive",
-      });
-    }
+  const handleClearWishlist = async () => {
+    await clearWishlist();
   };
 
-  const handleAddToCart = async (product) => {
-    await addToCart(product);
-    await removeFromWishlist(product.id);
-    toast({
-      title: "Success",
-      description: "Item moved to cart",
-    });
+  const handleMoveToCart = async (item) => {
+    if (!item?.products) return;
+    
+    const quantity = quantities[item.products.id] || 1;
+    const productWithQuantity = { 
+      ...item.products, 
+      quantity 
+    };
+    
+    await addToCart(productWithQuantity);
+    await removeFromWishlist(item.products.id, item.products.name);
+  };
+
+  const updateQuantity = (productId, newQuantity) => {
+    if (newQuantity > 0) {
+      setQuantities(prev => ({
+        ...prev,
+        [productId]: newQuantity
+      }));
+    }
   };
 
   if (loading) {
@@ -92,7 +81,7 @@ const Wishlist = () => {
     );
   }
 
-  if (wishlist.length === 0) {
+  if (!wishlist || wishlist.length === 0) {
     return (
       <>
         <Navbar />
@@ -100,8 +89,8 @@ const Wishlist = () => {
           <div className="text-center py-16">
             <h2 className="text-2xl font-bold mb-4">Your Wishlist is Empty</h2>
             <p className="text-gray-600 mb-8">Save items you'd like to purchase later</p>
-            <Link to="/">
-              <Button>Browse Products</Button>
+            <Link to="/studentmarketplace">
+              <Button>Continue Shopping</Button>
             </Link>
           </div>
         </div>
@@ -113,43 +102,121 @@ const Wishlist = () => {
     <>
       <Navbar />
       <div className="max-w-7xl mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6">My Wishlist</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {wishlist.map((item) => (
-            <div 
-              key={item.id}
-              className="bg-white rounded-lg shadow p-4"
-            >
-              <div className="relative">
+        <ToastContainer />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">My Wishlist ({wishlist.length} items)</h1>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">Clear Wishlist</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear Wishlist</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to remove all items from your wishlist?
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <Button variant="outline">Cancel</Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleClearWishlist}
+                >
+                  Clear Wishlist
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        <div className="space-y-4">
+          {wishlist.map((item) => {
+            if (!item?.products) return null;
+            
+            return (
+              <div 
+                key={item.id}
+                className="flex items-center space-x-4 bg-white rounded-lg shadow p-4"
+              >
                 <img 
                   src={item.products.image_url || "/api/placeholder/200/200"}
                   alt={item.products.name}
-                  className="w-full h-48 object-cover rounded-lg mb-4"
+                  className="w-24 h-24 object-cover rounded"
                 />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2"
-                  onClick={() => removeFromWishlist(item.product_id)}
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                <div className="flex-1">
+                  <Link 
+                    to={`/product/${item.products.id}`}
+                    className="font-semibold text-lg hover:text-orange-600"
+                  >
+                    {item.products.name}
+                  </Link>
+                  <p className="text-xl font-bold text-orange-600">
+                    KES {item.products.price?.toLocaleString()}
+                  </p>
+                  {item.products.original_price && (
+                    <p className="text-sm text-gray-500 line-through">
+                      KES {item.products.original_price?.toLocaleString()}
+                    </p>
+                  )}
+                  <div className="text-sm text-gray-600 mt-1">
+                    <p>Condition: {item.products.condition}</p>
+                    <p>Location: {item.products.location}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) - 1)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-12 text-center font-medium">
+                      {quantities[item.products.id] || 1}
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) + 1)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex items-center gap-2"
+                      onClick={() => handleMoveToCart(item)}
+                    >
+                      <ShoppingCart className="h-4 w-4" />
+                      Move to Cart
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveFromWishlist(item.products.id, item.products.name)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <Link 
-                to={`/product/${item.product_id}`}
-                className="font-semibold hover:text-orange-600"
-              >
-                {item.products.name}
-              </Link>
-              <p className="text-gray-600 mb-4">KES {item.products.price}</p>
-              <Button 
-                className="w-full"
-                onClick={() => handleAddToCart(item.products)}
-              >
-                Move to Cart
-              </Button>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex justify-between">
+          <Link to="/studentmarketplace">
+            <Button variant="outline">Continue Shopping</Button>
+          </Link>
+          <Link to="/cart">
+            <Button>View Cart</Button>
+          </Link>
         </div>
       </div>
     </>

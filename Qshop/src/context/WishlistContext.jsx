@@ -1,101 +1,113 @@
-// WishlistContext.jsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../components/SupabaseClient';
+import { wishlistToasts, productToasts } from '../utils/toastConfig';
 
-const USER_ID = '4d070188-d06e-4897-91c7-6e9797bd6bca';
 const WishlistContext = createContext();
 
 export const WishlistProvider = ({ children }) => {
   const [wishlist, setWishlist] = useState([]);
-  const { toast } = useToast();
+  const [token, setToken] = useState(null);
 
   useEffect(() => {
-    fetchWishlist();
+    const storedToken = sessionStorage.getItem('token');
+    if (storedToken) {
+      setToken(JSON.parse(storedToken));
+    }
   }, []);
 
-  const fetchWishlist = async () => {
+  const fetchWishlist = useCallback(async () => {
+    if (!token) return;
+    
     try {
       const { data, error } = await supabase
         .from('wishlist')
-        .select('*, product:products(*)')
-        .eq('user_id', USER_ID);
+        .select(`
+          id,
+          products:product_id (
+            id,
+            name,
+            price,
+            original_price,
+            image_url,
+            description,
+            condition,
+            location
+          )
+        `)
+        .eq('user_id', token.user.id);
 
       if (error) throw error;
       setWishlist(data || []);
     } catch (error) {
       console.error('Error fetching wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch wishlist items",
-        variant: "destructive",
-      });
+      productToasts.loadError();
     }
-  };
+  }, [token]);
 
-  const isInWishlist = async (productId) => {
-    try {
-      const { data, error } = await supabase
-        .from('wishlist')
-        .select('id')
-        .eq('user_id', USER_ID)
-        .eq('product_id', productId)
-        .single();
+  useEffect(() => {
+    fetchWishlist();
+  }, [fetchWishlist]);
 
-      if (error && error.code !== 'PGRST116') throw error;
-      return !!data;
-    } catch (error) {
-      console.error('Error checking wishlist status:', error);
-      return false;
-    }
-  };
+  const isInWishlist = useCallback((productId) => {
+    return wishlist.some(item => item.products?.id === productId);
+  }, [wishlist]);
 
   const addToWishlist = async (product) => {
+    if (!token) {
+      wishlistToasts.error("Please login to add items to wishlist");
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('wishlist')
-        .insert([{
-          user_id: USER_ID,
+        .insert({
+          user_id: token.user.id,
           product_id: product.id
-        }]);
+        })
+        .select(`
+          id,
+          products:product_id (*)
+        `)
+        .single();
 
       if (error) throw error;
-      await fetchWishlist();
-      toast({
-        title: "Added to wishlist",
-        description: `${product.name} has been added to your wishlist`
-      });
+      
+      await fetchWishlist(); // Refresh wishlist
+      wishlistToasts.addSuccess(product.name);
     } catch (error) {
       console.error('Error adding to wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add item to wishlist",
-        variant: "destructive",
-      });
+      wishlistToasts.error();
     }
   };
 
-  const removeFromWishlist = async (productId) => {
+  const removeFromWishlist = async (productId, productName) => {
+    if (!token) return;
+
     try {
       const { error } = await supabase
         .from('wishlist')
         .delete()
-        .eq('user_id', USER_ID)
-        .eq('product_id', productId);
+        .match({ 
+          user_id: token.user.id,
+          product_id: productId 
+        });
 
       if (error) throw error;
-      await fetchWishlist();
-      toast({
-        title: "Removed from wishlist",
-        description: "Item has been removed from your wishlist"
-      });
+      
+      await fetchWishlist(); // Refresh wishlist
+      wishlistToasts.removeSuccess(productName);
     } catch (error) {
       console.error('Error removing from wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove item from wishlist",
-        variant: "destructive",
-      });
+      wishlistToasts.error();
+    }
+  };
+
+  const toggleWishlist = async (product) => {
+    if (isInWishlist(product.id)) {
+      await removeFromWishlist(product.id, product.name);
+    } else {
+      await addToWishlist(product);
     }
   };
 
@@ -104,7 +116,8 @@ export const WishlistProvider = ({ children }) => {
       wishlist,
       addToWishlist,
       removeFromWishlist,
-      isInWishlist
+      isInWishlist,
+      toggleWishlist
     }}>
       {children}
     </WishlistContext.Provider>
