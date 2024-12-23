@@ -4,9 +4,7 @@ export default {
 	content: [
 	  "./index.html",
 	  "./src/**/*.{js,ts,jsx,tsx}",
-	
 	  "./node_modules/@shadcn/ui/**/*.{js,ts,jsx,tsx}",
-	  
 	],
 	theme: {
 	  container: {
@@ -73,8 +71,5 @@ export default {
 		},
 	  },
 	},
-	plugins: [
-	  require('tailwindcss-animate'), // Ensure this uses require()
-	],
-  };
-  
+	plugins: ["tailwindcss-animate"],
+  }
