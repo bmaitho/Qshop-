@@ -1,5 +1,4 @@
-// src/components/Navbar.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, 
@@ -7,11 +6,13 @@ import {
   Menu, 
   User,
   LogOut,
-  Settings,
   Package,
   ChevronDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { toast } from 'react-toastify';
 import {
   Sheet,
   SheetContent,
@@ -27,32 +28,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useToast } from '@/components/ui/use-toast';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { cart } = useCart();
+  const { wishlist } = useWishlist();
+  const [userData, setUserData] = useState(null);
   
-  // For demo purposes, we'll set this to true by default
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [user] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    avatar: "/api/placeholder/32/32"
-  });
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    if (token) {
+      const user = JSON.parse(token);
+      setUserData(user);
+    }
+  }, []);
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    toast({
-      title: "Logged out successfully",
-      duration: 2000
-    });
+    sessionStorage.removeItem('token');
+    setUserData(null);
+    toast.success('Logged out successfully');
     navigate('/');
   };
 
   const navLinks = [
-    { name: 'Home', path: '/' },
+    { name: 'Home', path: '/studentmarketplace' },
     {
       name: 'Categories',
       children: [
@@ -78,16 +78,15 @@ const Navbar = () => {
         },
       ],
     },
-    { name: 'Student Marketplace', path: '/marketplace' },
-  ];
+    { name: 'Student Marketplace', path: '/marketplace' },  ];
 
   const ProfileDropdown = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-4 w-4" />
+            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <User className="h-4 w-4 text-orange-600" />
             </div>
             <ChevronDown className="h-4 w-4" />
           </div>
@@ -96,8 +95,7 @@ const Navbar = () => {
       <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
-            <p className="text-xs leading-none text-gray-500">{user.email}</p>
+            <p className="text-sm font-medium leading-none">{userData?.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -108,15 +106,9 @@ const Navbar = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/my-listings" className="cursor-pointer flex items-center">
+          <Link to="/profile" className="cursor-pointer flex items-center">
             <Package className="mr-2 h-4 w-4" />
             <span>My Listings</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/settings" className="cursor-pointer flex items-center">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -136,8 +128,8 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <Link to="/" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-primary">QShop</span>
+          <Link to="/studentmarketplace" className="flex-shrink-0 flex items-center">
+            <span className="text-2xl font-bold text-orange-600">QShop</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -146,7 +138,7 @@ const Navbar = () => {
               if (link.children) {
                 return (
                   <div key={link.name} className="relative group">
-                    <button className="text-gray-600 hover:text-primary transition-colors">
+                    <button className="text-gray-600 hover:text-orange-600 transition-colors">
                       {link.name}
                     </button>
                     <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200">
@@ -168,7 +160,7 @@ const Navbar = () => {
                 <Link
                   key={link.name}
                   to={link.path}
-                  className="text-gray-600 hover:text-primary transition-colors"
+                  className="text-gray-600 hover:text-orange-600 transition-colors"
                 >
                   {link.name}
                 </Link>
@@ -178,20 +170,30 @@ const Navbar = () => {
 
           {/* Desktop Right Section */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link to="/wishlist">
+            <Link to="/wishlist" className="relative">
               <Button variant="ghost" size="icon">
                 <Heart className="h-5 w-5" />
+                {wishlist?.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {wishlist.length}
+                  </span>
+                )}
               </Button>
             </Link>
-            <Link to="/cart">
+            <Link to="/cart" className="relative">
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="h-5 w-5" />
+                {cart?.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {cart.length}
+                  </span>
+                )}
               </Button>
             </Link>
-            {isAuthenticated ? (
+            {userData ? (
               <ProfileDropdown />
             ) : (
-              <Link to="/login">
+              <Link to="/">
                 <Button>Sign In</Button>
               </Link>
             )}
@@ -199,9 +201,14 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-4">
-            <Link to="/cart">
+            <Link to="/cart" className="relative">
               <Button variant="ghost" size="icon">
                 <ShoppingCart className="h-5 w-5" />
+                {cart?.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {cart.length}
+                  </span>
+                )}
               </Button>
             </Link>
             <Sheet>
@@ -215,14 +222,13 @@ const Navbar = () => {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <div className="flex flex-col space-y-4 mt-4">
-                  {isAuthenticated && (
+                  {userData && (
                     <div className="flex items-center space-x-2 p-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-4 w-4" />
+                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                        <User className="h-4 w-4 text-orange-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                        <p className="text-sm font-medium">{userData.email}</p>
                       </div>
                     </div>
                   )}
@@ -236,7 +242,7 @@ const Navbar = () => {
                               <Link
                                 key={child.name}
                                 to={child.path}
-                                className="flex items-center text-gray-600 hover:text-primary transition-colors py-2"
+                                className="flex items-center text-gray-600 hover:text-orange-600 transition-colors py-2"
                                 onClick={() => setIsMobileMenuOpen(false)}
                               >
                                 <span className="mr-2">{child.icon}</span>
@@ -251,7 +257,7 @@ const Navbar = () => {
                       <Link
                         key={link.name}
                         to={link.path}
-                        className="text-gray-600 hover:text-primary transition-colors py-2"
+                        className="text-gray-600 hover:text-orange-600 transition-colors py-2"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
                         {link.name}
@@ -262,16 +268,17 @@ const Navbar = () => {
                     <Link to="/wishlist" className="flex items-center space-x-2 py-2">
                       <Heart className="h-5 w-5" />
                       <span>Wishlist</span>
+                      {wishlist?.length > 0 && (
+                        <span className="bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center ml-auto">
+                          {wishlist.length}
+                        </span>
+                      )}
                     </Link>
-                    {isAuthenticated ? (
+                    {userData ? (
                       <>
-                        <Link to="/my-listings" className="flex items-center space-x-2 py-2">
+                        <Link to="/profile" className="flex items-center space-x-2 py-2">
                           <Package className="h-5 w-5" />
                           <span>My Listings</span>
-                        </Link>
-                        <Link to="/settings" className="flex items-center space-x-2 py-2">
-                          <Settings className="h-5 w-5" />
-                          <span>Settings</span>
                         </Link>
                         <button
                           onClick={handleLogout}
@@ -282,7 +289,7 @@ const Navbar = () => {
                         </button>
                       </>
                     ) : (
-                      <Link to="/login" className="flex items-center space-x-2 py-2">
+                      <Link to="/" className="flex items-center space-x-2 py-2">
                         <User className="h-5 w-5" />
                         <span>Sign In</span>
                       </Link>
