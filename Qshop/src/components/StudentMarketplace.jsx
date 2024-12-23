@@ -9,7 +9,7 @@ import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import ProductGrid from './ProductGrid';
 
-const StudentMarketplace = () => {
+const StudentMarketplace = ({token}) => {
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ const StudentMarketplace = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex flex-col space-y-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-800">Student Marketplace</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Welcome, {token.user.user_metadata.full_name}</h1>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" className="lg:hidden">
