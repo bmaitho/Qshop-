@@ -1,10 +1,11 @@
-// Profile.jsx
 import React, { useEffect, useState } from 'react';
 import { User, MapPin, Package, Heart } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from '../components/SupabaseClient';
+import { ToastContainer } from 'react-toastify';
+import { productToasts, wishlistToasts } from '../utils/toastConfig';
+import 'react-toastify/dist/ReactToastify.css';
 import ProductCard from './ProductCard';
 
 const Profile = () => {
@@ -13,7 +14,6 @@ const Profile = () => {
   const [userListings, setUserListings] = useState([]);
   const [userWishlist, setUserWishlist] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchUserData();
@@ -32,7 +32,6 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch profile data
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -41,7 +40,6 @@ const Profile = () => {
 
       if (error) throw error;
 
-      // Get counts
       const [listingsCount, wishlistCount] = await Promise.all([
         supabase
           .from('products')
@@ -61,11 +59,7 @@ const Profile = () => {
       });
     } catch (error) {
       console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile data",
-        variant: "destructive",
-      });
+      productToasts.loadError();
     } finally {
       setLoading(false);
     }
@@ -84,11 +78,7 @@ const Profile = () => {
       setUserListings(data || []);
     } catch (error) {
       console.error('Error fetching listings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load user listings",
-        variant: "destructive",
-      });
+      productToasts.loadError();
     }
   };
 
@@ -107,11 +97,7 @@ const Profile = () => {
       setUserWishlist(data || []);
     } catch (error) {
       console.error('Error fetching wishlist:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load wishlist",
-        variant: "destructive",
-      });
+      wishlistToasts.error();
     }
   };
 
@@ -143,6 +129,7 @@ const Profile = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      <ToastContainer />
       <Card className="mb-8">
         <CardContent className="p-6">
           <div className="flex items-start gap-6">
