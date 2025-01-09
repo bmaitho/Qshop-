@@ -82,3 +82,15 @@ export const productToasts = {
   deleteSuccess: () => toastSuccess("Product deleted successfully"),
   error: () => toastError("An error occurred"),
 };
+export const shopToasts = {
+  loadError: () => toastError("Failed to load shop data"),
+  statsError: () => toastError("Failed to load shop statistics"),
+  updateSuccess: () => toastSuccess("Shop settings updated successfully"),
+  updateError: () => toastError("Failed to update shop settings"),
+  addProductSuccess: () => toastSuccess("Product added successfully"),
+  addProductError: () => toastError("Failed to add product"),
+  deleteProductSuccess: () => toastSuccess("Product deleted successfully"),
+  deleteProductError: () => toastError("Failed to delete product"),
+  statusUpdateSuccess: (status) => toastSuccess(`Product marked as ${status}`),
+  statusUpdateError: () => toastError("Failed to update product status"),
+};

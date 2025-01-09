@@ -115,22 +115,8 @@ const Home = () => {
           ))}
         </div>
 
-        {/* Student Section */}
-        <div className="bg-orange-600 text-white rounded-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">
-            Campus Community Marketplace
-          </h2>
-          <p className="mb-6 max-w-2xl mx-auto">
-            Join your fellow students in buying and selling course materials, 
-            electronics, and more at student-friendly prices.
-          </p>
-          <Link to="/studentmarketplace">
-            <Button variant="outline" className="bg-white text-orange-600 hover:bg-orange-50">
-              Explore Student Marketplace
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
+        
+        
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import Profile from './components/Profile';
 import CategoryPage from './components/CategoryPage';
 import NotFound from './components/NotFound';
 import Home from './components/Home';
+import MyShop from './components/MyShop';
 
 const App = () => {
   const [token, setToken] = useState(false);
@@ -60,6 +61,10 @@ const App = () => {
           <Route 
             path="/product/:id" 
             element={token ? <ProductDetails token={token} /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/MyShop" 
+            element={token ? <MyShop token={token} /> : <Navigate to="/" />} 
           />
           <Route 
             path="/cart" 

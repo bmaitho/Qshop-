@@ -1,12 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, MoreVertical } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { cartToasts, wishlistToasts } from '../utils/toastConfig';
 
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => {
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -54,6 +73,92 @@ const ProductCard = ({ product }) => {
     }
   };
 
+  const getStatusBadge = () => {
+    switch (product.status) {
+      case 'sold':
+        return <Badge className="bg-blue-500">Sold</Badge>;
+      case 'out_of_stock':
+        return <Badge className="bg-red-500">Out of Stock</Badge>;
+      default:
+        return <Badge className="bg-green-500">Active</Badge>;
+    }
+  };
+
+  const renderOwnerControls = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 left-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
+          onClick={(e) => e.preventDefault()}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem 
+          onClick={(e) => {
+            e.preventDefault();
+            onStatusChange(product.id, 'active');
+          }}
+          disabled={product.status === 'active'}
+        >
+          Mark as Active
+        </DropdownMenuItem>
+        <DropdownMenuItem 
+          onClick={(e) => {
+            e.preventDefault();
+            onStatusChange(product.id, 'sold');
+          }}
+          disabled={product.status === 'sold'}
+        >
+          Mark as Sold
+        </DropdownMenuItem>
+        <DropdownMenuItem 
+          onClick={(e) => {
+            e.preventDefault();
+            onStatusChange(product.id, 'out_of_stock');
+          }}
+          disabled={product.status === 'out_of_stock'}
+        >
+          Mark as Out of Stock
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <DropdownMenuItem 
+              className="text-red-600"
+              onClick={(e) => e.preventDefault()}
+            >
+              Delete Listing
+            </DropdownMenuItem>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Product</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this product? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-red-600 hover:bg-red-700"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onDelete(product.id);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <Link to={`/product/${product.id}`}>
       <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -63,14 +168,23 @@ const ProductCard = ({ product }) => {
             alt={product.name}
             className="w-full h-40 object-cover rounded-t-lg"
           />
-          <button 
-            onClick={handleWishlist}
-            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
-          >
-            <Heart 
-              className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
-            />
-          </button>
+          {isOwner ? (
+            <>
+              {renderOwnerControls()}
+              <div className="absolute top-2 right-2">
+                {getStatusBadge()}
+              </div>
+            </>
+          ) : (
+            <button 
+              onClick={handleWishlist}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
+            >
+              <Heart 
+                className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
+              />
+            </button>
+          )}
         </div>
         
         <div className="p-3">
@@ -94,12 +208,15 @@ const ProductCard = ({ product }) => {
             <p>Location: {product.location}</p>
           </div>
           
-          <Button 
-            className="w-full text-sm py-1.5 h-auto"
-            onClick={handleAddToCart}
-          >
-            Add to Cart
-          </Button>
+          {!isOwner && (
+            <Button 
+              className="w-full text-sm py-1.5 h-auto"
+              onClick={handleAddToCart}
+              disabled={product.status !== 'active'}
+            >
+              {product.status === 'active' ? 'Add to Cart' : 'Not Available'}
+            </Button>
+          )}
         </div>
       </div>
     </Link>

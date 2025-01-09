@@ -53,36 +53,16 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Home', path: '/home' },
-    {
-      name: 'Categories',
-      children: [
-        {
-          name: 'Electronics',
-          path: '/category/electronics',
-          icon: '💻',
-        },
-        {
-          name: 'Books',
-          path: '/category/books',
-          icon: '📚',
-        },
-        {
-          name: 'Furniture',
-          path: '/category/furniture',
-          icon: '🪑',
-        },
-        {
-          name: 'Clothing',
-          path: '/category/clothing',
-          icon: '👕',
-        },
-      ],
-    },
+   
     { 
       name: 'Student Marketplace', 
       path: '/studentmarketplace',
-      highlight: true // Add this to highlight the marketplace link
+      highlight: false
     },
+    {
+      name: 'My shop',
+      path :'/myshop'
+    }
   ];
 
   const ProfileDropdown = () => (

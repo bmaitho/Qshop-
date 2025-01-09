@@ -44,22 +44,7 @@ const StudentMarketplace = ({token}) => {
     }
   };
 
-  const FilterContent = () => (
-    <div className="space-y-4">
-      <h3 className="font-semibold">Categories</h3>
-      <div className="space-y-2">
-        {categories.map((category) => (
-          <button
-            key={category}
-            onClick={() => navigate(`/category/${category}`)}
-            className="block w-full text-left px-2 py-1.5 rounded hover:bg-gray-100"
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -75,9 +60,7 @@ const StudentMarketplace = ({token}) => {
                   Filters
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right">
-                <FilterContent />
-              </SheetContent>
+            
             </Sheet>
           </div>
 
@@ -94,12 +77,7 @@ const StudentMarketplace = ({token}) => {
         </div>
         
         <div className="flex gap-6">
-          {/* Desktop filters */}
-          <div className="hidden lg:block w-64 space-y-6">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <FilterContent />
-            </div>
-          </div>
+          
           
           {/* Main content */}
           <main className="flex-1">
