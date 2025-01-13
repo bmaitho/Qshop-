@@ -26,6 +26,8 @@ import {
 import { initiateMpesaPayment } from '../Services/mpesaService';
 import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
 
+const DELIVERY_FEE = 1; // 1 shilling for testing
+
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total, clearCart } = useCart();
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -44,13 +46,13 @@ const Cart = () => {
   
       const response = await initiateMpesaPayment(
         phoneNumber,
-        parseInt(total + 200) // Including delivery fee
+        parseInt(total + DELIVERY_FEE) // Using 1 shilling delivery fee
       );
   
       if (response.success) {
         toastSuccess(response.message || "Please check your phone for the M-Pesa prompt");
         setIsPaymentDialogOpen(false);
-        setPhoneNumber(''); // Reset phone number after successful payment
+        setPhoneNumber('');
       } else {
         throw new Error(response.error);
       }
@@ -158,12 +160,12 @@ const Cart = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  <span>KES 1.00</span>
+                  <span>KES {DELIVERY_FEE.toFixed(2)}</span>
                 </div>
                 <div className="border-t pt-2 font-bold">
                   <div className="flex justify-between">
                     <span>Total</span>
-                    <span>KES {(total + 200).toFixed(2)}</span>
+                    <span>KES {(total + DELIVERY_FEE).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -200,7 +202,7 @@ const Cart = () => {
                     <div className="space-y-2">
                       <div className="font-medium">Amount to Pay</div>
                       <div className="text-2xl font-bold">
-                        KES {(total + 1).toFixed(2)}
+                        KES {(total + DELIVERY_FEE).toFixed(2)}
                       </div>
                     </div>
                     <Button 
