@@ -1,4 +1,3 @@
-// Cart.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
@@ -24,53 +23,57 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
 import { initiateMpesaPayment } from '../services/mpesaService';
+import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total, clearCart } = useCart();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { toast } = useToast();
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   const handleMpesaPayment = async (e) => {
     e.preventDefault();
     setIsProcessing(true);
-
+  
     try {
-      // Format phone number
-      let formattedPhone = phoneNumber;
-      if (phoneNumber.startsWith('0')) {
-        formattedPhone = '254' + phoneNumber.slice(1);
+      if (!phoneNumber.trim()) {
+        toastError("Please enter a valid phone number");
+        return;
       }
-      if (!phoneNumber.startsWith('254')) {
-        formattedPhone = '254' + phoneNumber;
-      }
-
+  
       const response = await initiateMpesaPayment(
-        parseInt(formattedPhone),
+        phoneNumber,
         parseInt(total + 200) // Including delivery fee
       );
-
+  
       if (response.success) {
-        toast({
-          title: "Payment Initiated",
-          description: "Please check your phone for the M-Pesa prompt",
-        });
+        toastSuccess(response.message || "Please check your phone for the M-Pesa prompt");
         setIsPaymentDialogOpen(false);
+        setPhoneNumber(''); // Reset phone number after successful payment
       } else {
         throw new Error(response.error);
       }
     } catch (error) {
-      toast({
-        title: "Payment Failed",
-        description: error.message || "Failed to initiate payment. Please try again.",
-        variant: "destructive",
-      });
+      toastError(error.message || "Failed to initiate payment. Please try again.");
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleRemoveFromCart = (itemId, itemName) => {
+    removeFromCart(itemId);
+    cartToasts.removeSuccess(itemName);
+  };
+
+  const handleUpdateQuantity = (itemId, newQuantity) => {
+    updateQuantity(itemId, newQuantity);
+    cartToasts.updateSuccess();
+  };
+
+  const handleClearCart = () => {
+    clearCart();
+    cartToasts.clearSuccess();
   };
 
   if (cart.length === 0) {
@@ -121,7 +124,7 @@ const Cart = () => {
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}
+                    onClick={() => handleUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
@@ -129,7 +132,7 @@ const Cart = () => {
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -137,7 +140,7 @@ const Cart = () => {
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  onClick={() => removeFromCart(item.id)}
+                  onClick={() => handleRemoveFromCart(item.id, item.name)}
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
@@ -155,7 +158,7 @@ const Cart = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  <span>KES 200.00</span>
+                  <span>KES 1.00</span>
                 </div>
                 <div className="border-t pt-2 font-bold">
                   <div className="flex justify-between">
@@ -229,7 +232,7 @@ const Cart = () => {
                     <Button variant="outline">Cancel</Button>
                     <Button 
                       variant="destructive" 
-                      onClick={clearCart}
+                      onClick={handleClearCart}
                     >
                       Clear Cart
                     </Button>
