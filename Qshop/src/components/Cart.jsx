@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { initiateMpesaPayment } from '../services/mpesaService';
+import { initiateMpesaPayment } from '../Services/mpesaService';
 import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
 
 const Cart = () => {

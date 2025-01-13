@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "backend": "cd backend && npm run dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run backend\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -45,6 +46,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
     "eslint": "^9.15.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
