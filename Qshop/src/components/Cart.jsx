@@ -34,6 +34,8 @@ const Cart = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
+  
+
   const handleMpesaPayment = async (e) => {
     e.preventDefault();
     setIsProcessing(true);

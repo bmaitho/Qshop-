@@ -60,15 +60,30 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   const handleAddToCart = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
+      // Debug authentication
+      function checkAuth() {
+        const token = sessionStorage.getItem('token');
+        console.log('Token exists:', !!token);
+        if (token) {
+          const parsed = JSON.parse(token);
+          console.log('User ID:', parsed?.user?.id);
+        }
+        return !!token;
+      }
+      
+      // Call the debug function
+      checkAuth();
+      
       const token = JSON.parse(sessionStorage.getItem('token'));
       if (!token) {
         cartToasts.error("Please login to add items to cart");
         return;
       }
-
+  
       await addToCart(product);
       cartToasts.addSuccess(product.name);
     } catch (error) {
+      console.error('Error adding to cart:', error);
       cartToasts.error();
     }
   };
