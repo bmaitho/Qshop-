@@ -8,5 +8,17 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src")
     }
+  },
+  // Add these configurations for SPA routing
+  server: {
+    historyApiFallback: true,
+  },
+  preview: {
+    historyApiFallback: true,
+  },
+  build: {
+    outDir: 'dist',
+    // Ensure the router works properly in production
+    assetsDir: 'assets',
   }
 })
