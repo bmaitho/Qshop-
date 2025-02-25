@@ -18,6 +18,11 @@ import NotFound from './components/NotFound';
 import Home from './components/Home';
 import MyShop from './components/MyShop';
 
+// Protected route wrapper component
+const ProtectedRoute = ({ element, token }) => {
+  return token ? element : <Navigate to="/login" replace />;
+};
+
 const App = () => {
   const [token, setToken] = useState(false);
 
@@ -49,38 +54,46 @@ const App = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/" element={<Login setToken={setToken} />} />
+          <Route path="/login" element={<Login setToken={setToken} />} />
+          
+          {/* Redirect root to login or home based on authentication */}
+          <Route 
+            path="/" 
+            element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
+          />
           
           {/* Protected Routes */}
-          <Route path="/" element={<Login setToken={setToken} />} />
-           <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/" />} />
+          <Route 
+            path="/home" 
+            element={<ProtectedRoute element={<Home token={token} />} token={token} />} 
+          />
           <Route 
             path="/studentmarketplace" 
-            element={token ? <StudentMarketplace token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<StudentMarketplace token={token} />} token={token} />} 
           />
           <Route 
             path="/product/:id" 
-            element={token ? <ProductDetails token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<ProductDetails token={token} />} token={token} />} 
           />
           <Route 
-            path="/MyShop" 
-            element={token ? <MyShop token={token} /> : <Navigate to="/" />} 
+            path="/myshop" 
+            element={<ProtectedRoute element={<MyShop token={token} />} token={token} />} 
           />
           <Route 
             path="/cart" 
-            element={token ? <Cart token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<Cart token={token} />} token={token} />} 
           />
           <Route 
             path="/wishlist" 
-            element={token ? <Wishlist token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<Wishlist token={token} />} token={token} />} 
           />
           <Route 
             path="/profile" 
-            element={token ? <Profile token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<Profile token={token} />} token={token} />} 
           />
           <Route 
             path="/category/:categoryName" 
-            element={token ? <CategoryPage token={token} /> : <Navigate to="/" />} 
+            element={<ProtectedRoute element={<CategoryPage token={token} />} token={token} />} 
           />
           
           {/* Catch-all Route */}
