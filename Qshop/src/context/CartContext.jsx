@@ -120,40 +120,52 @@ export const CartProvider = ({ children }) => {
   }, [token?.user?.id]);
 
   const addToCart = async (product) => {
+    console.log('Starting addToCart with token:', token);
+    
     if (!token?.user?.id) {
+      console.log('No user ID found in token');
       toast.error('Please login to add items to cart');
       return;
     }
-
+  
     if (!product.id || !product.name || !product.price) {
       console.error('Invalid product data:', product);
       toast.error('Could not add item - missing product information');
       return;
     }
-
+  
     try {
       // Optimistic update
       dispatch({ type: 'ADD_TO_CART', payload: product });
-
+      console.log('Dispatched optimistic update');
+  
       const existingItem = state.items.find(item => item.id === product.id);
       const quantity = existingItem ? existingItem.quantity + 1 : 1;
-
-      const { error } = await supabase
+  
+      console.log('About to send Supabase request with:', {
+        user_id: token.user.id,
+        product_id: product.id,
+        quantity
+      });
+  
+      const response = await supabase
         .from('cart')
         .upsert({
           user_id: token.user.id,
           product_id: product.id,
           quantity
         });
-
-      if (error) throw error;
-
+        
+      console.log('Supabase response:', response);
+  
+      if (response.error) throw response.error;
+  
       toast.success(`${product.name} added to cart`, {
         position: "top-right",
         autoClose: 2000
       });
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('Error details:', error);
       toast.error('Failed to add item to cart');
       // Revert optimistic update
       const { data } = await supabase
