@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
-import { toast } from 'react-toastify';
+// CartContext.jsx
+import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { supabase } from '../components/SupabaseClient';
+import { useToast } from "@/components/ui/use-toast";
 
 const CartContext = createContext();
 
@@ -11,44 +12,11 @@ const cartReducer = (state, action) => {
         ...state,
         items: action.payload
       };
-
-    case 'ADD_TO_CART':
-      const existingItemIndex = state.items.findIndex(item => item.id === action.payload.id);
-      if (existingItemIndex >= 0) {
-        const updatedItems = [...state.items];
-        updatedItems[existingItemIndex].quantity += 1;
-        return {
-          ...state,
-          items: updatedItems
-        };
-      }
-      return {
-        ...state,
-        items: [...state.items, { ...action.payload, quantity: 1 }]
-      };
-
-    case 'REMOVE_FROM_CART':
-      return {
-        ...state,
-        items: state.items.filter(item => item.id !== action.payload)
-      };
-
-    case 'UPDATE_QUANTITY':
-      return {
-        ...state,
-        items: state.items.map(item =>
-          item.id === action.payload.id
-            ? { ...item, quantity: action.payload.quantity }
-            : item
-        )
-      };
-
     case 'CLEAR_CART':
       return {
         ...state,
         items: []
       };
-
     default:
       return state;
   }
@@ -56,248 +24,189 @@ const cartReducer = (state, action) => {
 
 export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
-  const [token, setToken] = useState(null);
+  const { toast } = useToast();
 
-  // Get token from sessionStorage
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('token');
-    if (storedToken) {
-      setToken(JSON.parse(storedToken));
-    }
+    // Initial cart fetch
+    fetchCart();
 
-    // Listen for token changes
-    const handleStorageChange = () => {
-      const updatedToken = sessionStorage.getItem('token');
-      if (updatedToken) {
-        setToken(JSON.parse(updatedToken));
-      } else {
-        setToken(null);
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Refresh cart when user signs in or token is refreshed
+        fetchCart();
+      }
+      if (event === 'SIGNED_OUT') {
+        // Clear cart when user signs out
         dispatch({ type: 'CLEAR_CART' });
       }
-    };
+    });
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Clean up subscription
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
-  // Fetch cart from Supabase when token changes
-  useEffect(() => {
-    const fetchCart = async () => {
-      // Get current token directly from sessionStorage
-      const currentToken = sessionStorage.getItem('token') ? 
-        JSON.parse(sessionStorage.getItem('token')) : null;
-      
-      if (!currentToken?.user?.id) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('cart')
-          .select(`
-            *,
-            product:product_id (
-              id,
-              name,
-              price,
-              image_url,
-              description,
-              condition,
-              location
-            )
-          `)
-          .eq('user_id', currentToken.user.id);
-
-        if (error) throw error;
-
-        const cartItems = data.map(item => ({
-          ...item.product,
-          quantity: item.quantity
-        }));
-
-        dispatch({ type: 'SET_CART', payload: cartItems });
-      } catch (error) {
-        console.error('Error fetching cart:', error);
-        toast.error('Failed to load cart items');
-      }
-    };
-
-    fetchCart();
-  }, [token?.user?.id]);
-
-  const addToCart = async (product) => {
-    // Get current token directly from sessionStorage
-    const currentToken = sessionStorage.getItem('token') ? 
-      JSON.parse(sessionStorage.getItem('token')) : null;
-    
-    console.log('Starting addToCart with current token:', currentToken);
-    
-    if (!currentToken?.user?.id) {
-      console.log('No user ID found in current token');
-      toast.error('Please login to add items to cart');
-      return;
-    }
-  
-    if (!product.id || !product.name || !product.price) {
-      console.error('Invalid product data:', product);
-      toast.error('Could not add item - missing product information');
-      return;
-    }
-  
+  const fetchCart = async () => {
     try {
-      // Optimistic update
-      dispatch({ type: 'ADD_TO_CART', payload: product });
-      console.log('Dispatched optimistic update');
-  
-      const existingItem = state.items.find(item => item.id === product.id);
-      const quantity = existingItem ? existingItem.quantity + 1 : 1;
-  
-      console.log('About to send Supabase request with:', {
-        user_id: currentToken.user.id,
-        product_id: product.id,
-        quantity
-      });
-  
-      const response = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
         .from('cart')
-        .upsert({
-          user_id: currentToken.user.id,
-          product_id: product.id,
-          quantity
-        });
-        
-      console.log('Supabase response:', response);
-  
-      if (response.error) throw response.error;
-  
-      toast.success(`${product.name} added to cart`, {
-        position: "top-right",
-        autoClose: 2000
-      });
-    } catch (error) {
-      console.error('Error details:', error);
-      toast.error('Failed to add item to cart');
-      // Revert optimistic update
-      const { data } = await supabase
-        .from('cart')
-        .select('*')
-        .eq('user_id', currentToken.user.id);
+        .select(`
+          *,
+          products (*)
+        `)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
       dispatch({ type: 'SET_CART', payload: data || [] });
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch cart items",
+        variant: "destructive",
+      });
     }
   };
 
-  const removeFromCart = async (productId) => {
-    // Get current token directly from sessionStorage
-    const currentToken = sessionStorage.getItem('token') ? 
-      JSON.parse(sessionStorage.getItem('token')) : null;
-      
-    if (!currentToken?.user?.id) return;
-
+  const addToCart = async (product) => {
     try {
-      // Find product name before removing
-      const product = state.items.find(item => item.id === productId);
-      
-      // Optimistic update
-      dispatch({ type: 'REMOVE_FROM_CART', payload: productId });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "Please login to add items to cart",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const { error } = await supabase
-        .from('cart')
-        .delete()
-        .eq('user_id', currentToken.user.id)
-        .eq('product_id', productId);
-
-      if (error) throw error;
-
-      toast.info(`${product?.name || 'Item'} removed from cart`, {
-        position: "top-right",
-        autoClose: 2000
-      });
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-      toast.error('Failed to remove item from cart');
-      // Revert optimistic update
-      const { data } = await supabase
+      // Check if item already exists in cart
+      const { data: existingItem } = await supabase
         .from('cart')
         .select('*')
-        .eq('user_id', currentToken.user.id);
-      dispatch({ type: 'SET_CART', payload: data || [] });
+        .eq('user_id', user.id)
+        .eq('product_id', product.id)
+        .single();
+
+      if (existingItem) {
+        // Update quantity
+        const { error } = await supabase
+          .from('cart')
+          .update({ quantity: existingItem.quantity + 1 })
+          .eq('id', existingItem.id);
+
+        if (error) throw error;
+      } else {
+        // Add new item
+        const { error } = await supabase
+          .from('cart')
+          .insert([{
+            user_id: user.id,
+            product_id: product.id,
+            quantity: 1
+          }]);
+
+        if (error) throw error;
+      }
+
+      fetchCart(); // Refresh cart
+      toast({
+        title: "Success",
+        description: "Item added to cart",
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart",
+        variant: "destructive",
+      });
     }
   };
 
   const updateQuantity = async (productId, quantity) => {
-    // Get current token directly from sessionStorage
-    const currentToken = sessionStorage.getItem('token') ? 
-      JSON.parse(sessionStorage.getItem('token')) : null;
-      
-    if (!currentToken?.user?.id) return;
-
-    if (quantity < 1) {
-      await removeFromCart(productId);
-      return;
-    }
-
     try {
-      // Optimistic update
-      dispatch({ type: 'UPDATE_QUANTITY', payload: { id: productId, quantity } });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (quantity === 0) {
+        await removeFromCart(productId);
+        return;
+      }
 
       const { error } = await supabase
         .from('cart')
         .update({ quantity })
-        .eq('user_id', currentToken.user.id)
+        .eq('user_id', user.id)
         .eq('product_id', productId);
 
       if (error) throw error;
-
-      toast.success('Cart updated', {
-        position: "top-right",
-        autoClose: 1000
-      });
+      fetchCart();
     } catch (error) {
       console.error('Error updating quantity:', error);
-      toast.error('Failed to update quantity');
-      // Revert optimistic update
-      const { data } = await supabase
+      toast({
+        title: "Error",
+        description: "Failed to update quantity",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeFromCart = async (productId) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
         .from('cart')
-        .select('*')
-        .eq('user_id', currentToken.user.id);
-      dispatch({ type: 'SET_CART', payload: data || [] });
+        .delete()
+        .eq('user_id', user.id)
+        .eq('product_id', productId);
+
+      if (error) throw error;
+      fetchCart();
+      toast({
+        title: "Success",
+        description: "Item removed from cart",
+      });
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove item from cart",
+        variant: "destructive",
+      });
     }
   };
 
   const clearCart = async () => {
-    // Get current token directly from sessionStorage
-    const currentToken = sessionStorage.getItem('token') ? 
-      JSON.parse(sessionStorage.getItem('token')) : null;
-      
-    if (!currentToken?.user?.id) return;
-
     try {
-      // Optimistic update
-      dispatch({ type: 'CLEAR_CART' });
-
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('cart')
         .delete()
-        .eq('user_id', currentToken.user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
-
-      toast.success('Cart cleared successfully', {
-        position: "top-right",
-        autoClose: 2000
+      dispatch({ type: 'CLEAR_CART' });
+      toast({
+        title: "Success",
+        description: "Cart cleared successfully",
       });
     } catch (error) {
       console.error('Error clearing cart:', error);
-      toast.error('Failed to clear cart');
-      // Revert optimistic update
-      const { data } = await supabase
-        .from('cart')
-        .select('*')
-        .eq('user_id', currentToken.user.id);
-      dispatch({ type: 'SET_CART', payload: data || [] });
+      toast({
+        title: "Error",
+        description: "Failed to clear cart",
+        variant: "destructive",
+      });
     }
   };
 
   const total = state.items.reduce((sum, item) => {
-    return sum + (item.price * item.quantity);
+    const itemPrice = item.products?.price || 0;
+    return sum + (itemPrice * item.quantity);
   }, 0);
 
   const value = {
