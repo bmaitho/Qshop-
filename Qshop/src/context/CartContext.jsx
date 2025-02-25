@@ -83,7 +83,11 @@ export const CartProvider = ({ children }) => {
   // Fetch cart from Supabase when token changes
   useEffect(() => {
     const fetchCart = async () => {
-      if (!token?.user?.id) return;
+      // Get current token directly from sessionStorage
+      const currentToken = sessionStorage.getItem('token') ? 
+        JSON.parse(sessionStorage.getItem('token')) : null;
+      
+      if (!currentToken?.user?.id) return;
 
       try {
         const { data, error } = await supabase
@@ -100,7 +104,7 @@ export const CartProvider = ({ children }) => {
               location
             )
           `)
-          .eq('user_id', token.user.id);
+          .eq('user_id', currentToken.user.id);
 
         if (error) throw error;
 
@@ -120,10 +124,14 @@ export const CartProvider = ({ children }) => {
   }, [token?.user?.id]);
 
   const addToCart = async (product) => {
-    console.log('Starting addToCart with token:', token);
+    // Get current token directly from sessionStorage
+    const currentToken = sessionStorage.getItem('token') ? 
+      JSON.parse(sessionStorage.getItem('token')) : null;
     
-    if (!token?.user?.id) {
-      console.log('No user ID found in token');
+    console.log('Starting addToCart with current token:', currentToken);
+    
+    if (!currentToken?.user?.id) {
+      console.log('No user ID found in current token');
       toast.error('Please login to add items to cart');
       return;
     }
@@ -143,7 +151,7 @@ export const CartProvider = ({ children }) => {
       const quantity = existingItem ? existingItem.quantity + 1 : 1;
   
       console.log('About to send Supabase request with:', {
-        user_id: token.user.id,
+        user_id: currentToken.user.id,
         product_id: product.id,
         quantity
       });
@@ -151,7 +159,7 @@ export const CartProvider = ({ children }) => {
       const response = await supabase
         .from('cart')
         .upsert({
-          user_id: token.user.id,
+          user_id: currentToken.user.id,
           product_id: product.id,
           quantity
         });
@@ -171,13 +179,17 @@ export const CartProvider = ({ children }) => {
       const { data } = await supabase
         .from('cart')
         .select('*')
-        .eq('user_id', token.user.id);
+        .eq('user_id', currentToken.user.id);
       dispatch({ type: 'SET_CART', payload: data || [] });
     }
   };
 
   const removeFromCart = async (productId) => {
-    if (!token?.user?.id) return;
+    // Get current token directly from sessionStorage
+    const currentToken = sessionStorage.getItem('token') ? 
+      JSON.parse(sessionStorage.getItem('token')) : null;
+      
+    if (!currentToken?.user?.id) return;
 
     try {
       // Find product name before removing
@@ -189,7 +201,7 @@ export const CartProvider = ({ children }) => {
       const { error } = await supabase
         .from('cart')
         .delete()
-        .eq('user_id', token.user.id)
+        .eq('user_id', currentToken.user.id)
         .eq('product_id', productId);
 
       if (error) throw error;
@@ -205,13 +217,17 @@ export const CartProvider = ({ children }) => {
       const { data } = await supabase
         .from('cart')
         .select('*')
-        .eq('user_id', token.user.id);
+        .eq('user_id', currentToken.user.id);
       dispatch({ type: 'SET_CART', payload: data || [] });
     }
   };
 
   const updateQuantity = async (productId, quantity) => {
-    if (!token?.user?.id) return;
+    // Get current token directly from sessionStorage
+    const currentToken = sessionStorage.getItem('token') ? 
+      JSON.parse(sessionStorage.getItem('token')) : null;
+      
+    if (!currentToken?.user?.id) return;
 
     if (quantity < 1) {
       await removeFromCart(productId);
@@ -225,7 +241,7 @@ export const CartProvider = ({ children }) => {
       const { error } = await supabase
         .from('cart')
         .update({ quantity })
-        .eq('user_id', token.user.id)
+        .eq('user_id', currentToken.user.id)
         .eq('product_id', productId);
 
       if (error) throw error;
@@ -241,13 +257,17 @@ export const CartProvider = ({ children }) => {
       const { data } = await supabase
         .from('cart')
         .select('*')
-        .eq('user_id', token.user.id);
+        .eq('user_id', currentToken.user.id);
       dispatch({ type: 'SET_CART', payload: data || [] });
     }
   };
 
   const clearCart = async () => {
-    if (!token?.user?.id) return;
+    // Get current token directly from sessionStorage
+    const currentToken = sessionStorage.getItem('token') ? 
+      JSON.parse(sessionStorage.getItem('token')) : null;
+      
+    if (!currentToken?.user?.id) return;
 
     try {
       // Optimistic update
@@ -256,7 +276,7 @@ export const CartProvider = ({ children }) => {
       const { error } = await supabase
         .from('cart')
         .delete()
-        .eq('user_id', token.user.id);
+        .eq('user_id', currentToken.user.id);
 
       if (error) throw error;
 
@@ -271,7 +291,7 @@ export const CartProvider = ({ children }) => {
       const { data } = await supabase
         .from('cart')
         .select('*')
-        .eq('user_id', token.user.id);
+        .eq('user_id', currentToken.user.id);
       dispatch({ type: 'SET_CART', payload: data || [] });
     }
   };
