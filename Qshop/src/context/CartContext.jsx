@@ -1,7 +1,7 @@
 // CartContext.jsx
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { supabase } from '../components/SupabaseClient';
-import { useToast } from "@/components/ui/use-toast";
+import { cartToasts } from '../utils/toastConfig';
 
 const CartContext = createContext();
 
@@ -24,14 +24,25 @@ const cartReducer = (state, action) => {
 
 export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Initial cart fetch
     fetchCart();
 
-    // Set up auth state change listener
+    // Listen for auth changes across tabs
+    const handleStorageChange = (e) => {
+      if (e.key === 'token' || e.key === null) {
+        fetchCart();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Set up auth state change listener for current tab
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change in cart context:', event, session?.user?.id);
+      
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         // Refresh cart when user signs in or token is refreshed
         fetchCart();
@@ -44,15 +55,33 @@ export const CartProvider = ({ children }) => {
 
     // Clean up subscription
     return () => {
+      window.removeEventListener('storage', handleStorageChange);
       subscription?.unsubscribe();
     };
   }, []);
 
   const fetchCart = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      setLoading(true);
+      // Check for token in session storage
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        dispatch({ type: 'CLEAR_CART' });
+        setLoading(false);
+        return;
+      }
 
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        dispatch({ type: 'CLEAR_CART' });
+        setLoading(false);
+        return;
+      }
+
+      console.log('Fetching cart for user:', user.id);
+      
       const { data, error } = await supabase
         .from('cart')
         .select(`
@@ -61,43 +90,52 @@ export const CartProvider = ({ children }) => {
         `)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching cart:', error);
+        throw error;
+      }
+      
+      console.log('Cart data:', data);
       dispatch({ type: 'SET_CART', payload: data || [] });
     } catch (error) {
       console.error('Error fetching cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch cart items",
-        variant: "destructive",
-      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const addToCart = async (product) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "Please login to add items to cart",
-          variant: "destructive",
-        });
+      const token = sessionStorage.getItem('token');
+      if (!token) {
+        cartToasts.error("Please login to add items to cart");
+        return;
+      }
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        cartToasts.error("Authentication error");
         return;
       }
 
       // Check if item already exists in cart
-      const { data: existingItem } = await supabase
+      const { data: existingItem, error: checkError } = await supabase
         .from('cart')
         .select('*')
         .eq('user_id', user.id)
         .eq('product_id', product.id)
-        .single();
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      const quantity = product.quantity || 1;
 
       if (existingItem) {
         // Update quantity
+        const newQuantity = existingItem.quantity + quantity;
         const { error } = await supabase
           .from('cart')
-          .update({ quantity: existingItem.quantity + 1 })
+          .update({ quantity: newQuantity })
           .eq('id', existingItem.id);
 
         if (error) throw error;
@@ -108,30 +146,28 @@ export const CartProvider = ({ children }) => {
           .insert([{
             user_id: user.id,
             product_id: product.id,
-            quantity: 1
+            quantity: quantity
           }]);
 
         if (error) throw error;
       }
 
-      fetchCart(); // Refresh cart
-      toast({
-        title: "Success",
-        description: "Item added to cart",
-      });
+      await fetchCart(); // Refresh cart
+      cartToasts.addSuccess(product.name);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive",
-      });
+      cartToasts.error();
     }
   };
 
   const updateQuantity = async (productId, quantity) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return;
+
       if (quantity === 0) {
         await removeFromCart(productId);
         return;
@@ -144,20 +180,22 @@ export const CartProvider = ({ children }) => {
         .eq('product_id', productId);
 
       if (error) throw error;
-      fetchCart();
+      await fetchCart();
+      cartToasts.success("Cart updated");
     } catch (error) {
       console.error('Error updating quantity:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update quantity",
-        variant: "destructive",
-      });
+      cartToasts.error("Failed to update quantity");
     }
   };
 
-  const removeFromCart = async (productId) => {
+  const removeFromCart = async (productId, productName) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return;
+
       const { error } = await supabase
         .from('cart')
         .delete()
@@ -165,24 +203,27 @@ export const CartProvider = ({ children }) => {
         .eq('product_id', productId);
 
       if (error) throw error;
-      fetchCart();
-      toast({
-        title: "Success",
-        description: "Item removed from cart",
-      });
+      await fetchCart();
+      
+      if (productName) {
+        cartToasts.removeSuccess(productName);
+      } else {
+        cartToasts.success("Item removed from cart");
+      }
     } catch (error) {
       console.error('Error removing from cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove item from cart",
-        variant: "destructive",
-      });
+      cartToasts.error("Failed to remove item from cart");
     }
   };
 
   const clearCart = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) return;
+
       const { error } = await supabase
         .from('cart')
         .delete()
@@ -190,17 +231,10 @@ export const CartProvider = ({ children }) => {
 
       if (error) throw error;
       dispatch({ type: 'CLEAR_CART' });
-      toast({
-        title: "Success",
-        description: "Cart cleared successfully",
-      });
+      cartToasts.success("Cart cleared successfully");
     } catch (error) {
       console.error('Error clearing cart:', error);
-      toast({
-        title: "Error",
-        description: "Failed to clear cart",
-        variant: "destructive",
-      });
+      cartToasts.error("Failed to clear cart");
     }
   };
 
@@ -215,7 +249,8 @@ export const CartProvider = ({ children }) => {
     removeFromCart,
     updateQuantity,
     clearCart,
-    total
+    total,
+    loading
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
