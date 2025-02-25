@@ -12,6 +12,25 @@ const cartReducer = (state, action) => {
         ...state,
         items: action.payload
       };
+    case 'ADD_TO_CART':
+      return {
+        ...state,
+        items: [...state.items, action.payload]
+      };
+    case 'UPDATE_QUANTITY':
+      return {
+        ...state,
+        items: state.items.map(item => 
+          item.product_id === action.payload.productId 
+            ? { ...item, quantity: action.payload.quantity } 
+            : item
+        )
+      };
+    case 'REMOVE_FROM_CART':
+      return {
+        ...state,
+        items: state.items.filter(item => item.product_id !== action.payload)
+      };
     case 'CLEAR_CART':
       return {
         ...state,
@@ -25,63 +44,47 @@ const cartReducer = (state, action) => {
 export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
   const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Initial load and auth change listener setup
   useEffect(() => {
-    // Initial cart fetch
-    fetchCart();
-
-    // Listen for auth changes across tabs
-    const handleStorageChange = (e) => {
-      if (e.key === 'token' || e.key === null) {
-        fetchCart();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
+    if (!isInitialized) {
+      fetchCart();
+      setIsInitialized(true);
+    }
 
     // Set up auth state change listener for current tab
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change in cart context:', event, session?.user?.id);
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Refresh cart when user signs in or token is refreshed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
         fetchCart();
-      }
-      if (event === 'SIGNED_OUT') {
-        // Clear cart when user signs out
+      } else if (event === 'SIGNED_OUT') {
         dispatch({ type: 'CLEAR_CART' });
       }
     });
 
-    // Clean up subscription
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [isInitialized]);
 
   const fetchCart = async () => {
     try {
       setLoading(true);
+      
       // Check for token in session storage
       const token = sessionStorage.getItem('token');
       if (!token) {
         dispatch({ type: 'CLEAR_CART' });
-        setLoading(false);
         return;
       }
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        console.error('Error getting user:', userError);
         dispatch({ type: 'CLEAR_CART' });
-        setLoading(false);
         return;
       }
 
-      console.log('Fetching cart for user:', user.id);
-      
       const { data, error } = await supabase
         .from('cart')
         .select(`
@@ -90,12 +93,8 @@ export const CartProvider = ({ children }) => {
         `)
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error fetching cart:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('Cart data:', data);
       dispatch({ type: 'SET_CART', payload: data || [] });
     } catch (error) {
       console.error('Error fetching cart:', error);
@@ -118,41 +117,56 @@ export const CartProvider = ({ children }) => {
         return;
       }
 
-      // Check if item already exists in cart
-      const { data: existingItem, error: checkError } = await supabase
-        .from('cart')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
       const quantity = product.quantity || 1;
-
+      
+      // Check if already in cart (local state check first for speed)
+      const existingItem = state.items.find(item => item.product_id === product.id);
+      
       if (existingItem) {
-        // Update quantity
+        // Update quantity locally first
         const newQuantity = existingItem.quantity + quantity;
+        dispatch({ 
+          type: 'UPDATE_QUANTITY', 
+          payload: { 
+            productId: product.id, 
+            quantity: newQuantity 
+          } 
+        });
+        
+        // Then update in database
         const { error } = await supabase
           .from('cart')
           .update({ quantity: newQuantity })
           .eq('id', existingItem.id);
 
-        if (error) throw error;
+        if (error) {
+          // If there was an error, refresh the entire cart
+          fetchCart();
+          throw error;
+        }
       } else {
-        // Add new item
-        const { error } = await supabase
+        // Insert into database
+        const { data, error } = await supabase
           .from('cart')
           .insert([{
             user_id: user.id,
             product_id: product.id,
             quantity: quantity
-          }]);
+          }])
+          .select('*, products(*)')
+          .single();
 
         if (error) throw error;
+        
+        // Optimistically update local state
+        if (data) {
+          dispatch({ 
+            type: 'ADD_TO_CART', 
+            payload: data 
+          });
+        }
       }
 
-      await fetchCart(); // Refresh cart
       cartToasts.addSuccess(product.name);
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -173,15 +187,27 @@ export const CartProvider = ({ children }) => {
         return;
       }
 
+      // Update locally first for immediate feedback
+      dispatch({ 
+        type: 'UPDATE_QUANTITY', 
+        payload: { 
+          productId, 
+          quantity 
+        } 
+      });
+      
+      // Then update database
       const { error } = await supabase
         .from('cart')
         .update({ quantity })
         .eq('user_id', user.id)
         .eq('product_id', productId);
 
-      if (error) throw error;
-      await fetchCart();
-      cartToasts.success("Cart updated");
+      if (error) {
+        // If there was an error, refresh the entire cart
+        fetchCart();
+        throw error;
+      }
     } catch (error) {
       console.error('Error updating quantity:', error);
       cartToasts.error("Failed to update quantity");
@@ -196,14 +222,24 @@ export const CartProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
 
+      // Update locally first for immediate feedback
+      dispatch({ 
+        type: 'REMOVE_FROM_CART', 
+        payload: productId 
+      });
+      
+      // Then update database
       const { error } = await supabase
         .from('cart')
         .delete()
         .eq('user_id', user.id)
         .eq('product_id', productId);
 
-      if (error) throw error;
-      await fetchCart();
+      if (error) {
+        // If there was an error, refresh the entire cart
+        fetchCart();
+        throw error;
+      }
       
       if (productName) {
         cartToasts.removeSuccess(productName);
@@ -224,13 +260,21 @@ export const CartProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
 
+      // Clear locally first for immediate feedback
+      dispatch({ type: 'CLEAR_CART' });
+      
+      // Then clear database
       const { error } = await supabase
         .from('cart')
         .delete()
         .eq('user_id', user.id);
 
-      if (error) throw error;
-      dispatch({ type: 'CLEAR_CART' });
+      if (error) {
+        // If there was an error, refresh the entire cart
+        fetchCart();
+        throw error;
+      }
+      
       cartToasts.success("Cart cleared successfully");
     } catch (error) {
       console.error('Error clearing cart:', error);

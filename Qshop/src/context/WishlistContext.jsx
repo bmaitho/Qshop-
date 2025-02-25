@@ -12,6 +12,16 @@ const wishlistReducer = (state, action) => {
         ...state,
         items: action.payload
       };
+    case 'ADD_TO_WISHLIST':
+      return {
+        ...state,
+        items: [...state.items, action.payload]
+      };
+    case 'REMOVE_FROM_WISHLIST':
+      return {
+        ...state,
+        items: state.items.filter(item => item.product_id !== action.payload)
+      };
     case 'CLEAR_WISHLIST':
       return {
         ...state,
@@ -25,74 +35,54 @@ const wishlistReducer = (state, action) => {
 export const WishlistProvider = ({ children }) => {
   const [state, dispatch] = useReducer(wishlistReducer, { items: [] });
   const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Initial load and auth change listener setup
   useEffect(() => {
-    // Initial wishlist fetch
-    fetchWishlist();
-
-    // Listen for auth changes
-    const handleStorageChange = (e) => {
-      if (e.key === 'token' || e.key === null) {
-        fetchWishlist();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
+    if (!isInitialized) {
+      fetchWishlist();
+      setIsInitialized(true);
+    }
 
     // Set up auth state change listener for current tab
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
-      
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        // Refresh wishlist when user signs in or token is refreshed
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
         fetchWishlist();
-      }
-      if (event === 'SIGNED_OUT') {
-        // Clear wishlist when user signs out
+      } else if (event === 'SIGNED_OUT') {
         dispatch({ type: 'CLEAR_WISHLIST' });
       }
     });
 
-    // Clean up subscription
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [isInitialized]);
 
   const fetchWishlist = async () => {
     try {
       setLoading(true);
+      
       // Check for token in session storage
       const token = sessionStorage.getItem('token');
       if (!token) {
         dispatch({ type: 'CLEAR_WISHLIST' });
-        setLoading(false);
         return;
       }
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        console.error('Error getting user:', userError);
         dispatch({ type: 'CLEAR_WISHLIST' });
-        setLoading(false);
         return;
       }
-
-      console.log('Fetching wishlist for user:', user.id);
       
       const { data, error } = await supabase
         .from('wishlist')
         .select('*, products(*)')
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error fetching wishlist:', error);
-        throw error;
-      }
+      if (error) throw error;
       
-      console.log('Wishlist data:', data);
       dispatch({ type: 'SET_WISHLIST', payload: data || [] });
     } catch (error) {
       console.error('Error fetching wishlist:', error);
@@ -115,34 +105,30 @@ export const WishlistProvider = ({ children }) => {
         return;
       }
 
-      // Check if item already exists in wishlist
-      const { data: existingItem, error: checkError } = await supabase
-        .from('wishlist')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .maybeSingle();
-
-      if (checkError) throw checkError;
-
-      if (existingItem) {
-        console.log('Item already in wishlist', existingItem);
-        return; // Item already in wishlist, do nothing
+      // First check if already in wishlist locally
+      if (isInWishlist(product.id)) {
+        return; // Already in wishlist, do nothing
       }
 
-      console.log('Adding to wishlist:', { user_id: user.id, product_id: product.id });
-      
-      const { error } = await supabase
+      // Add to database
+      const { data, error } = await supabase
         .from('wishlist')
         .insert([{
           user_id: user.id,
           product_id: product.id
-        }]);
+        }])
+        .select('*, products(*)')
+        .single();
 
       if (error) throw error;
       
-      // Fetch updated wishlist
-      await fetchWishlist();
+      // Optimistically update local state
+      if (data) {
+        dispatch({ 
+          type: 'ADD_TO_WISHLIST', 
+          payload: data 
+        });
+      }
       
       wishlistToasts.addSuccess(product.name);
     } catch (error) {
@@ -159,18 +145,24 @@ export const WishlistProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
 
-      console.log('Removing from wishlist:', { user_id: user.id, product_id: productId });
+      // Optimistically update local state first
+      dispatch({ 
+        type: 'REMOVE_FROM_WISHLIST', 
+        payload: productId 
+      });
       
+      // Then update database
       const { error } = await supabase
         .from('wishlist')
         .delete()
         .eq('user_id', user.id)
         .eq('product_id', productId);
 
-      if (error) throw error;
-      
-      // Fetch updated wishlist
-      await fetchWishlist();
+      if (error) {
+        // If there was an error, refresh the entire wishlist
+        fetchWishlist();
+        throw error;
+      }
       
       if (productName) {
         wishlistToasts.removeSuccess(productName);
@@ -191,14 +183,21 @@ export const WishlistProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
 
+      // Optimistically clear local state
+      dispatch({ type: 'CLEAR_WISHLIST' });
+      
+      // Then clear database
       const { error } = await supabase
         .from('wishlist')
         .delete()
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        // If there was an error, refresh the entire wishlist
+        fetchWishlist();
+        throw error;
+      }
       
-      dispatch({ type: 'CLEAR_WISHLIST' });
       wishlistToasts.success("Wishlist cleared successfully");
     } catch (error) {
       console.error('Error clearing wishlist:', error);
