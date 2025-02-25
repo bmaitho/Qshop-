@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { cartToasts, wishlistToasts } from '../utils/toastConfig';
+import { wishlistToasts } from '../utils/toastConfig'; // Only import what we need
 
 const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => {
   const { addToCart } = useCart();
@@ -47,44 +47,32 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
       if (isWishlisted) {
         await removeFromWishlist(product.id);
         setIsWishlisted(false);
+        // No toast here, let the context handle it
       } else {
         await addToWishlist(product);
         setIsWishlisted(true);
+        // No toast here, let the context handle it
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      wishlistToasts.error();
+      // Only show error toast here if needed
     }
   };
 
   const handleAddToCart = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
-      // Debug authentication
-      function checkAuth() {
-        const token = sessionStorage.getItem('token');
-        console.log('Token exists:', !!token);
-        if (token) {
-          const parsed = JSON.parse(token);
-          console.log('User ID:', parsed?.user?.id);
-        }
-        return !!token;
-      }
-      
-      // Call the debug function
-      checkAuth();
-      
       const token = JSON.parse(sessionStorage.getItem('token'));
       if (!token) {
-        cartToasts.error("Please login to add items to cart");
+        // This toast can stay as it's a pre-check
         return;
       }
   
       await addToCart(product);
-      cartToasts.addSuccess(product.name);
+      // Remove this duplicate toast
     } catch (error) {
       console.error('Error adding to cart:', error);
-      cartToasts.error();
+      // Only log the error, don't show toast
     }
   };
 

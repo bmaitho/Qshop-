@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../components/SupabaseClient';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { Heart, Share2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import Navbar from './Navbar';
 const ProductDetails = () => {
   const { id } = useParams();
   const { addToCart } = useCart();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -19,6 +21,13 @@ const ProductDetails = () => {
     fetchProduct();
     checkWishlistStatus();
   }, [id]);
+
+  // Add a useEffect to update local wishlist state when the context changes
+  useEffect(() => {
+    if (id) {
+      setIsWishlisted(isInWishlist(id));
+    }
+  }, [id, isInWishlist]);
 
   const fetchProduct = async () => {
     try {
@@ -48,18 +57,9 @@ const ProductDetails = () => {
 
   const checkWishlistStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('wishlist')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_id', id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') throw error;
-      setIsWishlisted(!!data);
+      // Use the context function instead of direct Supabase query
+      const status = isInWishlist(id);
+      setIsWishlisted(status);
     } catch (error) {
       console.error('Error checking wishlist status:', error);
     }
@@ -74,30 +74,17 @@ const ProductDetails = () => {
       }
 
       if (isWishlisted) {
-        const { error } = await supabase
-          .from('wishlist')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('product_id', id);
-
-        if (error) throw error;
+        await removeFromWishlist(id);
         setIsWishlisted(false);
-        productToasts.success("Removed from wishlist");
+        // Let the context handle the toast
       } else {
-        const { error } = await supabase
-          .from('wishlist')
-          .insert([{
-            user_id: user.id,
-            product_id: id
-          }]);
-
-        if (error) throw error;
+        await addToWishlist(product);
         setIsWishlisted(true);
-        productToasts.success("Added to wishlist");
+        // Let the context handle the toast
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      productToasts.error();
+      // Only show error toast here if needed
     }
   };
 
@@ -110,9 +97,10 @@ const ProductDetails = () => {
       }
       
       await addToCart(product);
-      productToasts.success(`${product.name} added to cart`);
+      // Remove this duplicate toast - let the context handle it
     } catch (error) {
-      productToasts.error();
+      console.error('Error adding to cart:', error);
+      // Only log the error, don't show toast
     }
   };
 

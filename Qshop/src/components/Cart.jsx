@@ -29,13 +29,11 @@ import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
 const DELIVERY_FEE = 1; // 1 shilling for testing
 
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, total, clearCart } = useCart();
+  const { cart, removeFromCart, updateQuantity, total, clearCart, loading } = useCart();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-
   
-
   const handleMpesaPayment = async (e) => {
     e.preventDefault();
     setIsProcessing(true);
@@ -65,22 +63,39 @@ const Cart = () => {
     }
   };
 
-  const handleRemoveFromCart = (itemId, itemName) => {
-    removeFromCart(itemId);
-    cartToasts.removeSuccess(itemName);
+  const handleRemoveFromCart = (productId, productName) => {
+    console.log(`Removing product: ${productId}, name: ${productName}`);
+    removeFromCart(productId, productName);
+    // Toast is now handled in the context
   };
 
-  const handleUpdateQuantity = (itemId, newQuantity) => {
-    updateQuantity(itemId, newQuantity);
-    cartToasts.updateSuccess();
+  const handleUpdateQuantity = (productId, newQuantity) => {
+    console.log(`Updating quantity for product: ${productId} to ${newQuantity}`);
+    updateQuantity(productId, newQuantity);
+    // Toast is now handled in the context
   };
 
   const handleClearCart = () => {
     clearCart();
-    cartToasts.clearSuccess();
+    // Toast is now handled in the context
   };
 
-  if (cart.length === 0) {
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-7xl mx-auto p-4">
+          <div className="animate-pulse">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-gray-200 h-24 rounded-lg mb-4"></div>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!cart || cart.length === 0) {
     return (
       <>
         <Navbar />
@@ -111,24 +126,24 @@ const Cart = () => {
                 className="flex items-center space-x-4 border-b py-4"
               >
                 <img 
-                  src={item.image} 
-                  alt={item.name} 
+                  src={item.products?.image_url || "/api/placeholder/100/100"} 
+                  alt={item.products?.name} 
                   className="w-24 h-24 object-cover rounded"
                 />
                 <div className="flex-1">
                   <Link 
-                    to={`/product/${item.id}`}
+                    to={`/product/${item.product_id}`}
                     className="font-semibold hover:text-orange-600"
                   >
-                    {item.name}
+                    {item.products?.name}
                   </Link>
-                  <p className="text-gray-600">KES {item.price}</p>
+                  <p className="text-gray-600">KES {item.products?.price?.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => handleUpdateQuantity(item.id, Math.max(0, item.quantity - 1))}
+                    onClick={() => handleUpdateQuantity(item.product_id, Math.max(1, item.quantity - 1))}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
@@ -136,7 +151,7 @@ const Cart = () => {
                   <Button 
                     variant="outline" 
                     size="icon"
-                    onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -144,7 +159,7 @@ const Cart = () => {
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  onClick={() => handleRemoveFromCart(item.id, item.name)}
+                  onClick={() => handleRemoveFromCart(item.product_id, item.products?.name)}
                 >
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </Button>
