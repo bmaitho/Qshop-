@@ -23,6 +23,7 @@ const Wishlist = () => {
   const [quantities, setQuantities] = useState({});
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     if (wishlist && wishlist.length > 0) {
@@ -43,6 +44,13 @@ const Wishlist = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [wishlist]);
+
+  const handleImageError = (productId) => {
+    setImageErrors(prev => ({
+      ...prev,
+      [productId]: true
+    }));
+  };
 
   const handleRemoveFromWishlist = async (productId, productName) => {
     await removeFromWishlist(productId, productName);
@@ -147,6 +155,7 @@ const Wishlist = () => {
         <div className="space-y-4">
           {wishlist.map((item) => {
             if (!item?.products) return null;
+            const productId = item.products.id;
             
             return (
               <div 
@@ -154,16 +163,21 @@ const Wishlist = () => {
                 className={`flex ${isMobile ? 'flex-col' : 'items-center space-x-4'} bg-white rounded-lg shadow p-4`}
               >
                 <div className={`${isMobile ? 'w-full flex mb-3' : ''}`}>
-                  <img 
-                    src={item.products.image_url || "/api/placeholder/200/200"}
-                    alt={item.products.name}
-                    className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} object-cover rounded`}
-                  />
+                  {/* Consistent image container with aspect ratio */}
+                  <div className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} overflow-hidden rounded bg-gray-100 flex-shrink-0`}>
+                    <img 
+                      src={imageErrors[productId] ? "/api/placeholder/200/200" : (item.products.image_url || "/api/placeholder/200/200")}
+                      alt={item.products.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={() => handleImageError(productId)}
+                    />
+                  </div>
                   
                   {isMobile && (
                     <div className="flex-1">
                       <Link 
-                        to={`/product/${item.products.id}`}
+                        to={`/product/${productId}`}
                         className="font-semibold text-sm hover:text-orange-600 line-clamp-2"
                       >
                         {item.products.name}
@@ -184,7 +198,7 @@ const Wishlist = () => {
                 {!isMobile && (
                   <div className="flex-1">
                     <Link 
-                      to={`/product/${item.products.id}`}
+                      to={`/product/${productId}`}
                       className="font-semibold text-lg hover:text-orange-600"
                     >
                       {item.products.name}
@@ -213,18 +227,18 @@ const Wishlist = () => {
                           variant="ghost" 
                           size="sm"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) - 1)}
+                          onClick={() => updateQuantity(productId, (quantities[productId] || 1) - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
                         <span className="w-8 text-center text-sm">
-                          {quantities[item.products.id] || 1}
+                          {quantities[productId] || 1}
                         </span>
                         <Button 
                           variant="ghost" 
                           size="sm"
                           className="h-8 w-8"
-                          onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) + 1)}
+                          onClick={() => updateQuantity(productId, (quantities[productId] || 1) + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -232,7 +246,7 @@ const Wishlist = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveFromWishlist(item.products.id, item.products.name)}
+                        onClick={() => handleRemoveFromWishlist(productId, item.products.name)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
@@ -257,17 +271,17 @@ const Wishlist = () => {
                       <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) - 1)}
+                        onClick={() => updateQuantity(productId, (quantities[productId] || 1) - 1)}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
                       <span className="w-12 text-center font-medium">
-                        {quantities[item.products.id] || 1}
+                        {quantities[productId] || 1}
                       </span>
                       <Button 
                         variant="outline" 
                         size="icon"
-                        onClick={() => updateQuantity(item.products.id, (quantities[item.products.id] || 1) + 1)}
+                        onClick={() => updateQuantity(productId, (quantities[productId] || 1) + 1)}
                       >
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -286,7 +300,7 @@ const Wishlist = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveFromWishlist(item.products.id, item.products.name)}
+                        onClick={() => handleRemoveFromWishlist(productId, item.products.name)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>

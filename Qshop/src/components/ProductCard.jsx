@@ -29,6 +29,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const status = isInWishlist(product.id);
@@ -166,11 +167,16 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     <Link to={`/product/${product.id}`}>
       <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="relative">
-          <img 
-            src={product.image_url || "/api/placeholder/400/300"} 
-            alt={product.name}
-            className="w-full h-40 object-cover rounded-t-lg"
-          />
+          {/* Consistent image container with fixed aspect ratio */}
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-gray-100">
+            <img 
+              src={imageError ? "/api/placeholder/400/300" : (product.image_url || "/api/placeholder/400/300")} 
+              alt={product.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={() => setImageError(true)}
+            />
+          </div>
           {isOwner ? (
             <>
               {renderOwnerControls()}
