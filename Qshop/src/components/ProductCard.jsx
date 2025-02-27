@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { wishlistToasts } from '../utils/toastConfig'; // Only import what we need
+import { wishlistToasts, productToasts } from '../utils/toastConfig';
 
 const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => {
   const { addToCart } = useCart();
@@ -89,11 +89,12 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   };
 
   const handleDeleteClick = () => {
-    console.log("Delete clicked for product:", product.id);
+    // Call the onDelete function directly
     if (onDelete) {
       onDelete(product.id);
     } else {
       console.error("onDelete function is not provided");
+      productToasts.error();
     }
   };
 
@@ -138,37 +139,17 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
           Mark as Out of Stock
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem 
-              className="text-red-600"
-              onClick={(e) => e.preventDefault()}
-            >
-              Delete Listing
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Product</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this product? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-red-600 hover:bg-red-700"
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log("Delete confirmed for product:", product.id);
-                  handleDeleteClick();
-                }}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DropdownMenuItem 
+          className="text-red-600"
+          onClick={(e) => {
+            e.preventDefault();
+            if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+              handleDeleteClick();
+            }
+          }}
+        >
+          Delete Listing
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

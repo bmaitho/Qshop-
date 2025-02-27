@@ -155,10 +155,11 @@ const MyShop = () => {
   };
 
   const handleDeleteProduct = async (productId) => {
-    console.log('Delete function triggered for product ID:', productId);
-    
     try {
-      console.log('Sending delete request to Supabase');
+      // Optimistically update UI first
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+      
+      // Then perform the actual delete operation
       const { error } = await supabase
         .from('products')
         .delete()
@@ -166,11 +167,12 @@ const MyShop = () => {
 
       if (error) {
         console.error('Supabase delete error:', error);
+        // If there's an error, revert the optimistic update by fetching products again
+        fetchProducts();
         throw error;
       }
       
-      console.log('Product successfully deleted, refreshing data');
-      fetchProducts();
+      // Only fetch statistics as products are already updated optimistically
       fetchStatistics();
       shopToasts.deleteProductSuccess();
     } catch (error) {
