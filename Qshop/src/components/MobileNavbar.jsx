@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Home, Search, User, Menu, Heart, Store } from 'lucide-react';
+import { ShoppingCart, Home, Search, User, Heart, Store } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
@@ -16,17 +16,19 @@ const MobileNavbar = () => {
   return (
     <>
       {/* Top header with search and cart */}
-      <div className="fixed top-0 left-0 w-full bg-orange-600 text-white z-50">
-        <div className="flex items-center justify-between p-2">
-          <Link to="/home" className="text-xl font-bold">
-            UniHive
-          </Link>
+      <div className="fixed top-0 left-0 w-full z-50 bg-transparent">
+        <div className="flex items-center justify-between p-4">
+          <div className="bg-white/30 backdrop-blur-md rounded-full px-4 py-2 shadow-lg">
+            <Link to="/home" className="text-xl font-bold text-gray-800">
+              UniHive
+            </Link>
+          </div>
           
-          <div className="flex items-center">
-            <Link to="/cart" className="relative ml-2">
-              <ShoppingCart size={24} />
+          <div className="bg-white/30 backdrop-blur-md rounded-full p-2 shadow-lg">
+            <Link to="/cart" className="relative">
+              <ShoppingCart size={20} className="text-gray-800" />
               {cartItemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-white text-orange-600 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                   {cartItemCount}
                 </span>
               )}
@@ -36,12 +38,14 @@ const MobileNavbar = () => {
       </div>
       
       {/* Bottom navigation */}
-      <div className="fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-50">
-        <div className="flex justify-around items-center">
+      <div className="fixed bottom-0 left-0 w-full z-50 bg-transparent p-4">
+        <div className="bg-white/30 backdrop-blur-md rounded-full shadow-lg flex justify-around items-center py-3 px-2">
           <Link 
             to="/home" 
-            className={`flex flex-col items-center py-2 px-4 ${
-              location.pathname === '/home' ? 'text-orange-600' : 'text-gray-600'
+            className={`flex flex-col items-center rounded-full p-2 ${
+              location.pathname === '/home' 
+                ? 'bg-white/50 text-orange-600' 
+                : 'text-gray-600 hover:bg-white/20'
             }`}
           >
             <Home size={20} />
@@ -50,8 +54,10 @@ const MobileNavbar = () => {
           
           <Link 
             to="/studentmarketplace" 
-            className={`flex flex-col items-center py-2 px-4 ${
-              location.pathname === '/studentmarketplace' ? 'text-orange-600' : 'text-gray-600'
+            className={`flex flex-col items-center rounded-full p-2 ${
+              location.pathname === '/studentmarketplace' 
+                ? 'bg-white/50 text-orange-600' 
+                : 'text-gray-600 hover:bg-white/20'
             }`}
           >
             <Search size={20} />
@@ -60,8 +66,10 @@ const MobileNavbar = () => {
           
           <Link 
             to="/myshop" 
-            className={`flex flex-col items-center py-2 px-4 ${
-              location.pathname === '/myshop' ? 'text-orange-600' : 'text-gray-600'
+            className={`flex flex-col items-center rounded-full p-2 ${
+              location.pathname === '/myshop' 
+                ? 'bg-white/50 text-orange-600' 
+                : 'text-gray-600 hover:bg-white/20'
             }`}
           >
             <Store size={20} />
@@ -70,13 +78,15 @@ const MobileNavbar = () => {
           
           <Link 
             to="/wishlist" 
-            className={`flex flex-col items-center py-2 px-4 ${
-              location.pathname === '/wishlist' ? 'text-orange-600' : 'text-gray-600'
-            } relative`}
+            className={`flex flex-col items-center rounded-full p-2 relative ${
+              location.pathname === '/wishlist' 
+                ? 'bg-white/50 text-orange-600' 
+                : 'text-gray-600 hover:bg-white/20'
+            }`}
           >
             <Heart size={20} />
             {wishlistItemCount > 0 && (
-              <span className="absolute top-0 right-2 bg-orange-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute top-0 right-1 bg-orange-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                 {wishlistItemCount}
               </span>
             )}
@@ -85,8 +95,10 @@ const MobileNavbar = () => {
           
           <Link 
             to="/profile" 
-            className={`flex flex-col items-center py-2 px-4 ${
-              location.pathname === '/profile' ? 'text-orange-600' : 'text-gray-600'
+            className={`flex flex-col items-center rounded-full p-2 ${
+              location.pathname === '/profile' 
+                ? 'bg-white/50 text-orange-600' 
+                : 'text-gray-600 hover:bg-white/20'
             }`}
           >
             <User size={20} />
