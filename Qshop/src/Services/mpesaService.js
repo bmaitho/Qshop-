@@ -34,7 +34,7 @@ export const initiateMpesaPayment = async (phoneNumber, amount, accountReference
       accountReference
     };
 
-    const response = await axios.post(`${API_BASE_URL}/mpesa/stkpush`, paymentData);
+    const response = await axios.post(`${API_BASE_URL}/api/mpesa/stkpush`, paymentData);
 
     return {
       success: true,

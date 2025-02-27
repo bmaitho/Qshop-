@@ -10,6 +10,12 @@ import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import ProductCard from './ProductCard';
 
+// Import local images for categories
+import TextbooksImage from '../assets/categories/textbooks.jpg';
+import ElectronicsImage from '../assets/categories/electronics.jpg';
+import StationeryImage from '../assets/categories/stationery.jpg';
+import StudyMaterialsImage from '../assets/categories/study-materials.jpg';
+
 const Home = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,10 +49,26 @@ const Home = () => {
   };
 
   const categories = [
-    { name: "Textbooks", image: "/api/placeholder/400/300", description: "Find your course materials" },
-    { name: "Electronics", image: "/api/placeholder/400/300", description: "Student tech deals" },
-    { name: "Stationery", image: "/api/placeholder/400/300", description: "Notes and supplies" },
-    { name: "Study Materials", image: "/api/placeholder/400/300", description: "Past papers and notes" }
+    { 
+      name: "Textbooks", 
+      image: TextbooksImage, 
+      description: "Find your course materials" 
+    },
+    { 
+      name: "Electronics", 
+      image: ElectronicsImage, 
+      description: "Student tech deals" 
+    },
+    { 
+      name: "Stationery", 
+      image: StationeryImage, 
+      description: "Notes and supplies" 
+    },
+    { 
+      name: "Study Materials", 
+      image: StudyMaterialsImage, 
+      description: "Past papers and notes" 
+    }
   ];
 
   return (
@@ -114,9 +136,6 @@ const Home = () => {
             </Link>
           ))}
         </div>
-
-        
-        
       </div>
     </div>
   );

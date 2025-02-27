@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ShoppingCart, 
   Heart, 
@@ -7,9 +7,11 @@ import {
   User,
   LogOut,
   Package,
-  ChevronDown
+  ChevronDown,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
@@ -28,13 +30,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import MobileNavbar from './MobileNavbar';
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart } = useCart();
   const { wishlist } = useWishlist();
   const [userData, setUserData] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -42,7 +48,20 @@ const Navbar = () => {
       const user = JSON.parse(token);
       setUserData(user);
     }
+    
+    // Set up listener for screen size changes
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // If we're on mobile, use MobileNavbar instead
+  if (isMobile) {
+    return <MobileNavbar />;
+  }
 
   const handleLogout = () => {
     sessionStorage.removeItem('token');
@@ -51,9 +70,15 @@ const Navbar = () => {
     navigate('/');
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
+  };
+
   const navLinks = [
     { name: 'Home', path: '/home' },
-   
     { 
       name: 'Student Marketplace', 
       path: '/studentmarketplace',
@@ -61,7 +86,7 @@ const Navbar = () => {
     },
     {
       name: 'My shop',
-      path :'/myshop'
+      path: '/myshop'
     }
   ];
 
@@ -114,47 +139,24 @@ const Navbar = () => {
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-orange-600">QShop</span>
+            <span className="text-2xl font-bold text-orange-600">UniHive</span>
           </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map((link) => {
-              if (link.children) {
-                return (
-                  <div key={link.name} className="relative group">
-                    <button className="text-gray-600 hover:text-orange-600 transition-colors">
-                      {link.name}
-                    </button>
-                    <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      {link.children.map((child) => (
-                        <Link
-                          key={child.name}
-                          to={child.path}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <span className="mr-2">{child.icon}</span>
-                          {child.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <Link
-                  key={link.name}
-                  to={link.path}
-                  className={`transition-colors ${
-                    link.highlight 
-                      ? 'text-orange-600 hover:text-orange-700 font-semibold' 
-                      : 'text-gray-600 hover:text-orange-600'
-                  }`}
-                >
-                  {link.name}
-                </Link>
-              );
-            })}
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                to={link.path}
+                className={`transition-colors ${
+                  link.highlight 
+                    ? 'text-orange-600 hover:text-orange-700 font-semibold' 
+                    : 'text-gray-600 hover:text-orange-600'
+                }`}
+              >
+                {link.name}
+              </Link>
+            ))}
           </div>
 
           {/* Desktop Right Section */}
@@ -186,111 +188,6 @@ const Navbar = () => {
                 <Button>Sign In</Button>
               </Link>
             )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-4">
-            <Link to="/cart" className="relative">
-              <Button variant="ghost" size="icon">
-                <ShoppingCart className="h-5 w-5" />
-                {cart?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {cart.length}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Menu</SheetTitle>
-                </SheetHeader>
-                <div className="flex flex-col space-y-4 mt-4">
-                  {userData && (
-                    <div className="flex items-center space-x-2 p-2">
-                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-                        <User className="h-4 w-4 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{userData.email}</p>
-                      </div>
-                    </div>
-                  )}
-                  {navLinks.map((link) => {
-                    if (link.children) {
-                      return (
-                        <div key={link.name} className="space-y-2">
-                          <div className="font-semibold">{link.name}</div>
-                          <div className="pl-4 space-y-2">
-                            {link.children.map((child) => (
-                              <Link
-                                key={child.name}
-                                to={child.path}
-                                className="flex items-center text-gray-600 hover:text-orange-600 transition-colors py-2"
-                                onClick={() => setIsMobileMenuOpen(false)}
-                              >
-                                <span className="mr-2">{child.icon}</span>
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <Link
-                        key={link.name}
-                        to={link.path}
-                        className={`transition-colors py-2 ${
-                          link.highlight 
-                            ? 'text-orange-600 hover:text-orange-700 font-semibold' 
-                            : 'text-gray-600 hover:text-orange-600'
-                        }`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                      >
-                        {link.name}
-                      </Link>
-                    );
-                  })}
-                  <div className="border-t pt-4">
-                    <Link to="/wishlist" className="flex items-center space-x-2 py-2">
-                      <Heart className="h-5 w-5" />
-                      <span>Wishlist</span>
-                      {wishlist?.length > 0 && (
-                        <span className="bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center ml-auto">
-                          {wishlist.length}
-                        </span>
-                      )}
-                    </Link>
-                    {userData ? (
-                      <>
-                        <Link to="/profile" className="flex items-center space-x-2 py-2">
-                          <Package className="h-5 w-5" />
-                          <span>My Listings</span>
-                        </Link>
-                        <button
-                          onClick={handleLogout}
-                          className="flex items-center space-x-2 text-red-500 py-2 w-full"
-                        >
-                          <LogOut className="h-5 w-5" />
-                          <span>Logout</span>
-                        </button>
-                      </>
-                    ) : (
-                      <Link to="/" className="flex items-center space-x-2 py-2">
-                        <User className="h-5 w-5" />
-                        <span>Sign In</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </div>

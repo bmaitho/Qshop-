@@ -23,12 +23,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { cartToasts, wishlistToasts } from '../utils/toastConfig';
+import { wishlistToasts, productToasts } from '../utils/toastConfig';
 
 const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => {
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     const status = isInWishlist(product.id);
@@ -47,13 +48,15 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
       if (isWishlisted) {
         await removeFromWishlist(product.id);
         setIsWishlisted(false);
+        // No toast here, let the context handle it
       } else {
         await addToWishlist(product);
         setIsWishlisted(true);
+        // No toast here, let the context handle it
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      wishlistToasts.error();
+      // Only show error toast here if needed
     }
   };
 
@@ -62,14 +65,15 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     try {
       const token = JSON.parse(sessionStorage.getItem('token'));
       if (!token) {
-        cartToasts.error("Please login to add items to cart");
+        // This toast can stay as it's a pre-check
         return;
       }
-
+  
       await addToCart(product);
-      cartToasts.addSuccess(product.name);
+      // Remove this duplicate toast
     } catch (error) {
-      cartToasts.error();
+      console.error('Error adding to cart:', error);
+      // Only log the error, don't show toast
     }
   };
 
@@ -81,6 +85,16 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         return <Badge className="bg-red-500">Out of Stock</Badge>;
       default:
         return <Badge className="bg-green-500">Active</Badge>;
+    }
+  };
+
+  const handleDeleteClick = () => {
+    // Call the onDelete function directly
+    if (onDelete) {
+      onDelete(product.id);
+    } else {
+      console.error("onDelete function is not provided");
+      productToasts.error();
     }
   };
 
@@ -125,36 +139,17 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
           Mark as Out of Stock
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <DropdownMenuItem 
-              className="text-red-600"
-              onClick={(e) => e.preventDefault()}
-            >
-              Delete Listing
-            </DropdownMenuItem>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Product</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this product? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-red-600 hover:bg-red-700"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onDelete(product.id);
-                }}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DropdownMenuItem 
+          className="text-red-600"
+          onClick={(e) => {
+            e.preventDefault();
+            if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+              handleDeleteClick();
+            }
+          }}
+        >
+          Delete Listing
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -163,11 +158,16 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     <Link to={`/product/${product.id}`}>
       <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
         <div className="relative">
-          <img 
-            src={product.image_url || "/api/placeholder/400/300"} 
-            alt={product.name}
-            className="w-full h-40 object-cover rounded-t-lg"
-          />
+          {/* Consistent image container with fixed aspect ratio */}
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-gray-100">
+            <img 
+              src={imageError ? "/api/placeholder/400/300" : (product.image_url || "/api/placeholder/400/300")} 
+              alt={product.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={() => setImageError(true)}
+            />
+          </div>
           {isOwner ? (
             <>
               {renderOwnerControls()}
@@ -188,12 +188,12 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         </div>
         
         <div className="p-3">
-          <h3 className="font-medium text-sm mb-1 line-clamp-2 h-10">
+          <h3 className="font-medium text-sm mb-1 line-clamp-1">
             {product.name}
           </h3>
           
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-lg font-bold text-orange-600">
+            <span className="text-base font-bold text-orange-600">
               KES {product.price?.toLocaleString()}
             </span>
             {product.original_price && (
@@ -203,14 +203,21 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
             )}
           </div>
           
-          <div className="text-xs text-gray-600 mb-2 space-y-0.5">
-            <p>Condition: {product.condition}</p>
-            <p>Location: {product.location}</p>
+          {/* Description with ellipsis */}
+          <p className="text-xs text-gray-600 mb-2 line-clamp-2 h-9 italic">
+            {product.description || "No description available"}
+          </p>
+          
+          <div className="text-xs text-gray-600 mb-2 flex justify-between">
+            <span className="line-clamp-1">Condition: {product.condition}</span>
+            {product.location && (
+              <span className="line-clamp-1 text-gray-500">{product.location}</span>
+            )}
           </div>
           
           {!isOwner && (
             <Button 
-              className="w-full text-sm py-1.5 h-auto"
+              className="w-full text-sm py-1 h-auto text-xs"
               onClick={handleAddToCart}
               disabled={product.status !== 'active'}
             >
