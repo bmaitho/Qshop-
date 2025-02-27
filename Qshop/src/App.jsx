@@ -20,7 +20,8 @@ import MyShop from './components/MyShop';
 
 const App = () => {
   const [token, setToken] = useState(null);
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     // Check for existing token in sessionStorage on component mount
@@ -34,6 +35,14 @@ const App = () => {
       }
     }
     setLoading(false); // Mark loading as complete
+    
+    // Set up listener for screen size changes
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -54,54 +63,57 @@ const App = () => {
   return (
     <WishlistProvider>
       <CartProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/login" element={<Login setToken={setToken} />} />
-          
-          {/* Redirect root to login or home based on authentication */}
-          <Route 
-            path="/" 
-            element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
-          />
-          
-          {/* Protected Routes */}
-          <Route 
-            path="/home" 
-            element={token ? <Home token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/studentmarketplace" 
-            element={token ? <StudentMarketplace token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/product/:id" 
-            element={token ? <ProductDetails token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/myshop" 
-            element={token ? <MyShop token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/cart" 
-            element={token ? <Cart token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/wishlist" 
-            element={token ? <Wishlist token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/profile" 
-            element={token ? <Profile token={token} /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/category/:categoryName" 
-            element={token ? <CategoryPage token={token} /> : <Navigate to="/login" />} 
-          />
-          
-          {/* Catch-all Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <div className={isMobile ? "pb-16" : ""}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/login" element={<Login setToken={setToken} />} />
+            
+            {/* Redirect root to login or home based on authentication */}
+            <Route 
+              path="/" 
+              element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
+            />
+            
+            {/* Protected Routes */}
+            <Route 
+              path="/home" 
+              element={token ? <Home token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/studentmarketplace" 
+              element={token ? <StudentMarketplace token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/product/:id" 
+              element={token ? <ProductDetails token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/myshop" 
+              element={token ? <MyShop token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/cart" 
+              element={token ? <Cart token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/wishlist" 
+              element={token ? <Wishlist token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/profile" 
+              element={token ? <Profile token={token} /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/category/:categoryName" 
+              element={token ? <CategoryPage token={token} /> : <Navigate to="/login" />} 
+            />
+            
+            {/* Catch-all Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+        
         <ToastContainer 
           position="top-right"
           autoClose={3000}
