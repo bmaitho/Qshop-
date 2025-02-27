@@ -198,7 +198,7 @@ const ProductDetails = () => {
                   if (navigator.share) {
                     navigator.share({
                       title: product.name,
-                      text: `Check out this ${product.name} on Qshop!`,
+                      text: `Check out this ${product.name} on UniHive!`,
                       url: window.location.href,
                     });
                   } else {

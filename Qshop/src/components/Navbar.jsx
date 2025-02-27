@@ -114,7 +114,7 @@ const Navbar = () => {
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-orange-600">QShop</span>
+            <span className="text-2xl font-bold text-orange-600">UniHive</span>
           </Link>
 
           {/* Desktop Navigation */}
