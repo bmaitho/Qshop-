@@ -15,7 +15,7 @@ const MobileNavbar = () => {
   
   return (
     <>
-      {/* Top header with search and cart */}
+      {/* Top header with searches and cart */}
       <div className="fixed top-0 left-0 w-full z-50 bg-transparent">
         <div className="flex items-center justify-between p-4">
           <div className="bg-white/30 backdrop-blur-md rounded-full px-4 py-2 shadow-lg">
