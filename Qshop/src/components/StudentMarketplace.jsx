@@ -137,22 +137,21 @@ const StudentMarketplace = ({ token }) => {
         {isMobile && categories.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3">Categories</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {categories.slice(0, 8).map((category) => (
+            <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-hide">
+              {categories.slice(0, 10).map((category) => (
                 <button
                   key={category}
                   onClick={() => navigate(`/category/${category}`)}
-                  className="flex flex-col items-center"
+                  className="flex-shrink-0 px-3 py-1.5 bg-gray-100 rounded-full text-sm text-gray-700 hover:bg-gray-200 transition-colors"
                 >
-                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-1">
-                    <span className="text-orange-600 font-bold">{category.charAt(0).toUpperCase()}</span>
-                  </div>
-                  <span className="text-xs text-center truncate w-full">{category}</span>
+                  {category}
                 </button>
               ))}
             </div>
           </div>
         )}
+            
+    
         
         {/* Main content layout */}
         <div className="flex gap-6">
