@@ -92,7 +92,7 @@ const SignUp = () => {
       if (signUpError) throw signUpError;
       
       if (data.user) {
-        toast.success("Account created! Please check your email for verification instructions.", {
+        toast.success("Account created! Please Log in .", {
           position: "top-right",
           autoClose: 5000,
         });
