@@ -88,6 +88,15 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     }
   };
 
+  const handleDeleteClick = () => {
+    console.log("Delete clicked for product:", product.id);
+    if (onDelete) {
+      onDelete(product.id);
+    } else {
+      console.error("onDelete function is not provided");
+    }
+  };
+
   const renderOwnerControls = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -151,7 +160,8 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
                 className="bg-red-600 hover:bg-red-700"
                 onClick={(e) => {
                   e.preventDefault();
-                  onDelete(product.id);
+                  console.log("Delete confirmed for product:", product.id);
+                  handleDeleteClick();
                 }}
               >
                 Delete
@@ -197,12 +207,12 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         </div>
         
         <div className="p-3">
-          <h3 className="font-medium text-sm mb-1 line-clamp-2 h-10">
+          <h3 className="font-medium text-sm mb-1 line-clamp-1">
             {product.name}
           </h3>
           
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-lg font-bold text-orange-600">
+            <span className="text-base font-bold text-orange-600">
               KES {product.price?.toLocaleString()}
             </span>
             {product.original_price && (
@@ -212,14 +222,21 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
             )}
           </div>
           
-          <div className="text-xs text-gray-600 mb-2 space-y-0.5">
-            <p>Condition: {product.condition}</p>
-            <p>Location: {product.location}</p>
+          {/* Description with ellipsis */}
+          <p className="text-xs text-gray-600 mb-2 line-clamp-2 h-9 italic">
+            {product.description || "No description available"}
+          </p>
+          
+          <div className="text-xs text-gray-600 mb-2 flex justify-between">
+            <span className="line-clamp-1">Condition: {product.condition}</span>
+            {product.location && (
+              <span className="line-clamp-1 text-gray-500">{product.location}</span>
+            )}
           </div>
           
           {!isOwner && (
             <Button 
-              className="w-full text-sm py-1.5 h-auto"
+              className="w-full text-sm py-1 h-auto text-xs"
               onClick={handleAddToCart}
               disabled={product.status !== 'active'}
             >
