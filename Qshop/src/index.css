@@ -1,51 +1,67 @@
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap');
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
  
+
+
 @layer base {
   :root {
-    --background: 220 20% 10%;        /* Deep forest green background */
-    --foreground: 49 98% 68%;         /* Golden yellow text */
-    --card: 220 20% 15%;              /* Slightly lighter forest green */
-    --card-foreground: 49 98% 68%;    /* Golden yellow card text */
-    --popover: 220 20% 15%;
-    --popover-foreground: 49 98% 68%;
-    --primary: 146 64% 25%;           /* Forest green primary */
-    --primary-foreground: 49 98% 68%; /* Golden yellow on forest green */
-    --secondary: 146 44% 35%;         /* Slightly lighter forest green */
-    --secondary-foreground: 49 98% 68%;
-    --muted: 146 20% 20%;
-    --muted-foreground: 49 98% 68% / 0.8;
-    --accent: 146 44% 35%;
-    --accent-foreground: 49 98% 68%;
+    --background: 0 0% 100%;
+    --foreground: 153 50% 9%;    /* Deep green for text */
+    --card: 0 0% 100%;
+    --card-foreground: 153 50% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 153 50% 9%;
+    --primary: 153 50% 9%;       /* Deep green primary #0D2B20 */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 45 78% 64%;     /* Gold secondary #E7C65F */
+    --secondary-foreground: 153 50% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 153 30% 15%;
+    --accent: 45 78% 64%;        /* Gold accent #E7C65F */
+    --accent-foreground: 153 50% 9%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 49 98% 68%;
-    --border: 146 30% 30%;
-    --input: 146 30% 30%;
-    --ring: 49 98% 68%;               /* Golden yellow ring */
+    --destructive-foreground: 0 0% 98%;
+    --border: 153 30% 88%;
+    --input: 153 30% 88%;
+    --ring: 45 78% 64%;          /* Gold ring */
     --radius: 0.5rem;
+    --chart-1: 153 50% 9%;
+    --chart-2: 45 78% 64%;
+    --chart-3: 153 30% 15%;
+    --chart-4: 153 20% 30%;
+    --chart-5: 45 60% 70%;
   }
  
   .dark {
-    --background: 220 20% 10%;
-    --foreground: 49 98% 68%;
-    --card: 220 20% 15%;
-    --card-foreground: 49 98% 68%;
-    --popover: 220 20% 15%;
-    --popover-foreground: 49 98% 68%;
-    --primary: 146 64% 25%;
-    --primary-foreground: 49 98% 68%;
-    --secondary: 146 44% 35%;
-    --secondary-foreground: 49 98% 68%;
-    --muted: 146 20% 20%;
-    --muted-foreground: 49 98% 68% / 0.8;
-    --accent: 146 44% 35%;
-    --accent-foreground: 49 98% 68%;
+    --background: 153 50% 3%;
+    --foreground: 0 0% 98%;
+    --card: 153 50% 5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 153 50% 5%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 45 78% 64%;       /* Gold primary in dark mode */
+    --primary-foreground: 153 50% 9%;
+    --secondary: 153 50% 9%;     /* Deep green secondary in dark mode */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 153 30% 15%;
+    --muted-foreground: 153 20% 70%;
+    --accent: 153 30% 15%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 49 98% 68%;
-    --border: 146 30% 30%;
-    --input: 146 30% 30%;
-    --ring: 49 98% 68%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 153 30% 20%;
+    --input: 153 30% 20%;
+    --ring: 45 78% 64%;          /* Gold ring */
+    --chart-1: 45 78% 64%;
+    --chart-2: 153 50% 50%;
+    --chart-3: 153 30% 30%;
+    --chart-4: 45 60% 55%;
+    --chart-5: 153 40% 40%;
   }
 }
 
@@ -55,20 +71,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Open Sans', sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
   }
 }
 
-/* Custom gradient utilities */
-@layer utilities {
-  .bg-primary-gradient {
-    @apply bg-gradient-to-r from-primary to-primary/80;
-  }
-  
-  .text-golden {
-    @apply text-[hsl(49,98%,68%)];
-  }
-  
-  .border-forest {
-    @apply border-primary;
-  }
-}

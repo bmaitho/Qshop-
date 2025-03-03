@@ -72,49 +72,31 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <Navbar />
       
       {/* Featured Section */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-gradient-to-r from-orange-100 to-orange-50 rounded-lg p-6 mb-8">
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-8 border border-primary/20">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-5 w-5 text-orange-600" />
-            <h2 className="text-xl font-semibold">Student Marketplace Deals</h2>
+            <Sparkles className="h-5 w-5 text-secondary" />
+            <h2 className="text-xl font-serif font-semibold text-primary">Student Marketplace Deals</h2>
           </div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-primary/80 mb-6 max-w-2xl">
             Save up to 70% on textbooks and supplies from fellow students!
           </p>
           <Link to="/studentmarketplace">
-            <Button className="bg-orange-600 hover:bg-orange-700">
+            <Button className="bg-secondary text-primary hover:bg-secondary/90 shadow-md">
               View All Student Deals
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
 
-        {/* Featured Products Grid */}
-        <h2 className="text-2xl font-bold mb-6">Latest Listings</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {loading ? (
-            [...Array(4)].map((_, index) => (
-              <Card key={index} className="animate-pulse">
-                <div className="h-48 bg-gray-200 rounded-t-lg"></div>
-                <CardContent className="p-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
-            ))
-          )}
-        </div>
+
 
         {/* Categories Section */}
-        <h2 className="text-2xl font-bold mb-6">Popular Categories</h2>
+        <h2 className="text-2xl font-serif font-bold mb-6 text-primary">Popular Categories</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {categories.map((category, index) => (
             <Link 
@@ -122,15 +104,20 @@ const Home = () => {
               to={`/category/${category.name.toLowerCase()}`}
               className="group"
             >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                <img 
-                  src={category.image} 
-                  alt={category.name}
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform"
-                />
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-1">{category.name}</h3>
-                  <p className="text-sm text-gray-600">{category.description}</p>
+              <Card className="overflow-hidden hover:shadow-lg transition-shadow border border-primary/10">
+                <div className="relative">
+                  <div className="w-full h-40 overflow-hidden">
+                    <img 
+                      src={category.image} 
+                      alt={category.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent opacity-70"></div>
+                </div>
+                <CardContent className="p-4 relative z-10 -mt-16">
+                  <h3 className="font-serif text-lg font-semibold mb-1 text-white">{category.name}</h3>
+                  <p className="text-sm text-white/90">{category.description}</p>
                 </CardContent>
               </Card>
             </Link>

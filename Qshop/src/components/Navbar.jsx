@@ -31,8 +31,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import MobileNavbar from './MobileNavbar';
-import { supabase } from '../components/SupabaseClient';  
-
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -65,26 +63,11 @@ const Navbar = () => {
     return <MobileNavbar />;
   }
 
-  const handleLogout = async () => {
-    try {
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) throw error;
-      
-      // Clear session storage
-      sessionStorage.removeItem('token');
-      setUserData(null);
-      
-      // Show success message
-      toast.success('Logged out successfully');
-      
-      // Redirect to login page
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-      toast.error('Failed to log out');
-    }
+  const handleLogout = () => {
+    sessionStorage.removeItem('token');
+    setUserData(null);
+    toast.success('Logged out successfully');
+    navigate('/');
   };
 
   const handleSearch = (e) => {
@@ -112,10 +95,10 @@ const Navbar = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-              <User className="h-4 w-4 text-orange-600" />
+            <div className="h-8 w-8 rounded-full bg-secondary/20 flex items-center justify-center">
+              <User className="h-4 w-4 text-secondary" />
             </div>
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4 text-secondary" />
           </div>
         </Button>
       </DropdownMenuTrigger>
@@ -151,12 +134,12 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="bg-white shadow-md">
+    <nav className="bg-primary shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-orange-600">UniHive</span>
+            <span className="text-2xl font-bold text-secondary font-serif">UniHive</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -166,9 +149,9 @@ const Navbar = () => {
                 key={link.name}
                 to={link.path}
                 className={`transition-colors ${
-                  link.highlight 
-                    ? 'text-orange-600 hover:text-orange-700 font-semibold' 
-                    : 'text-gray-600 hover:text-orange-600'
+                  location.pathname === link.path
+                    ? 'text-secondary font-semibold' 
+                    : 'text-white hover:text-secondary/80'
                 }`}
               >
                 {link.name}
@@ -179,20 +162,20 @@ const Navbar = () => {
           {/* Desktop Right Section */}
           <div className="hidden md:flex items-center space-x-4">
             <Link to="/wishlist" className="relative">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-white hover:text-secondary">
                 <Heart className="h-5 w-5" />
                 {wishlist?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-secondary text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {wishlist.length}
                   </span>
                 )}
               </Button>
             </Link>
             <Link to="/cart" className="relative">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-white hover:text-secondary">
                 <ShoppingCart className="h-5 w-5" />
                 {cart?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-secondary text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {cart.length}
                   </span>
                 )}
@@ -202,7 +185,7 @@ const Navbar = () => {
               <ProfileDropdown />
             ) : (
               <Link to="/">
-                <Button>Sign In</Button>
+                <Button className="bg-secondary text-primary hover:bg-secondary/90 font-medium">Sign In</Button>
               </Link>
             )}
           </div>
