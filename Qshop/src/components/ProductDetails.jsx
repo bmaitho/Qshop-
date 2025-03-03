@@ -111,9 +111,9 @@ const ProductDetails = () => {
         <Navbar />
         <div className="max-w-7xl mx-auto p-4">
           <div className="animate-pulse">
-            <div className="h-96 bg-primary/5 rounded-lg mb-4"></div>
-            <div className="h-8 bg-primary/5 rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-primary/5 rounded w-1/2 mb-4"></div>
+            <div className="h-96 bg-primary/5 dark:bg-gray-700 rounded-lg mb-4"></div>
+            <div className="h-8 bg-primary/5 dark:bg-gray-700 rounded w-3/4 mb-4"></div>
+            <div className="h-4 bg-primary/5 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
           </div>
         </div>
       </>
@@ -125,7 +125,7 @@ const ProductDetails = () => {
       <>
         <Navbar />
         <div className="max-w-7xl mx-auto p-4">
-          <p className="text-center text-primary/70">Product not found</p>
+          <p className="text-center text-primary/70 dark:text-gray-300">Product not found</p>
         </div>
       </>
     );
@@ -138,7 +138,7 @@ const ProductDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="relative">
             {/* Image container with consistent aspect ratio */}
-            <div className="aspect-[1/1] w-full rounded-lg overflow-hidden bg-gray-100 border border-primary/10">
+            <div className="aspect-[1/1] w-full rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-primary/10 dark:border-gray-600">
               <img 
                 src={imageError ? "/api/placeholder/400/400" : (product.image_url || "/api/placeholder/400/400")} 
                 alt={product.name}
@@ -148,43 +148,43 @@ const ProductDetails = () => {
             </div>
             <button 
               onClick={handleWishlist}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white/80 hover:bg-white shadow-sm transition-colors"
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
             >
               <Heart 
-                className={`h-6 w-6 ${isWishlisted ? 'fill-secondary text-secondary' : 'text-primary/60'}`}
+                className={`h-6 w-6 ${isWishlisted ? 'fill-secondary text-secondary' : 'text-primary/60 dark:text-gray-300'}`}
               />
             </button>
           </div>
 
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-serif font-bold mb-2 text-primary">{product.name}</h1>
+              <h1 className="text-3xl font-serif font-bold mb-2 text-primary dark:text-gray-100">{product.name}</h1>
               <div className="flex items-baseline space-x-4">
-                <span className="text-2xl font-bold text-secondary">
+                <span className="text-2xl font-bold text-secondary dark:text-green-400">
                   KES {product.price?.toLocaleString()}
                 </span>
                 {product.original_price && (
-                  <span className="text-lg text-primary/50 line-through">
+                  <span className="text-lg text-primary/50 dark:text-gray-400 line-through">
                     KES {product.original_price?.toLocaleString()}
                   </span>
                 )}
               </div>
             </div>
 
-            <Card className="border border-primary/10">
+            <Card className="border border-primary/10 dark:bg-gray-800 dark:border-gray-700">
               <CardContent className="p-4 space-y-4">
                 <div>
-                  <h3 className="font-serif font-semibold mb-2 text-primary">Product Details</h3>
-                  <p className="text-primary/80">{product.description}</p>
-                  <p className="text-primary/80">Condition: {product.condition}</p>
-                  <p className="text-primary/80">Location: {product.location || product.seller_details?.campus_location}</p>
+                  <h3 className="font-serif font-semibold mb-2 text-primary dark:text-gray-200">Product Details</h3>
+                  <p className="text-primary/80 dark:text-gray-300">{product.description}</p>
+                  <p className="text-primary/80 dark:text-gray-300">Condition: {product.condition}</p>
+                  <p className="text-primary/80 dark:text-gray-300">Location: {product.location || product.seller_details?.campus_location}</p>
                 </div>
 
                 <div>
-                  <h3 className="font-serif font-semibold mb-2 text-primary">Seller Information</h3>
-                  <p className="text-primary/80">Name: {product.seller_details?.full_name}</p>
+                  <h3 className="font-serif font-semibold mb-2 text-primary dark:text-gray-200">Seller Information</h3>
+                  <p className="text-primary/80 dark:text-gray-300">Name: {product.seller_details?.full_name}</p>
                   {product.seller_details?.phone_number && (
-                    <p className="text-primary/80">Phone: {product.seller_details.phone_number}</p>
+                    <p className="text-primary/80 dark:text-gray-300">Phone: {product.seller_details.phone_number}</p>
                   )}
                 </div>
               </CardContent>
@@ -193,13 +193,13 @@ const ProductDetails = () => {
             <div className="flex space-x-4">
               <Button
                 onClick={handleAddToCart}
-                className="flex-1 bg-secondary text-primary hover:bg-secondary/90"
+                className="flex-1 bg-secondary text-primary hover:bg-secondary/90 dark:text-gray-900 dark:hover:bg-secondary/80"
               >
                 Add to Cart
               </Button>
               <Button
                 variant="outline"
-                className="border-primary/20 text-primary hover:bg-primary/5"
+                className="border-primary/20 text-primary hover:bg-primary/5 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
                 onClick={() => {
                   if (navigator.share) {
                     navigator.share({
