@@ -74,11 +74,11 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   const getStatusBadge = () => {
     switch (product.status) {
       case 'sold':
-        return <Badge className="bg-blue-500">Sold</Badge>;
+        return <Badge className="bg-blue-500 dark:bg-blue-600">Sold</Badge>;
       case 'out_of_stock':
-        return <Badge className="bg-red-500">Out of Stock</Badge>;
+        return <Badge className="bg-red-500 dark:bg-red-600">Out of Stock</Badge>;
       default:
-        return <Badge className="bg-secondary/90 text-primary">Active</Badge>;
+        return <Badge className="bg-secondary/90 text-primary dark:bg-secondary/80 dark:text-gray-100">Active</Badge>;
     }
   };
 
@@ -97,7 +97,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-2 left-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
+          className="absolute top-2 left-2 p-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 shadow-sm"
           onClick={(e) => e.preventDefault()}
         >
           <MoreVertical className="h-4 w-4" />
@@ -133,7 +133,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
-          className="text-red-600"
+          className="text-red-600 dark:text-red-400"
           onClick={(e) => {
             e.preventDefault();
             if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
@@ -149,10 +149,10 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
 
   return (
     <Link to={`/product/${product.id}`}>
-      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 overflow-hidden h-full">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full">
         <div className="relative">
           {/* Consistent image container with fixed aspect ratio */}
-          <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
+          <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-700">
             <img 
               src={imageError ? "/api/placeholder/400/300" : (product.image_url || "/api/placeholder/400/300")} 
               alt={product.name}
@@ -171,10 +171,10 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
           ) : (
             <button 
               onClick={handleWishlist}
-              className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm transition-colors"
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 shadow-sm transition-colors"
             >
               <Heart 
-                className={`h-4 w-4 ${isWishlisted ? 'fill-secondary text-secondary' : 'text-gray-600'}`}
+                className={`h-4 w-4 ${isWishlisted ? 'fill-secondary text-secondary dark:fill-secondary dark:text-secondary' : 'text-gray-600 dark:text-gray-300'}`}
               />
             </button>
           )}
@@ -182,37 +182,38 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
         
         <div className="p-4 flex flex-col justify-between">
           <div>
-            <h3 className="font-serif font-medium text-sm mb-1 line-clamp-1 text-primary">
+            <h3 className="font-serif font-medium text-sm mb-1 line-clamp-1 text-primary dark:text-gray-100">
               {product.name}
             </h3>
             
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-base font-bold text-secondary">
+            <span className="text-base font-bold text-secondary dark:text-green-400">
+
                 KES {product.price?.toLocaleString()}
               </span>
               {product.original_price && (
-                <span className="text-xs text-gray-500 line-through">
+                <span className="text-xs text-gray-500 dark:text-gray-400 line-through">
                   KES {product.original_price?.toLocaleString()}
                 </span>
               )}
             </div>
             
             {/* Description with ellipsis */}
-            <p className="text-xs text-primary/70 mb-2 line-clamp-2 min-h-[2.5rem] italic">
+            <p className="text-xs text-primary/70 dark:text-gray-300 mb-2 line-clamp-2 min-h-[2.5rem] italic">
               {product.description || "No description available"}
             </p>
             
-            <div className="text-xs text-primary/70 mb-3 flex justify-between">
+            <div className="text-xs text-primary/70 dark:text-gray-400 mb-3 flex justify-between">
               <span className="line-clamp-1">Condition: {product.condition}</span>
               {product.location && (
-                <span className="line-clamp-1 text-primary/60">{product.location}</span>
+                <span className="line-clamp-1 text-primary/60 dark:text-gray-500">{product.location}</span>
               )}
             </div>
           </div>
           
           {!isOwner && (
             <Button 
-              className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 mt-auto"
+              className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80 mt-auto"
               onClick={handleAddToCart}
               disabled={product.status !== 'active'}
             >

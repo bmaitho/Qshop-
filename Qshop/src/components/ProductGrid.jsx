@@ -44,10 +44,10 @@ const ProductGrid = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6">
         {[...Array(8)].map((_, index) => (
           <div key={index} className="animate-pulse">
-            <div className="bg-primary/5 h-48 rounded-t-lg"></div>
-            <div className="space-y-3 p-4 bg-white border border-primary/10 rounded-b-lg">
-              <div className="h-4 bg-primary/5 rounded w-3/4"></div>
-              <div className="h-4 bg-primary/5 rounded w-1/2"></div>
+            <div className="bg-primary/5 dark:bg-gray-700 h-48 rounded-t-lg"></div>
+            <div className="space-y-3 p-4 bg-white dark:bg-gray-800 border border-primary/10 dark:border-gray-700 rounded-b-lg">
+              <div className="h-4 bg-primary/5 dark:bg-gray-600 rounded w-3/4"></div>
+              <div className="h-4 bg-primary/5 dark:bg-gray-600 rounded w-1/2"></div>
             </div>
           </div>
         ))}
@@ -58,7 +58,7 @@ const ProductGrid = () => {
   if (error) {
     return (
       <div className="text-center py-10">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 dark:text-red-400">{error}</p>
       </div>
     );
   }

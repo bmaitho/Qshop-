@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Moon, Sun } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
+import { useTheme } from './ThemeContext';
 
 export function ThemeToggle({ variant = "ghost", size = "icon" }) {
   const { theme, toggleTheme } = useTheme();

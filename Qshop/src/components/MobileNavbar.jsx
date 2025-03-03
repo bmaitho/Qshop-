@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { useTheme } from './ThemeProvider';
+import { useTheme } from './ThemeContext';
 
 const MobileNavbar = () => {
   const location = useLocation();

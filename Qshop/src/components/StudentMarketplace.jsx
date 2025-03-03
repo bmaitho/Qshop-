@@ -71,14 +71,14 @@ const StudentMarketplace = ({ token }) => {
   );
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
       
       <div className={`max-w-7xl mx-auto px-4 ${isMobile ? 'mt-14 mb-16' : ''}`}>
         {/* Welcome header */}
         <div className="flex flex-col space-y-4 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
               Welcome, {token?.user?.user_metadata?.full_name || 'Student'}
             </h1>
             
@@ -119,11 +119,11 @@ const StudentMarketplace = ({ token }) => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  type="search"
-                  placeholder="Search products..."
-                  value={searchQuery}
+                type="search"
+                 placeholder="Search products..."
+                 value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                 />
               </div>
               <Button type="submit" size="sm">
@@ -158,7 +158,8 @@ const StudentMarketplace = ({ token }) => {
           {/* Desktop side filters */}
           {!isMobile && (
             <div className="hidden lg:block w-64 space-y-6">
-              <div className="bg-white p-4 rounded-lg shadow">
+             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow dark:shadow-gray-900/30">
+
                 <FilterContent />
               </div>
             </div>

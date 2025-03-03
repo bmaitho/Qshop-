@@ -4,7 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
-import { ThemeProvider } from './components/ThemeProvider';
+import { ThemeProvider } from './components/ThemeContext';
 
 // Components
 import SignUp from './components/auth/SignUp';
