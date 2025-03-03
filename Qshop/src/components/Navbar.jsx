@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ThemeToggle } from './ThemeToggle';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
@@ -95,10 +96,10 @@ const Navbar = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-secondary/20 flex items-center justify-center">
-              <User className="h-4 w-4 text-secondary" />
+            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <User className="h-4 w-4 text-orange-600" />
             </div>
-            <ChevronDown className="h-4 w-4 text-secondary" />
+            <ChevronDown className="h-4 w-4" />
           </div>
         </Button>
       </DropdownMenuTrigger>
@@ -134,12 +135,12 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="bg-primary shadow-md">
+    <nav className="bg-white shadow-md dark:bg-gray-800 dark:text-white transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-secondary font-serif">UniHive</span>
+            <span className="text-2xl font-bold text-orange-600 dark:text-orange-500">UniHive</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -149,9 +150,9 @@ const Navbar = () => {
                 key={link.name}
                 to={link.path}
                 className={`transition-colors ${
-                  location.pathname === link.path
-                    ? 'text-secondary font-semibold' 
-                    : 'text-white hover:text-secondary/80'
+                  link.highlight 
+                    ? 'text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 font-semibold' 
+                    : 'text-gray-600 hover:text-orange-600 dark:text-gray-300 dark:hover:text-orange-400'
                 }`}
               >
                 {link.name}
@@ -161,21 +162,23 @@ const Navbar = () => {
 
           {/* Desktop Right Section */}
           <div className="hidden md:flex items-center space-x-4">
+            <ThemeToggle />
+            
             <Link to="/wishlist" className="relative">
-              <Button variant="ghost" size="icon" className="text-white hover:text-secondary">
+              <Button variant="ghost" size="icon">
                 <Heart className="h-5 w-5" />
                 {wishlist?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-secondary text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {wishlist.length}
                   </span>
                 )}
               </Button>
             </Link>
             <Link to="/cart" className="relative">
-              <Button variant="ghost" size="icon" className="text-white hover:text-secondary">
+              <Button variant="ghost" size="icon">
                 <ShoppingCart className="h-5 w-5" />
                 {cart?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-secondary text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {cart.length}
                   </span>
                 )}
@@ -185,7 +188,7 @@ const Navbar = () => {
               <ProfileDropdown />
             ) : (
               <Link to="/">
-                <Button className="bg-secondary text-primary hover:bg-secondary/90 font-medium">Sign In</Button>
+                <Button>Sign In</Button>
               </Link>
             )}
           </div>

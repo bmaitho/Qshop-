@@ -48,15 +48,12 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
       if (isWishlisted) {
         await removeFromWishlist(product.id);
         setIsWishlisted(false);
-        // No toast here, let the context handle it
       } else {
         await addToWishlist(product);
         setIsWishlisted(true);
-        // No toast here, let the context handle it
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      // Only show error toast here if needed
     }
   };
 
@@ -65,15 +62,12 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     try {
       const token = JSON.parse(sessionStorage.getItem('token'));
       if (!token) {
-        // This toast can stay as it's a pre-check
         return;
       }
   
       await addToCart(product);
-      // Remove this duplicate toast
     } catch (error) {
       console.error('Error adding to cart:', error);
-      // Only log the error, don't show toast
     }
   };
 
@@ -84,12 +78,11 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
       case 'out_of_stock':
         return <Badge className="bg-red-500">Out of Stock</Badge>;
       default:
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-secondary/90 text-primary">Active</Badge>;
     }
   };
 
   const handleDeleteClick = () => {
-    // Call the onDelete function directly
     if (onDelete) {
       onDelete(product.id);
     } else {
@@ -156,14 +149,14 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
 
   return (
     <Link to={`/product/${product.id}`}>
-      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 overflow-hidden h-full">
         <div className="relative">
           {/* Consistent image container with fixed aspect ratio */}
-          <div className="aspect-[4/3] w-full overflow-hidden rounded-t-lg bg-gray-100">
+          <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100">
             <img 
               src={imageError ? "/api/placeholder/400/300" : (product.image_url || "/api/placeholder/400/300")} 
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
               loading="lazy"
               onError={() => setImageError(true)}
             />
@@ -178,46 +171,48 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
           ) : (
             <button 
               onClick={handleWishlist}
-              className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm"
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm transition-colors"
             >
               <Heart 
-                className={`h-4 w-4 ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`}
+                className={`h-4 w-4 ${isWishlisted ? 'fill-secondary text-secondary' : 'text-gray-600'}`}
               />
             </button>
           )}
         </div>
         
-        <div className="p-3">
-          <h3 className="font-medium text-sm mb-1 line-clamp-1">
-            {product.name}
-          </h3>
-          
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-base font-bold text-orange-600">
-              KES {product.price?.toLocaleString()}
-            </span>
-            {product.original_price && (
-              <span className="text-xs text-gray-500 line-through">
-                KES {product.original_price?.toLocaleString()}
+        <div className="p-4 flex flex-col justify-between">
+          <div>
+            <h3 className="font-serif font-medium text-sm mb-1 line-clamp-1 text-primary">
+              {product.name}
+            </h3>
+            
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-base font-bold text-secondary">
+                KES {product.price?.toLocaleString()}
               </span>
-            )}
-          </div>
-          
-          {/* Description with ellipsis */}
-          <p className="text-xs text-gray-600 mb-2 line-clamp-2 h-9 italic">
-            {product.description || "No description available"}
-          </p>
-          
-          <div className="text-xs text-gray-600 mb-2 flex justify-between">
-            <span className="line-clamp-1">Condition: {product.condition}</span>
-            {product.location && (
-              <span className="line-clamp-1 text-gray-500">{product.location}</span>
-            )}
+              {product.original_price && (
+                <span className="text-xs text-gray-500 line-through">
+                  KES {product.original_price?.toLocaleString()}
+                </span>
+              )}
+            </div>
+            
+            {/* Description with ellipsis */}
+            <p className="text-xs text-primary/70 mb-2 line-clamp-2 min-h-[2.5rem] italic">
+              {product.description || "No description available"}
+            </p>
+            
+            <div className="text-xs text-primary/70 mb-3 flex justify-between">
+              <span className="line-clamp-1">Condition: {product.condition}</span>
+              {product.location && (
+                <span className="line-clamp-1 text-primary/60">{product.location}</span>
+              )}
+            </div>
           </div>
           
           {!isOwner && (
             <Button 
-              className="w-full text-sm py-1 h-auto text-xs"
+              className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 mt-auto"
               onClick={handleAddToCart}
               disabled={product.status !== 'active'}
             >
