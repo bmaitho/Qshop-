@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import MobileNavbar from './MobileNavbar';
+import { supabase } from '../components/SupabaseClient';  
+
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -63,11 +65,26 @@ const Navbar = () => {
     return <MobileNavbar />;
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    setUserData(null);
-    toast.success('Logged out successfully');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      // Clear session storage
+      sessionStorage.removeItem('token');
+      setUserData(null);
+      
+      // Show success message
+      toast.success('Logged out successfully');
+      
+      // Redirect to login page
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out');
+    }
   };
 
   const handleSearch = (e) => {
