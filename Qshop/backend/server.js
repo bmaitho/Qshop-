@@ -10,9 +10,10 @@ const app = express();
 
 // CORS configuration - Allow multiple origins
 const allowedOrigins = [
-  'https://qshopv1.vercel.app',  // Production frontend
-'https://unihive-kohl.vercel.app',
-  'http://localhost:5173',       // Local development frontend
+  'https://UniHive.shop',  // Production frontend
+'https://unihive.store',
+  'http://localhost:5173',   
+    // Local development frontend
   process.env.FRONTEND_URL       // Environment variable if set
 ].filter(Boolean); // Remove any undefined/null values
 
