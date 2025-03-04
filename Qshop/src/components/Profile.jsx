@@ -12,7 +12,6 @@ import Navbar from './Navbar';
 import { Link } from 'react-router-dom';
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState('listings');
   const [profileData, setProfileData] = useState(null);
   const [userListings, setUserListings] = useState([]);
   const [userWishlist, setUserWishlist] = useState([]);
@@ -20,6 +19,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSeller, setIsSeller] = useState(false);
+  const [activeTab, setActiveTab] = useState('');
 
   useEffect(() => {
     fetchUserData();
@@ -32,15 +32,26 @@ const Profile = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Set the initial activeTab after determining seller status
   useEffect(() => {
-    if (isSeller && activeTab === 'listings') {
+    if (profileData) {
+      // Set default tab based on seller status
+      setActiveTab(isSeller ? 'listings' : 'wishlist');
+    }
+  }, [isSeller, profileData]);
+
+  // Load appropriate data when tab changes
+  useEffect(() => {
+    if (!activeTab) return;
+    
+    if (activeTab === 'listings' && isSeller) {
       fetchUserListings();
     } else if (activeTab === 'wishlist') {
       fetchUserWishlist();
     } else if (activeTab === 'orders') {
       fetchUserOrders();
     }
-  }, [activeTab, isSeller]);
+  }, [activeTab]);
 
   const fetchUserData = async () => {
     try {
@@ -117,6 +128,7 @@ const Profile = () => {
 
   const fetchUserListings = async () => {
     try {
+      console.log('Fetching user listings...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
@@ -127,6 +139,7 @@ const Profile = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Listings data:', data);
       setUserListings(data || []);
     } catch (error) {
       console.error('Error fetching listings:', error);
@@ -136,6 +149,7 @@ const Profile = () => {
 
   const fetchUserWishlist = async () => {
     try {
+      console.log('Fetching wishlist items...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
@@ -148,6 +162,7 @@ const Profile = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
+      console.log('Wishlist data:', data);
       setUserWishlist(data || []);
     } catch (error) {
       console.error('Error fetching wishlist:', error);
@@ -157,6 +172,7 @@ const Profile = () => {
 
   const fetchUserOrders = async () => {
     try {
+      console.log('Fetching orders...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
@@ -172,6 +188,7 @@ const Profile = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log('Orders data:', data);
       setUserOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -272,19 +289,23 @@ const Profile = () => {
         </Card>
 
         {/* Different tabs based on seller status */}
-        <Tabs defaultValue={isSeller ? "listings" : "wishlist"} className="mb-6">
+        <Tabs 
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mb-6"
+        >
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
             {isSeller && (
-              <TabsTrigger value="listings" onClick={() => setActiveTab('listings')}>
+              <TabsTrigger value="listings">
                 <Package className="w-4 h-4 mr-2" />
                 <span className={isMobile ? "text-xs" : ""}>Listings</span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="wishlist" onClick={() => setActiveTab('wishlist')}>
+            <TabsTrigger value="wishlist">
               <Heart className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Wishlist</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" onClick={() => setActiveTab('orders')}>
+            <TabsTrigger value="orders">
               <ShoppingBag className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Orders</span>
             </TabsTrigger>
