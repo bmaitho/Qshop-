@@ -126,19 +126,19 @@ const SignUp = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="max-w-md w-full px-4">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-600">UniHive</h1>
-          <p className="text-gray-600 mt-2">Student Marketplace</p>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-md w-full px-4 py-6">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
         </div>
         
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl text-center font-bold mb-6">Create an Account</h2>
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-900/30">
+          <h2 className="text-2xl text-center font-bold mb-4 dark:text-gray-100">Create an Account</h2>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="space-y-1">
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Full Name
               </label>
               <Input
@@ -147,15 +147,15 @@ const SignUp = () => {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className={errors.fullName ? "border-red-500" : ""}
+                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.fullName ? "border-red-500 dark:border-red-400" : ""}`}
               />
               {errors.fullName && (
-                <p className="text-sm text-red-500">{errors.fullName}</p>
+                <p className="text-sm text-red-500 dark:text-red-400">{errors.fullName}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Email
               </label>
               <Input
@@ -165,15 +165,15 @@ const SignUp = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className={errors.email ? "border-red-500" : ""}
+                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.email ? "border-red-500 dark:border-red-400" : ""}`}
               />
               {errors.email && (
-                <p className="text-sm text-red-500">{errors.email}</p>
+                <p className="text-sm text-red-500 dark:text-red-400">{errors.email}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Password
               </label>
               <Input
@@ -183,15 +183,15 @@ const SignUp = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
-                className={errors.password ? "border-red-500" : ""}
+                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.password ? "border-red-500 dark:border-red-400" : ""}`}
               />
               {errors.password && (
-                <p className="text-sm text-red-500">{errors.password}</p>
+                <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1">
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Phone Number
               </label>
               <Input
@@ -201,11 +201,12 @@ const SignUp = () => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="Enter your phone number"
+                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700">
+            <div className="space-y-1">
+              <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Campus Location
               </label>
               <Input
@@ -214,25 +215,25 @@ const SignUp = () => {
                 value={formData.campusLocation}
                 onChange={handleChange}
                 placeholder="Enter your campus location"
-                className={errors.campusLocation ? "border-red-500" : ""}
+                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
               />
               {errors.campusLocation && (
-                <p className="text-sm text-red-500">{errors.campusLocation}</p>
+                <p className="text-sm text-red-500 dark:text-red-400">{errors.campusLocation}</p>
               )}
             </div>
 
-            <div className="flex items-center space-x-2 pt-2">
+            <div className="flex items-center space-x-2 pt-1">
               <input
                 type="checkbox"
                 id="isSeller"
                 name="isSeller"
                 checked={formData.isSeller}
                 onChange={handleChange}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-secondary"
               />
               <label 
                 htmlFor="isSeller" 
-                className="text-sm font-medium text-gray-700"
+                className="text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 Register as a Seller
               </label>
@@ -240,16 +241,16 @@ const SignUp = () => {
 
             <Button 
               type="submit" 
-              className="w-full mt-6 bg-orange-600 hover:bg-orange-700"
+              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white h-9"
               disabled={loading}
             >
               {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>
           
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-orange-600 hover:text-orange-700 hover:underline font-medium">
+            <Link to="/login" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
               Login
             </Link>
           </p>

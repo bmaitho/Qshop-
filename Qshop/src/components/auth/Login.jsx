@@ -58,19 +58,19 @@ const Login = ({ setToken }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-md w-full px-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-600">UniHive</h1>
-          <p className="text-gray-600 mt-2">Student Marketplace</p>
+          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
         </div>
         
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl text-center font-bold mb-6">Welcome Back</h2>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md dark:shadow-gray-900/30">
+          <h2 className="text-2xl text-center font-bold mb-6 dark:text-gray-100">Welcome Back</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
                 Email
               </label>
               <Input
@@ -80,13 +80,13 @@ const Login = ({ setToken }) => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full"
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
                 placeholder="Enter your email"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium mb-1 text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
                 Password
               </label>
               <Input
@@ -96,23 +96,23 @@ const Login = ({ setToken }) => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full"
+                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
                 placeholder="Enter your password"
               />
             </div>
 
             <Button 
               type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              className="w-full bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white"
               disabled={loading}
             >
               {loading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-orange-600 hover:text-orange-700 hover:underline font-medium">
+            <Link to="/signup" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
               Sign Up
             </Link>
           </p>
