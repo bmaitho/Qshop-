@@ -68,7 +68,7 @@ const Navbar = () => {
     sessionStorage.removeItem('token');
     setUserData(null);
     toast.success('Logged out successfully');
-    navigate('/');
+    navigate('/login');
   };
 
   const handleSearch = (e) => {

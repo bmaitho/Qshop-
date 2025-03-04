@@ -97,7 +97,7 @@ const Cart = () => {
         <div className={`max-w-7xl mx-auto p-4 ${isMobile ? 'mt-12 mb-16' : ''}`}>
           <div className="animate-pulse">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-primary/5 h-24 rounded-lg mb-4"></div>
+              <div key={i} className="bg-primary/5 dark:bg-gray-700 h-24 rounded-lg mb-4"></div>
             ))}
           </div>
         </div>
@@ -111,10 +111,10 @@ const Cart = () => {
         <Navbar />
         <div className={`max-w-7xl mx-auto p-4 ${isMobile ? 'mt-12 mb-16' : ''}`}>
           <div className="text-center py-16">
-            <h2 className="text-2xl font-serif font-bold mb-4 text-primary">Your Cart is Empty</h2>
-            <p className="text-primary/70 mb-8">Browse our products and add some items to your cart</p>
+            <h2 className="text-2xl font-serif font-bold mb-4 text-primary dark:text-gray-100">Your Cart is Empty</h2>
+            <p className="text-primary/70 dark:text-gray-300 mb-8">Browse our products and add some items to your cart</p>
             <Link to="/studentmarketplace">
-              <Button className="bg-secondary text-primary hover:bg-secondary/90">Continue Shopping</Button>
+              <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:text-gray-900">Continue Shopping</Button>
             </Link>
           </div>
         </div>
@@ -129,21 +129,21 @@ const Cart = () => {
         {/* Mobile header */}
         {isMobile ? (
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-serif font-bold text-primary">My Cart ({cart.length})</h1>
+            <h1 className="text-xl font-serif font-bold text-primary dark:text-gray-100">My Cart ({cart.length})</h1>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="border-primary/20 hover:bg-primary/5 text-primary">Clear All</Button>
+                <Button variant="outline" size="sm" className="border-primary/20 hover:bg-primary/5 text-primary dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-100">Clear All</Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="font-serif">Clear Cart</AlertDialogTitle>
-                  <AlertDialogDescription className="text-primary/70">
+                  <AlertDialogTitle className="font-serif dark:text-gray-100">Clear Cart</AlertDialogTitle>
+                  <AlertDialogDescription className="text-primary/70 dark:text-gray-300">
                     Are you sure you want to remove all items from your cart?
                     This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <Button variant="outline" className="border-primary/20 hover:bg-primary/5 text-primary">Cancel</Button>
+                  <Button variant="outline" className="border-primary/20 hover:bg-primary/5 text-primary dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300">Cancel</Button>
                   <Button 
                     variant="destructive" 
                     onClick={handleClearCart}
@@ -155,7 +155,7 @@ const Cart = () => {
             </AlertDialog>
           </div>
         ) : (
-          <h1 className="text-2xl font-serif font-bold mb-6 text-primary">Shopping Cart</h1>
+          <h1 className="text-2xl font-serif font-bold mb-6 text-primary dark:text-gray-100">Shopping Cart</h1>
         )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8">
@@ -163,39 +163,39 @@ const Cart = () => {
             {cart.map((item) => (
               <div 
                 key={item.id} 
-                className={`flex items-center space-x-4 border-b border-primary/10 py-4 ${isMobile ? 'flex-wrap' : ''}`}
+                className={`flex items-center space-x-4 border-b border-primary/10 dark:border-gray-700 py-4 ${isMobile ? 'flex-wrap' : ''}`}
               >
                 <img 
                   src={item.products?.image_url || "/api/placeholder/100/100"} 
                   alt={item.products?.name} 
-                  className={`w-20 h-20 md:w-24 md:h-24 object-cover rounded border border-primary/10 ${isMobile ? 'mb-2' : ''}`}
+                  className={`w-20 h-20 md:w-24 md:h-24 object-cover rounded border border-primary/10 dark:border-gray-700 ${isMobile ? 'mb-2' : ''}`}
                 />
                 <div className={`flex-1 ${isMobile ? 'w-full' : ''}`}>
                   <Link 
                     to={`/product/${item.product_id}`}
-                    className="font-serif font-semibold hover:text-secondary text-sm md:text-base text-primary"
+                    className="font-serif font-semibold hover:text-secondary text-sm md:text-base text-primary dark:text-gray-100"
                   >
                     {item.products?.name}
                   </Link>
-                  <p className="text-secondary font-bold">KES {item.products?.price?.toLocaleString()}</p>
+                  <p className="text-secondary dark:text-green-400 font-bold">KES {item.products?.price?.toLocaleString()}</p>
                   
                   {/* Mobile layout for quantity */}
                   {isMobile && (
                     <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center space-x-2 border border-primary/20 rounded-md">
+                      <div className="flex items-center space-x-2 border border-primary/20 dark:border-gray-600 rounded-md">
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          className="h-8 w-8 text-primary hover:bg-primary/5"
+                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                           onClick={() => handleUpdateQuantity(item.product_id, Math.max(1, item.quantity - 1))}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="w-8 text-center text-primary">{item.quantity}</span>
+                        <span className="w-8 text-center text-primary dark:text-gray-300">{item.quantity}</span>
                         <Button 
                           variant="ghost" 
                           size="icon"
-                          className="h-8 w-8 text-primary hover:bg-primary/5"
+                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                           onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
@@ -204,10 +204,10 @@ const Cart = () => {
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        className="text-primary hover:bg-primary/5"
+                        className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                         onClick={() => handleRemoveFromCart(item.product_id, item.products?.name)}
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                       </Button>
                     </div>
                   )}
@@ -220,16 +220,16 @@ const Cart = () => {
                       <Button 
                         variant="outline" 
                         size="icon"
-                        className="border-primary/20 text-primary hover:bg-primary/5"
+                        className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                         onClick={() => handleUpdateQuantity(item.product_id, Math.max(1, item.quantity - 1))}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <span className="w-8 text-center text-primary">{item.quantity}</span>
+                      <span className="w-8 text-center text-primary dark:text-gray-300">{item.quantity}</span>
                       <Button 
                         variant="outline" 
                         size="icon"
-                        className="border-primary/20 text-primary hover:bg-primary/5"
+                        className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                         onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
                       >
                         <Plus className="h-4 w-4" />
@@ -238,10 +238,10 @@ const Cart = () => {
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      className="text-primary hover:bg-primary/5"
+                      className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
                       onClick={() => handleRemoveFromCart(item.product_id, item.products?.name)}
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                     </Button>
                   </>
                 )}
@@ -252,7 +252,7 @@ const Cart = () => {
             {isMobile && (
               <div className="mt-4">
                 <Link to="/studentmarketplace">
-                  <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2 border-primary/20 text-primary hover:bg-primary/5">
+                  <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-2 border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700">
                     <ArrowLeft className="h-4 w-4" />
                     Continue Shopping
                   </Button>
@@ -262,19 +262,19 @@ const Cart = () => {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-primary/10">
-              <h2 className="text-lg md:text-xl font-serif font-bold mb-4 text-primary">Order Summary</h2>
+            <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow-sm border border-primary/10 dark:border-gray-700">
+              <h2 className="text-lg md:text-xl font-serif font-bold mb-4 text-primary dark:text-gray-100">Order Summary</h2>
               <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-primary/80">
+                <div className="flex justify-between text-primary/80 dark:text-gray-300">
                   <span>Subtotal</span>
                   <span>KES {total.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-primary/80">
+                <div className="flex justify-between text-primary/80 dark:text-gray-300">
                   <span>Delivery</span>
                   <span>KES {DELIVERY_FEE.toFixed(2)}</span>
                 </div>
-                <div className="border-t border-primary/10 pt-2 font-bold">
-                  <div className="flex justify-between text-primary">
+                <div className="border-t border-primary/10 dark:border-gray-700 pt-2 font-bold">
+                  <div className="flex justify-between text-primary dark:text-gray-100">
                     <span>Total</span>
                     <span>KES {(total + DELIVERY_FEE).toFixed(2)}</span>
                   </div>
@@ -284,18 +284,18 @@ const Cart = () => {
               {/* M-Pesa Payment Dialog */}
               <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90">Pay with M-Pesa</Button>
+                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Pay with M-Pesa</Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
                   <DialogHeader>
-                    <DialogTitle className="font-serif text-primary">M-Pesa Payment</DialogTitle>
-                    <DialogDescription className="text-primary/70">
+                    <DialogTitle className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700">M-Pesa Payment</DialogTitle>
+                    <DialogDescription className="text-primary/70 dark:text-gray-300">
                       Enter your phone number to receive the payment prompt
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleMpesaPayment} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-primary">Phone Number</Label>
+                      <Label htmlFor="phone" className="text-primary dark:text-gray-300">Phone Number</Label>
                       <Input
                         id="phone"
                         type="tel"
@@ -304,21 +304,21 @@ const Cart = () => {
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         required
                         pattern="^(254|\+254|0)([7][0-9]{8})$"
-                        className="w-full border-primary/20"
+                        className="w-full border-primary/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
                       />
-                      <p className="text-sm text-primary/60">
+                      <p className="text-sm text-primary/60 dark:text-gray-400">
                         Format: 0712345678 or 254712345678
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <div className="font-medium text-primary">Amount to Pay</div>
-                      <div className="text-2xl font-bold text-secondary">
+                      <div className="font-medium text-primary dark:text-gray-300">Amount to Pay</div>
+                      <div className="text-2xl font-bold text-secondary dark:text-green-400">
                         KES {(total + DELIVERY_FEE).toFixed(2)}
                       </div>
                     </div>
                     <Button 
                       type="submit" 
-                      className="w-full bg-secondary text-primary hover:bg-secondary/90" 
+                      className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
                       disabled={isProcessing}
                     >
                       {isProcessing ? "Processing..." : "Pay Now"}
@@ -331,20 +331,20 @@ const Cart = () => {
               {!isMobile && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="w-full border-primary/20 text-primary hover:bg-primary/5">
+                    <Button variant="outline" className="w-full border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700">
                       Clear Cart
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent>
+                  <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="font-serif text-primary">Clear Cart</AlertDialogTitle>
-                      <AlertDialogDescription className="text-primary/70">
+                      <AlertDialogTitle className="font-serif text-primary dark:text-gray-100">Clear Cart</AlertDialogTitle>
+                      <AlertDialogDescription className="text-primary/70 dark:text-gray-300">
                         Are you sure you want to remove all items from your cart?
                         This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5">Cancel</Button>
+                      <Button variant="outline" className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700">Cancel</Button>
                       <Button 
                         variant="destructive" 
                         onClick={handleClearCart}
@@ -363,7 +363,7 @@ const Cart = () => {
         {!isMobile && (
           <div className="mt-6 flex justify-between">
             <Link to="/studentmarketplace">
-              <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5">Continue Shopping</Button>
+              <Button variant="outline" className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700">Continue Shopping</Button>
             </Link>
           </div>
         )}
