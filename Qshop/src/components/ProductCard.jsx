@@ -227,6 +227,19 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete, onEdi
                 <span className="line-clamp-1 text-primary/60 dark:text-gray-500">{product.location}</span>
               )}
             </div>
+            
+            {/* Seller Link */}
+            {product.seller_id && !isOwner && (
+              <div className="mb-2">
+                <Link 
+                  to={`/seller/${product.seller_id}`}
+                  className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  onClick={(e) => e.stopPropagation()} // Prevent the main card click event
+                >
+                  View Seller
+                </Link>
+              </div>
+            )}
           </div>
           
           {!isOwner && (

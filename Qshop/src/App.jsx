@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ThemeProvider } from './components/ThemeContext';
+import SellerProfile from './components/SellerProfile';
 
 // Components
 import SignUp from './components/auth/SignUp';
@@ -102,6 +103,10 @@ const App = () => {
               <Route 
                 path="/cart" 
                 element={token ? <Cart token={token} /> : <Navigate to="/login" />} 
+              />
+              <Route 
+               path="/seller/:id" 
+               element={token ? <SellerProfile /> : <Navigate to="/login" />} 
               />
               <Route 
                 path="/wishlist" 
