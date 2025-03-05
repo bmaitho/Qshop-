@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MoreVertical } from 'lucide-react';
+import { Heart, MoreVertical, Edit, Pencil } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +25,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 
-const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => {
+const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete, onEdit }) => {
   const { addToCart } = useCart();
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -39,7 +39,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   const handleWishlist = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
-      const token = JSON.parse(sessionStorage.getItem('token'));
+      const token = sessionStorage.getItem('token');
       if (!token) {
         wishlistToasts.error("Please login to add items to wishlist");
         return;
@@ -60,7 +60,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
   const handleAddToCart = async (e) => {
     e.preventDefault(); // Prevent navigation
     try {
-      const token = JSON.parse(sessionStorage.getItem('token'));
+      const token = sessionStorage.getItem('token');
       if (!token) {
         return;
       }
@@ -91,60 +91,79 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
     }
   };
 
+  const handleEditClick = (e) => {
+    e.preventDefault(); // Prevent navigation
+    if (onEdit) {
+      onEdit(product);
+    }
+  };
+
   const renderOwnerControls = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 left-2 p-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 shadow-sm"
-          onClick={(e) => e.preventDefault()}
-        >
-          <MoreVertical className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuItem 
-          onClick={(e) => {
-            e.preventDefault();
-            onStatusChange(product.id, 'active');
-          }}
-          disabled={product.status === 'active'}
-        >
-          Mark as Active
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={(e) => {
-            e.preventDefault();
-            onStatusChange(product.id, 'sold');
-          }}
-          disabled={product.status === 'sold'}
-        >
-          Mark as Sold
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={(e) => {
-            e.preventDefault();
-            onStatusChange(product.id, 'out_of_stock');
-          }}
-          disabled={product.status === 'out_of_stock'}
-        >
-          Mark as Out of Stock
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          className="text-red-600 dark:text-red-400"
-          onClick={(e) => {
-            e.preventDefault();
-            if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
-              handleDeleteClick();
-            }
-          }}
-        >
-          Delete Listing
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 left-2 p-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 shadow-sm"
+            onClick={(e) => e.preventDefault()}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              onStatusChange(product.id, 'active');
+            }}
+            disabled={product.status === 'active'}
+          >
+            Mark as Active
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              onStatusChange(product.id, 'sold');
+            }}
+            disabled={product.status === 'sold'}
+          >
+            Mark as Sold
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              onStatusChange(product.id, 'out_of_stock');
+            }}
+            disabled={product.status === 'out_of_stock'}
+          >
+            Mark as Out of Stock
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            className="text-red-600 dark:text-red-400"
+            onClick={(e) => {
+              e.preventDefault();
+              if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+                handleDeleteClick();
+              }
+            }}
+          >
+            Delete Listing
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Edit button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute top-2 right-12 p-1.5 rounded-full bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 shadow-sm"
+        onClick={handleEditClick}
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+    </>
   );
 
   return (
@@ -187,8 +206,7 @@ const ProductCard = ({ product, isOwner = false, onStatusChange, onDelete }) => 
             </h3>
             
             <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-base font-bold text-secondary dark:text-green-400">
-
+              <span className="text-base font-bold text-secondary dark:text-green-400">
                 KES {product.price?.toLocaleString()}
               </span>
               {product.original_price && (

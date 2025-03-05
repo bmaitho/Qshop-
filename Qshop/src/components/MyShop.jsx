@@ -1,6 +1,6 @@
-// MyShop.jsx
 import React, { useState, useEffect } from 'react';
-import { Plus, Settings, Package, Star, DollarSign, ShoppingBag } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Settings, Package, Star, DollarSign, ShoppingBag, Edit, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { supabase } from '../components/SupabaseClient';
 import { shopToasts } from '../utils/toastConfig';
@@ -18,6 +19,7 @@ import ProductCard from './ProductCard';
 import Navbar from './Navbar';
 import AddProductForm from './AddProductForm';
 import ShopSettingsForm from './ShopSettingsForm';
+import EditProductForm from './EditProductForm';
 
 const MyShop = () => {
   const [shopData, setShopData] = useState(null);
@@ -31,6 +33,11 @@ const MyShop = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [activeTab, setActiveTab] = useState('active');
+  const [productToEdit, setProductToEdit] = useState(null);
+  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showShopSettings, setShowShopSettings] = useState(false);
+  const [showEditProduct, setShowEditProduct] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -60,7 +67,7 @@ const MyShop = () => {
       setShopData(shop);
     } catch (error) {
       console.error('Error fetching shop data:', error);
-      shopToasts.loadError();
+      // This is fine, we'll create the shop if it doesn't exist
     }
   };
 
@@ -78,6 +85,8 @@ const MyShop = () => {
     } catch (error) {
       console.error('Error fetching products:', error);
       shopToasts.loadError();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,7 +116,7 @@ const MyShop = () => {
         .select('rating')
         .eq('shop_id', user.id);
 
-      if (ratingError) throw ratingError;
+      if (ratingError && ratingError.code !== 'PGRST116') throw ratingError;
 
       // Calculate statistics
       const totalSales = salesData?.length || 0;
@@ -128,8 +137,6 @@ const MyShop = () => {
     } catch (error) {
       console.error('Error fetching statistics:', error);
       shopToasts.statsError();
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -181,6 +188,29 @@ const MyShop = () => {
     }
   };
 
+  const handleEditProduct = (product) => {
+    setProductToEdit(product);
+    setShowEditProduct(true);
+  };
+
+  const handleShopUpdate = () => {
+    fetchShopData();
+    setShowShopSettings(false);
+  };
+
+  const handleProductUpdate = () => {
+    fetchProducts();
+    fetchStatistics();
+    setShowEditProduct(false);
+    setProductToEdit(null);
+  };
+
+  const handleAddNewProduct = () => {
+    fetchProducts();
+    fetchStatistics();
+    setShowAddProduct(false);
+  };
+  
   if (loading) {
     return (
       <>
@@ -204,6 +234,12 @@ const MyShop = () => {
     );
   }
 
+  // Get shop name - use profile email as fallback
+  const getShopName = () => {
+    if (shopData?.shop_name) return shopData.shop_name;
+    return "My Shop";
+  };
+
   return (
     <>
       <Navbar />
@@ -212,7 +248,7 @@ const MyShop = () => {
         <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-between items-center'} mb-4`}>
           <div>
             <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-              {shopData?.shop_name || "My Shop"}
+              {getShopName()}
             </h1>
             <p className="text-gray-600 text-sm line-clamp-2">
               {shopData?.description || "No description available"}
@@ -222,28 +258,28 @@ const MyShop = () => {
           <div className={`flex ${isMobile ? 'w-full' : 'gap-2'}`}>
             {isMobile ? (
               <>
-                <Sheet>
+                <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="flex-1 mr-2">
                       <Settings className="w-4 h-4 mr-1" />
-                      Settings
+                      Customize Shop
                     </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
                       <SheetTitle>Shop Settings</SheetTitle>
                       <SheetDescription>
-                        Update your shop information
+                        Customize your shop information
                       </SheetDescription>
                     </SheetHeader>
                     <ShopSettingsForm 
                       shopData={shopData} 
-                      onUpdate={fetchShopData} 
+                      onUpdate={handleShopUpdate} 
                     />
                   </SheetContent>
                 </Sheet>
                 
-                <Sheet>
+                <Sheet open={showAddProduct} onOpenChange={setShowAddProduct}>
                   <SheetTrigger asChild>
                     <Button size="sm" className="flex-1">
                       <Plus className="w-4 h-4 mr-1" />
@@ -257,34 +293,34 @@ const MyShop = () => {
                         Add a new product to your shop
                       </SheetDescription>
                     </SheetHeader>
-                    <AddProductForm onSuccess={fetchProducts} />
+                    <AddProductForm onSuccess={handleAddNewProduct} />
                   </SheetContent>
                 </Sheet>
               </>
             ) : (
               <>
-                <Sheet>
+                <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
                     <Button variant="outline">
                       <Settings className="w-4 h-4 mr-2" />
-                      Shop Settings
+                      Customize Shop
                     </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
                       <SheetTitle>Shop Settings</SheetTitle>
                       <SheetDescription>
-                        Update your shop information and preferences
+                        Customize your shop information
                       </SheetDescription>
                     </SheetHeader>
                     <ShopSettingsForm 
                       shopData={shopData} 
-                      onUpdate={fetchShopData} 
+                      onUpdate={handleShopUpdate} 
                     />
                   </SheetContent>
                 </Sheet>
                 
-                <Sheet>
+                <Sheet open={showAddProduct} onOpenChange={setShowAddProduct}>
                   <SheetTrigger asChild>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
@@ -298,7 +334,7 @@ const MyShop = () => {
                         Add a new product to your shop
                       </SheetDescription>
                     </SheetHeader>
-                    <AddProductForm onSuccess={fetchProducts} />
+                    <AddProductForm onSuccess={handleAddNewProduct} />
                   </SheetContent>
                 </Sheet>
               </>
@@ -370,7 +406,7 @@ const MyShop = () => {
         </div>
 
         {/* Products Grid - Mobile Responsive */}
-        <Tabs defaultValue="active" className="space-y-4">
+        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="w-full md:w-auto mb-1 grid grid-cols-3">
             <TabsTrigger value="active" className="text-xs md:text-sm">Active</TabsTrigger>
             <TabsTrigger value="sold" className="text-xs md:text-sm">Sold</TabsTrigger>
@@ -383,23 +419,13 @@ const MyShop = () => {
                 <Package className="h-10 w-10 mx-auto text-gray-400 mb-2" />
                 <h3 className="font-medium text-gray-700 mb-1">No active listings</h3>
                 <p className="text-gray-500 text-sm mb-4">Add your first product to start selling</p>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button size={isMobile ? "sm" : "default"}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Product
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>Add New Product</SheetTitle>
-                      <SheetDescription>
-                        Add a new product to your shop
-                      </SheetDescription>
-                    </SheetHeader>
-                    <AddProductForm onSuccess={fetchProducts} />
-                  </SheetContent>
-                </Sheet>
+                <Button 
+                  size={isMobile ? "sm" : "default"}
+                  onClick={() => setShowAddProduct(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Product
+                </Button>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -412,6 +438,7 @@ const MyShop = () => {
                       isOwner={true}
                       onStatusChange={handleStatusChange}
                       onDelete={handleDeleteProduct}
+                      onEdit={() => handleEditProduct(product)}
                     />
                   ))
                 }
@@ -437,6 +464,7 @@ const MyShop = () => {
                       isOwner={true}
                       onStatusChange={handleStatusChange}
                       onDelete={handleDeleteProduct}
+                      onEdit={() => handleEditProduct(product)}
                     />
                   ))
                 }
@@ -462,6 +490,7 @@ const MyShop = () => {
                       isOwner={true}
                       onStatusChange={handleStatusChange}
                       onDelete={handleDeleteProduct}
+                      onEdit={() => handleEditProduct(product)}
                     />
                   ))
                 }
@@ -469,9 +498,21 @@ const MyShop = () => {
             )}
           </TabsContent>
         </Tabs>
+        
+        {/* Edit Product Sheet */}
+        <Sheet open={showEditProduct} onOpenChange={setShowEditProduct}>
+          <SheetContent>
+            {productToEdit && (
+              <EditProductForm 
+                product={productToEdit} 
+                onSuccess={handleProductUpdate}
+                onCancel={() => setShowEditProduct(false)}
+              />
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
     </>
   );
 };
-
 export default MyShop;
