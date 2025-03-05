@@ -68,22 +68,24 @@ const Login = ({ setToken }) => {
           redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
+            prompt: 'select_account', // Allow user to select which account to use
           },
         }
       });
 
       if (error) throw error;
       
-      // The actual redirect happens automatically through Supabase
+      // The redirect to callback happens automatically through Supabase
+      // The AuthCallback component will handle the session and redirection to /home
     } catch (error) {
+      console.error('Google sign-in error:', error);
       toast.error('Google sign-in failed: ' + error.message, {
         position: "top-right",
         autoClose: 3000,
       });
-    } finally {
       setGoogleLoading(false);
     }
+    // Note: We don't set googleLoading to false here because page will redirect
   };
 
   return (
