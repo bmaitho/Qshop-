@@ -1,24 +1,59 @@
 // SignUp.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { toast } from 'react-toastify';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [campusLocations, setCampusLocations] = useState([]);
+  const [loadingCampuses, setLoadingCampuses] = useState(true);
+  
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     password: '',
     phone: '',
     campusLocation: '',
+    campusLocationId: '',
     isSeller: false
   });
+  
   const [errors, setErrors] = useState({});
+
+  // Fetch campus locations when component mounts
+  useEffect(() => {
+    fetchCampusLocations();
+  }, []);
+
+  const fetchCampusLocations = async () => {
+    try {
+      setLoadingCampuses(true);
+      const { data, error } = await supabase
+        .from('campus_locations')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCampusLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching campus locations:', error);
+      toast.error('Failed to load campus locations');
+    } finally {
+      setLoadingCampuses(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -39,7 +74,8 @@ const SignUp = () => {
       newErrors.password = "Password must be at least 6 characters";
     }
     
-    if (!formData.campusLocation.trim()) {
+    // Check for either direct input or dropdown selection
+    if (!formData.campusLocation.trim() && !formData.campusLocationId) {
       newErrors.campusLocation = "Campus location is required";
     }
     
@@ -65,6 +101,25 @@ const SignUp = () => {
     }
   };
 
+  const handleCampusChange = (value) => {
+    // Find the selected campus to get its name
+    const selectedCampus = campusLocations.find(c => c.id.toString() === value);
+    
+    setFormData(prev => ({
+      ...prev,
+      campusLocationId: value,
+      campusLocation: selectedCampus ? selectedCampus.name : prev.campusLocation
+    }));
+    
+    // Clear error
+    if (errors.campusLocation) {
+      setErrors(prev => ({
+        ...prev,
+        campusLocation: undefined
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -85,6 +140,7 @@ const SignUp = () => {
             full_name: formData.fullName,
             phone: formData.phone,
             campus_location: formData.campusLocation,
+            campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
             is_seller: formData.isSeller
           }
         }
@@ -102,6 +158,7 @@ const SignUp = () => {
               full_name: formData.fullName,
               phone: formData.phone,
               campus_location: formData.campusLocation,
+              campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
               is_seller: formData.isSeller,
               email: formData.email
             }
@@ -254,14 +311,40 @@ const SignUp = () => {
               <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Campus Location
               </label>
-              <Input
-                id="campusLocation"
-                name="campusLocation"
-                value={formData.campusLocation}
-                onChange={handleChange}
-                placeholder="Enter your campus location"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
-              />
+              
+              {loadingCampuses ? (
+                <div className="text-sm text-gray-600 dark:text-gray-400">Loading campus locations...</div>
+              ) : campusLocations.length > 0 ? (
+                <Select
+                  value={formData.campusLocationId}
+                  onValueChange={handleCampusChange}
+                >
+                  <SelectTrigger 
+                    id="campusLocationId"
+                    className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                  >
+                    <SelectValue placeholder="Select your campus" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80 dark:bg-gray-800">
+                    {campusLocations.map((campus) => (
+                      <SelectItem key={campus.id} value={campus.id.toString()}>
+                        {campus.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                // Fallback to text input if no campus locations are loaded
+                <Input
+                  id="campusLocation"
+                  name="campusLocation"
+                  value={formData.campusLocation}
+                  onChange={handleChange}
+                  placeholder="Enter your campus location"
+                  className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                />
+              )}
+              
               {errors.campusLocation && (
                 <p className="text-sm text-red-500 dark:text-red-400">{errors.campusLocation}</p>
               )}
