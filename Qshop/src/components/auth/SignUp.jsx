@@ -16,7 +16,6 @@ import { toast } from 'react-toastify';
 const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [campusLocations, setCampusLocations] = useState([]);
   const [loadingCampuses, setLoadingCampuses] = useState(true);
   
@@ -199,34 +198,6 @@ const SignUp = () => {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      setGoogleLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      });
-
-      if (error) throw error;
-      
-      // The actual redirect happens automatically through Supabase
-    } catch (error) {
-      toast.error('Google sign-up failed: ' + error.message, {
-        position: "top-right",
-        autoClose: 3000,
-      });
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-md w-full px-4 py-6">
@@ -375,30 +346,6 @@ const SignUp = () => {
               {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>
-          
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Or continue with</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-gray-300 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700"
-                onClick={handleGoogleSignUp}
-                disabled={googleLoading}
-              >
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" className="h-5 w-5 mr-2" />
-                {googleLoading ? 'Connecting...' : 'Sign up with Google'}
-              </Button>
-            </div>
-          </div>
           
           <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
             Already have an account?{' '}

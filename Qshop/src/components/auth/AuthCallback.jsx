@@ -25,78 +25,42 @@ const AuthCallback = ({ setToken }) => {
           return;
         }
 
-        // Check if this looks like a first-time user or returning user
-        const isNewUser = session.user?.new_user;
-
-        // Store token in sessionStorage immediately - this is critical
-        // and must match the format in the direct login method
-        const tokenData = { session };
-        sessionStorage.setItem('token', JSON.stringify(tokenData));
-        
-        // Also update App state via the setToken prop to avoid page refresh issues
-        setToken(tokenData);
-        
-        // Check if user has a profile in the database
+        // For Google sign-in, we only want to support existing users
+        // Check if user already exists in the profiles table
         const { data: existingProfile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
+
+        const userExists = existingProfile && !profileError;
         
-        const hasProfile = existingProfile && !profileError;
-        
-        // If this is a brand new user with no profile, create one
-        if (isNewUser || !hasProfile) {
-          console.log("New user detected or profile missing - creating profile");
+        // If this is a new user (no profile found), redirect to sign up page
+        if (!userExists) {
+          // Sign them out first
+          await supabase.auth.signOut();
           
-          // For brand new users, redirect to profile completion
-          if (isNewUser) {
-            // Create a temporary basic profile
-            const newProfile = {
-              id: session.user.id,
-              email: session.user.email,
-              full_name: session.user.user_metadata?.full_name || '',
-              campus_location: '', // Empty to enforce completion
-              is_seller: false
-            };
-            
-            await supabase.from('profiles').upsert([newProfile]);
-            
-            toast.success('Account created! Please complete your profile.', {
-              position: "top-right",
-              autoClose: 3000,
-            });
-            
-            // Redirect to profile completion
-            navigate('/complete-profile');
-            return;
-          } else {
-            // For returning users with missing profiles, create one in the background
-            const newProfile = {
-              id: session.user.id,
-              email: session.user.email,
-              full_name: session.user.user_metadata?.full_name || '',
-              campus_location: session.user.user_metadata?.campus_location || 'Not specified', 
-              is_seller: session.user.user_metadata?.is_seller || false
-            };
-            
-            // Do this in the background
-            supabase
-              .from('profiles')
-              .upsert([newProfile])
-              .then(({ error }) => {
-                if (error) console.error('Error creating profile:', error);
-              });
-          }
+          toast.info('Please sign up for an account first', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          
+          // Redirect to signup
+          navigate('/signup');
+          return;
         }
+
+        // This is an existing user - store their session and continue
+        const tokenData = { session };
+        sessionStorage.setItem('token', JSON.stringify(tokenData));
+        setToken(tokenData);
         
-        // This is a returning user - go straight to home
         toast.success('Welcome back!', {
           position: "top-right",
           autoClose: 2000,
         });
-
-        // Redirect to homepage immediately
+        
+        // Redirect existing user to home page
         navigate('/home');
       } catch (err) {
         console.error('Error in auth callback:', err);
@@ -109,13 +73,13 @@ const AuthCallback = ({ setToken }) => {
     };
 
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, setToken]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 flex-col">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-500 mb-4"></div>
-        <p className="text-gray-600 dark:text-gray-300">Completing sign-in...</p>
+        <p className="text-gray-600 dark:text-gray-300">Verifying account...</p>
       </div>
     );
   }
