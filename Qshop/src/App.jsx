@@ -11,6 +11,7 @@ import SellerProfile from './components/SellerProfile';
 import SignUp from './components/auth/SignUp';
 import Login from './components/auth/Login';
 import AuthCallback from './components/auth/AuthCallback';
+import LandingPage from './components/LandingPage';
 
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
@@ -76,12 +77,19 @@ const App = () => {
               <Route path="/login" element={<Login setToken={setToken} />} />
               <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
               <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/login" />} />
-              
-              {/* Redirect root to login or home based on authentication */}
+
+               {/* Show Landing Page if Not Logged In */}
+              <Route 
+                path="/" 
+                element={token ? <Navigate to="/home" replace /> : <LandingPage />} 
+              />
+
+
+             {/* Redirect root to login or home based on authentication */}
               <Route 
                 path="/" 
                 element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
-              />
+              />*/
               
               {/* Protected Routes */}
               <Route 
