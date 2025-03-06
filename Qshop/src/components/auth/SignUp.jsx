@@ -1,16 +1,9 @@
-// SignUp.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from 'react-toastify';
 
 const SignUp = () => {
@@ -73,7 +66,6 @@ const SignUp = () => {
       newErrors.password = "Password must be at least 6 characters";
     }
     
-    // Check for either direct input or dropdown selection
     if (!formData.campusLocation.trim() && !formData.campusLocationId) {
       newErrors.campusLocation = "Campus location is required";
     }
@@ -101,7 +93,6 @@ const SignUp = () => {
   };
 
   const handleCampusChange = (value) => {
-    // Find the selected campus to get its name
     const selectedCampus = campusLocations.find(c => c.id.toString() === value);
     
     setFormData(prev => ({
@@ -110,7 +101,6 @@ const SignUp = () => {
       campusLocation: selectedCampus ? selectedCampus.name : prev.campusLocation
     }));
     
-    // Clear error
     if (errors.campusLocation) {
       setErrors(prev => ({
         ...prev,
@@ -122,15 +112,11 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
     
     setLoading(true);
 
     try {
-      // Sign up with Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -148,7 +134,6 @@ const SignUp = () => {
       if (signUpError) throw signUpError;
       
       if (data.user) {
-        // Create or update the profile record
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert([
@@ -165,194 +150,138 @@ const SignUp = () => {
           
         if (profileError) throw profileError;
         
-        toast.success("Account created! Please Log in.", {
-          position: "top-right",
-          autoClose: 5000,
-        });
+        toast.success("Account created! Please Log in.", { position: "top-right", autoClose: 5000 });
         
         navigate('/login');
       }
     } catch (error) {
-      console.error('Sign up error:', error);
-      
       let errorMessage = 'Failed to create account';
       
       if (error.message && error.message.includes('password')) {
         errorMessage = error.message;
       } else if (error.message && error.message.includes('email')) {
         errorMessage = 'This email is already registered';
-      } else if (error.status === 422) {
-        errorMessage = 'Invalid email or password format';
-      } else if (error.status === 429) {
-        errorMessage = 'Too many requests. Please try again later.';
-      } else if (error.status === 500 || error.status === 522) {
+      } else {
         errorMessage = 'Server error. Please try again later.';
       }
       
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 4000,
-      });
+      toast.error(errorMessage, { position: "top-right", autoClose: 4000 });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-md w-full px-4 py-6">
+    <div className="flex flex-col items-center justify-between min-h-screen bg-[#0D2B20]">
+      <div className="w-full max-w-md px-6 py-8 bg-white shadow-xl flex-grow">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
+          <h1 className="text-3xl font-bold text-[#E7C65F]">UniHive</h1>
+          <p className="text-gray-600 mt-2">Student Marketplace</p>
         </div>
-        
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-900/30">
-          <h2 className="text-2xl text-center font-bold mb-4 dark:text-gray-100">Create an Account</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Full Name
-              </label>
-              <Input
+
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-[#E7C65F]">Create an Account</h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
                 id="fullName"
                 name="fullName"
+                type="text"
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.fullName ? "border-red-500 dark:border-red-400" : ""}`}
+                className={`h-12 w-full p-2 border rounded-md ${errors.fullName ? "border-red-500" : "border-[#E7C65F]"} focus:outline-none focus:ring-2 focus:ring-[#E7C65F] text-black`}  // Added text-black and rounded corners
               />
-              {errors.fullName && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.fullName}</p>
-              )}
+              {errors.fullName && <p className="text-sm text-red-500">{errors.fullName}</p>}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
-              </label>
-              <Input
+            <div>
+              <input
                 id="email"
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.email ? "border-red-500 dark:border-red-400" : ""}`}
+                className={`h-12 w-full p-2 border rounded-md ${errors.email ? "border-red-500" : "border-[#E7C65F]"} focus:outline-none focus:ring-2 focus:ring-[#E7C65F] text-black`}  // Added text-black and rounded corners
               />
-              {errors.email && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Password
-              </label>
-              <Input
+            <div>
+              <input
                 id="password"
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.password ? "border-red-500 dark:border-red-400" : ""}`}
+                className={`h-12 w-full p-2 border rounded-md ${errors.password ? "border-red-500" : "border-[#E7C65F]"} focus:outline-none focus:ring-2 focus:ring-[#E7C65F] text-black`}  // Added text-black and rounded corners
               />
-              {errors.password && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Phone Number
-              </label>
-              <Input
+            <div>
+              <input
                 id="phone"
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="Enter your phone number"
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
+                className="h-12 w-full p-2 border rounded-md border-[#E7C65F] focus:outline-none focus:ring-2 focus:ring-[#E7C65F] text-black"  // Added text-black and rounded corners
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Campus Location
-              </label>
-              
+            <div>
               {loadingCampuses ? (
-                <div className="text-sm text-gray-600 dark:text-gray-400">Loading campus locations...</div>
+                <div className="text-sm text-gray-600">Loading campus locations...</div>
               ) : campusLocations.length > 0 ? (
-                <Select
-                  value={formData.campusLocationId}
-                  onValueChange={handleCampusChange}
-                >
-                  <SelectTrigger 
-                    id="campusLocationId"
-                    className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                <Select value={formData.campusLocationId} onValueChange={handleCampusChange}>
+                  <SelectTrigger
+                    className={`h-12 w-full p-2 border rounded-md ${errors.campusLocation ? "border-red-500" : "border-[#E7C65F]"} focus:outline-none focus:ring-2 focus:ring-[#E7C65F] text-black`}  // Added text-black and rounded corners
                   >
-                    <SelectValue placeholder="Select your campus" />
+                    <SelectValue>{formData.campusLocationId ? campusLocations.find(c => c.id.toString() === formData.campusLocationId)?.name : 'Select campus location'}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-h-80 dark:bg-gray-800">
-                    {campusLocations.map((campus) => (
-                      <SelectItem key={campus.id} value={campus.id.toString()}>
-                        {campus.name}
+                  <SelectContent>
+                    {campusLocations.map(location => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : (
-                // Fallback to text input if no campus locations are loaded
-                <Input
-                  id="campusLocation"
-                  name="campusLocation"
-                  value={formData.campusLocation}
-                  onChange={handleChange}
-                  placeholder="Enter your campus location"
-                  className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
-                />
+                <div className="text-sm text-gray-600">No campus locations available</div>
               )}
-              
-              {errors.campusLocation && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.campusLocation}</p>
-              )}
+              {errors.campusLocation && <p className="text-sm text-red-500">{errors.campusLocation}</p>}
             </div>
 
-            <div className="flex items-center space-x-2 pt-1">
+            <div className="flex items-center space-x-2">
               <input
-                type="checkbox"
                 id="isSeller"
+                type="checkbox"
                 name="isSeller"
                 checked={formData.isSeller}
                 onChange={handleChange}
-                className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-secondary"
+                className="h-4 w-4 text-[#E7C65F]"
               />
-              <label 
-                htmlFor="isSeller" 
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Register as a Seller
-              </label>
+              <label htmlFor="isSeller" className="text-sm text-gray-700">Sign up as a seller</label>
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white h-9"
-              disabled={loading}
-            >
-              {loading ? 'Creating Account...' : 'Sign Up'}
+            <Button type="submit" className="w-full mt-4 h-12 bg-[#E7C65F] hover:bg-[#d1b054] text-white rounded-md">
+              {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
+
+            <div className="mt-4 text-sm text-center text-gray-600">
+              Already have an account? 
+              <Link to="/login" className="text-[#E7C65F] hover:text-[#d1b054] transition duration-300 ease-in-out ml-2">
+                Log In
+              </Link>
+            </div>
+
           </form>
-          
-          <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
-            <Link to="/login" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
-              Login
-            </Link>
-          </p>
         </div>
       </div>
     </div>

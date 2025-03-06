@@ -9,7 +9,7 @@ import securePayments from "../assets/slides/secure-payments.png";
 
 const slides = [
   {
-    text: "Shop Smart, Save More – Exclusive Deals for Students",
+    text: "Shop Smart, Save More ",
     image: shopSmart,
   },
   {
@@ -21,7 +21,7 @@ const slides = [
     image: studentMarketplace,
   },
   {
-    text: "Secure Payments – Your Safety, Our Priority",
+    text: " Your Safety, Our Priority",
     image: securePayments,
   },
 ];
@@ -33,7 +33,7 @@ const Slideshow = () => {
   const startAutoPlay = () => {
     slideInterval.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 6000);
+    }, 6000); // Auto-scroll every 6 seconds
   };
 
   const stopAutoPlay = () => {
@@ -44,8 +44,8 @@ const Slideshow = () => {
   };
 
   useEffect(() => {
-    startAutoPlay(); 
-    return () => stopAutoPlay(); 
+    startAutoPlay();
+    return () => stopAutoPlay();
   }, []);
 
   const prevSlide = () => {
@@ -58,38 +58,58 @@ const Slideshow = () => {
 
   return (
     <div
-      className="relative flex justify-center items-center w-full"
+      className="relative w-full"
       onMouseEnter={stopAutoPlay} // Pause on hover
       onMouseLeave={startAutoPlay} // Resume when mouse leaves
     >
-      {/* Slide */}
-      <div className="relative flex flex-col items-center transition-transform duration-700 ease-in-out transform">
-        <img
-          src={slides[currentSlide].image}
-          alt="Slideshow"
-          className="max-w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-700 ease-in-out"
-        />
-        <div className="absolute bottom-6 bg-[#0D2B20] bg-opacity-75 text-white px-6 py-3 text-lg rounded-lg text-center">
-          {slides[currentSlide].text}
-        </div>
+      {/* Slide Container */}
+      <div className="relative w-full h-48 md:h-64 overflow-hidden">
+        {/* Each slide will take 100% of the container width */}
+        {slides.map((slide, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+              index === currentSlide
+                ? "opacity-100 visible"
+                : "opacity-0 invisible"
+            }`}
+          >
+            {/* Image */}
+            <img
+              src={slide.image}
+              alt="Slideshow"
+              className="w-full h-full object-cover rounded-lg shadow-lg" // Object-cover ensures the image fully covers the container
+            />
+            {/* Text Box */}
+            <div className="absolute bottom-1 left-0 right-0 bg-[#0D2B20] bg-opacity-75 text-white px-4 py-2 text-sm md:text-lg rounded-lg text-center w-3/4 mx-auto">
+              {slide.text}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Navigation Arrows */}
-      <button
-        className="absolute left-2 md:left-4 text-white bg-[#E7C65F] p-4 rounded-full hover:bg-[#d9ae4e] transition"
-        onClick={prevSlide}
-      >
-        <FaChevronLeft size={30} />
-      </button>
-      <button
-        className="absolute right-2 md:right-4 text-white bg-[#E7C65F] p-4 rounded-full hover:bg-[#d9ae4e] transition"
-        onClick={nextSlide}
-      >
-        <FaChevronRight size={30} />
-      </button>
+      {/* Navigation Arrows outside of the slide container */}
+      <div className="absolute inset-y-0 left-0 flex items-center justify-center z-10">
+        <button
+          className="text-white bg-[#E7C65F] p-2 rounded-full hover:bg-[#d9ae4e] transition"
+          onClick={prevSlide}
+          style={{ fontSize: "20px" }} // Reduced size of the arrow
+        >
+          <FaChevronLeft size={20} />
+        </button>
+      </div>
+      <div className="absolute inset-y-0 right-0 flex items-center justify-center z-10">
+        <button
+          className="text-white bg-[#E7C65F] p-2 rounded-full hover:bg-[#d9ae4e] transition"
+          onClick={nextSlide}
+          style={{ fontSize: "20px" }}
+        >
+          <FaChevronRight size={20} />
+        </button>
+      </div>
 
-      {/* Slide Indicators */}
-      <div className="absolute bottom-2 flex space-x-2">
+      {/* Slide Indicators placed below the slides */}
+      <div className="flex justify-center space-x-2 mt-4 z-10">
         {slides.map((_, index) => (
           <div
             key={index}
