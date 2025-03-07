@@ -34,7 +34,6 @@ const Login = ({ setToken }) => {
 
       if (error) throw error;
 
-      // Store token in sessionStorage
       sessionStorage.setItem('token', JSON.stringify(data));
       setToken(data);
       
@@ -58,120 +57,60 @@ const Login = ({ setToken }) => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setGoogleLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account', // Allow user to select which account to use
-          },
-        }
-      });
-
-      if (error) throw error;
-      
-      // The redirect to callback happens automatically through Supabase
-      // The AuthCallback component will handle the session and redirection to /home
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      toast.error('Google sign-in failed: ' + error.message, {
-        position: "top-right",
-        autoClose: 3000,
-      });
-      setGoogleLoading(false);
-    }
-    // Note: We don't set googleLoading to false here because page will redirect
-  };
-
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-md w-full px-4 py-6">
+    <div className="flex items-center justify-center min-h-screen bg-[#0D2B20]">
+      <div className="max-w-md w-full px-8 py-10 bg-white rounded-2xl shadow-xl transition-transform transform hover:scale-105">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
+          <h1 className="text-4xl font-bold text-[#E7C65F] font-playfair">UniHive</h1>
+          <p className="text-gray-700 font-lato mt-2">Student Marketplace</p>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-900/30">
-          <h2 className="text-2xl text-center font-bold mb-4 dark:text-gray-100">Welcome Back</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Password
-              </label>
-              <Input
-                id="password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
-                placeholder="Enter your password"
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white h-9"
-              disabled={loading}
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </Button>
-          </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Or continue with</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-gray-300 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700"
-                onClick={handleGoogleSignIn}
-                disabled={googleLoading}
-              >
-                <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" className="h-5 w-5 mr-2" />
-                {googleLoading ? 'Connecting...' : 'Continue with Google'}
-              </Button>
-            </div>
+        <h2 className="text-2xl text-center font-semibold mb-5 text-gray-900 font-merriweather">Welcome Back</h2>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-800 font-lato">Email</label>
+            <Input
+              id="email"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="h-10 bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#E7C65F] rounded-lg shadow-sm"
+              placeholder="Enter your email"
+            />
           </div>
 
-          <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
-              Sign Up
-            </Link>
-          </p>
-        </div>
+          <div className="space-y-2">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-800 font-lato">Password</label>
+            <Input
+              id="password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="h-10 bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#E7C65F] rounded-lg shadow-sm"
+              placeholder="Enter your password"
+            />
+          </div>
+
+          <Button 
+            type="submit" 
+            className="w-full bg-[#E7C65F] hover:bg-[#d4af50] text-white h-10 rounded-lg shadow-md font-merriweather transition-transform transform hover:scale-105"
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+          </Button>
+        </form>
+
+        <p className="mt-4 text-center text-sm text-gray-700 font-lato">
+          Don't have an account?{'   '}
+          <Link to="/signup" className="text-[#E7C65F] hover:text-[#d4af50] hover:underline font-medium">
+            Sign Up
+          </Link>
+        </p>
       </div>
     </div>
   );
