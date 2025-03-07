@@ -4,11 +4,12 @@ import { supabase } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from 'react-toastify';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Login = ({ setToken }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -20,6 +21,10 @@ const Login = ({ setToken }) => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
   };
 
   const handleSubmit = async (e) => {
@@ -82,18 +87,27 @@ const Login = ({ setToken }) => {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <label htmlFor="password" className="block text-sm font-medium text-gray-800 font-lato">Password</label>
-            <Input
-              id="password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="h-10 bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#E7C65F] rounded-lg shadow-sm"
-              placeholder="Enter your password"
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="h-10 bg-gray-100 text-gray-900 border border-gray-300 focus:border-[#E7C65F] rounded-lg shadow-sm pr-10"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                onClick={togglePasswordVisibility}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-600 hover:text-gray-800"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           <Button 
