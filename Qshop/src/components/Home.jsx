@@ -72,17 +72,17 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#0D2B20] text-white">
       <Navbar />
       
       {/* Featured Section */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-8 border border-primary/20">
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-8 border border-primary/20 transform transition-transform duration-300 hover:scale-105 hover:shadow-xl">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="h-5 w-5 text-secondary" />
-            <h2 className="text-xl font-serif font-semibold text-primary">Student Marketplace Deals</h2>
+            <h2 className="text-xl font-serif font-semibold text-white">Student Marketplace Deals</h2>
           </div>
-          <p className="text-primary/80 mb-6 max-w-2xl">
+          <p className="text-white mb-6 max-w-2xl">
             Save up to 70% on textbooks and supplies from fellow students!
           </p>
           <Link to="/studentmarketplace">
@@ -93,31 +93,33 @@ const Home = () => {
           </Link>
         </div>
 
-
-
         {/* Categories Section */}
-        <h2 className="text-2xl font-serif font-bold mb-6 text-primary">Popular Categories</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <h2 className="text-2xl font-serif font-bold mb-6 text-white">Popular Categories</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {categories.map((category, index) => (
             <Link 
               key={index} 
               to={`/category/${category.name.toLowerCase()}`}
               className="group"
             >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow border border-primary/10">
+              <Card className="overflow-hidden border border-primary/10 transform transition-transform duration-300 hover:scale-105 hover:shadow-xl">
                 <div className="relative">
-                  <div className="w-full h-40 overflow-hidden">
+                  <div className="w-full h-40 sm:h-48 md:h-52 overflow-hidden">
                     <img 
                       src={category.image} 
                       alt={category.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent opacity-70"></div>
                 </div>
                 <CardContent className="p-4 relative z-10 -mt-16">
-                  <h3 className="font-serif text-lg font-semibold mb-1 text-white">{category.name}</h3>
-                  <p className="text-sm text-white/90">{category.description}</p>
+                  <h3 className="font-['Playfair_Display'] text-lg font-bold mb-1 text-white group-hover:text-secondary transition-colors duration-300 transform group-hover:scale-105">
+                    {category.name}
+                  </h3>
+                  <p className="font-['Lato'] text-sm text-white/90 group-hover:text-white transition-colors duration-300 transform group-hover:scale-105">
+                    {category.description}
+                  </p>
                 </CardContent>
               </Card>
             </Link>
