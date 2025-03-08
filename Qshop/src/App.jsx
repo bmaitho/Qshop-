@@ -15,6 +15,7 @@ import LandingPage from './components/LandingPage';
 
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
+import WholesalerProducts from './components/WholesalerProducts'; // New import
 import ProductDetails from './components/ProductDetails';
 import Cart from './components/Cart';
 import Wishlist from './components/Wishlist';
@@ -83,13 +84,6 @@ const App = () => {
                 path="/" 
                 element={token ? <Navigate to="/home" replace /> : <LandingPage />} 
               />
-
-
-             {/* Redirect root to login or home based on authentication */}
-              <Route 
-                path="/" 
-                element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
-              />*/
               
               {/* Protected Routes */}
               <Route 
@@ -99,6 +93,10 @@ const App = () => {
               <Route 
                 path="/studentmarketplace" 
                 element={token ? <StudentMarketplace token={token} /> : <Navigate to="/login" />} 
+              />
+              <Route 
+                path="/wholesalers" 
+                element={token ? <WholesalerProducts token={token} /> : <Navigate to="/login" />} 
               />
               <Route 
                 path="/product/:id" 

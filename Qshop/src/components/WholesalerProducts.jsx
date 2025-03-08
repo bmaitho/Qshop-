@@ -1,22 +1,25 @@
-// StudentMarketplace.jsx
+// WholesalerProducts.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Filter, Search } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Filter, Search, Box } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
-import StudentProductGrid from './StudentProductGrid'; // We'll create this component
+import ProductCard from './ProductCard';
 
-const StudentMarketplace = ({ token }) => {
+const WholesalerProducts = ({ token }) => {
   const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   
   useEffect(() => {
     fetchCategories();
+    fetchWholesalerProducts();
     
     // Set up listener for screen size changes
     const handleResize = () => {
@@ -29,14 +32,14 @@ const StudentMarketplace = ({ token }) => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch distinct categories from student products only
+      // Fetch distinct categories from wholesaler products only
       const { data, error } = await supabase
         .from('products')
         .select(`
           category,
           profiles!inner(seller_type)
         `)
-        .eq('profiles.seller_type', 'student')
+        .eq('profiles.seller_type', 'wholesaler')
         .not('category', 'is', null)
         .order('category');
 
@@ -50,10 +53,42 @@ const StudentMarketplace = ({ token }) => {
     }
   };
 
+  const fetchWholesalerProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          profiles!inner(
+            id,
+            full_name,
+            email,
+            campus_location,
+            seller_type
+          ),
+          wholesaler_details(
+            business_name,
+            business_description,
+            business_address
+          )
+        `)
+        .eq('profiles.seller_type', 'wholesaler')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching wholesaler products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}&seller_type=student`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}&seller_type=wholesaler`);
     }
   };
 
@@ -64,7 +99,7 @@ const StudentMarketplace = ({ token }) => {
         {categories.map((category) => (
           <button
             key={category}
-            onClick={() => navigate(`/category/${category}?seller_type=student`)}
+            onClick={() => navigate(`/category/${category}?seller_type=wholesaler`)}
             className="block w-full text-left px-2 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             {category}
@@ -83,7 +118,7 @@ const StudentMarketplace = ({ token }) => {
         <div className="flex flex-col space-y-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
-              Student Marketplace
+              Wholesaler Products
             </h1>
             
             {!isMobile && (
@@ -102,7 +137,7 @@ const StudentMarketplace = ({ token }) => {
           </div>
           
           <p className="text-gray-600 dark:text-gray-400">
-            Browse products from fellow students - books, electronics, and more at student-friendly prices.
+            Quality products from verified wholesalers at the best prices.
           </p>
           
           {/* Only show search on desktop - mobile has search in navbar */}
@@ -110,7 +145,7 @@ const StudentMarketplace = ({ token }) => {
             <form onSubmit={handleSearch} className="flex gap-2">
               <Input
                 type="search"
-                placeholder="Search products..."
+                placeholder="Search wholesaler products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
@@ -149,7 +184,7 @@ const StudentMarketplace = ({ token }) => {
               {categories.slice(0, 10).map((category) => (
                 <button
                   key={category}
-                  onClick={() => navigate(`/category/${category}?seller_type=student`)}
+                  onClick={() => navigate(`/category/${category}?seller_type=wholesaler`)}
                   className="flex-shrink-0 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 >
                   {category}
@@ -170,9 +205,32 @@ const StudentMarketplace = ({ token }) => {
             </div>
           )}
           
-          {/* Product grid - Student products only */}
+          {/* Product grid */}
           <main className="flex-1">
-            <StudentProductGrid />
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6">
+                {[...Array(8)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="bg-primary/5 dark:bg-gray-700 h-48 rounded-t-lg"></div>
+                    <div className="space-y-3 p-4 bg-white dark:bg-gray-800 border border-primary/10 dark:border-gray-700 rounded-b-lg">
+                      <div className="h-4 bg-primary/5 dark:bg-gray-600 rounded w-3/4"></div>
+                      <div className="h-4 bg-primary/5 dark:bg-gray-600 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 p-6">
+                {products.map(product => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <Box className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+                <p className="text-gray-600 dark:text-gray-400">No wholesaler products available at the moment.</p>
+              </div>
+            )}
           </main>
         </div>
       </div>
@@ -180,4 +238,4 @@ const StudentMarketplace = ({ token }) => {
   );
 };
 
-export default StudentMarketplace;
+export default WholesalerProducts;

@@ -1,6 +1,6 @@
 // CategoryPage.jsx
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -31,6 +31,8 @@ function useDebounce(value, delay) {
     return () => {
       clearTimeout(handler);
     };
+
+
   }, [value, delay]);
 
   return debouncedValue;
@@ -38,6 +40,9 @@ function useDebounce(value, delay) {
 
 const CategoryPage = () => {
   const { categoryName } = useParams();
+  const [searchParams] = useSearchParams();
+  const sellerType = searchParams.get('seller_type') || 'all'; // Default to all if not specified
+  
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
@@ -47,7 +52,8 @@ const CategoryPage = () => {
   const [selectedFilters, setSelectedFilters] = useState({
     condition: [],
     priceRange: [0, 100000],
-    location: []
+    location: [],
+    sellerType: sellerType === 'all' ? [] : [sellerType]
   });
 
   // Create debounced versions of filters for API calls
@@ -76,23 +82,38 @@ const CategoryPage = () => {
     fetchProducts();
   }, [categoryName, debouncedFilters, sortOrder]);
 
+  // Update filters when sellerType param changes
+  useEffect(() => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      sellerType: sellerType === 'all' ? [] : [sellerType]
+    }));
+  }, [sellerType]);
+
   const fetchProducts = async () => {
     try {
       setIsFiltering(true);
+      
+      // Start building the query
       let query = supabase
         .from('products')
         .select(`
           *,
-          seller_details:seller_id (
+          profiles!inner(
             id,
             full_name,
             campus_location,
-            phone
+            seller_type
           )
         `)
         .eq('category', categoryName);
 
-      // Apply filters
+      // Apply seller type filter if specified
+      if (debouncedFilters.sellerType.length > 0) {
+        query = query.in('profiles.seller_type', debouncedFilters.sellerType);
+      }
+
+      // Apply condition filters
       if (debouncedFilters.condition.length > 0) {
         query = query.in('condition', debouncedFilters.condition);
       }
@@ -105,6 +126,9 @@ const CategoryPage = () => {
       if (debouncedFilters.location.length > 0) {
         query = query.in('location', debouncedFilters.location);
       }
+
+      // Product status filter - only show active products
+      query = query.eq('status', 'active');
 
       // Add sorting
       if (sortOrder === 'price-asc') {
@@ -148,12 +172,22 @@ const CategoryPage = () => {
     }));
   };
 
+  const toggleSellerType = (type) => {
+    setSelectedFilters(prev => ({
+      ...prev,
+      sellerType: prev.sellerType.includes(type)
+        ? prev.sellerType.filter(t => t !== type)
+        : [...prev.sellerType, type]
+    }));
+  };
+
   const resetFilters = () => {
     setDisplayPriceRange([0, 100000]);
     setSelectedFilters({
       condition: [],
       priceRange: [0, 100000],
-      location: []
+      location: [],
+      sellerType: sellerType === 'all' ? [] : [sellerType]
     });
     setSortOrder('price-asc');
   };
@@ -179,6 +213,38 @@ const CategoryPage = () => {
             <option value="price-desc">Price: High to Low</option>
             <option value="newest">Newest First</option>
           </select>
+        </div>
+      </div>
+      
+      <div>
+        <h4 className="font-medium mb-3">Seller Type</h4>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="seller-type-student"
+              checked={selectedFilters.sellerType.includes('student')}
+              onCheckedChange={() => toggleSellerType('student')}
+            />
+            <label 
+              htmlFor="seller-type-student"
+              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Student Seller
+            </label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="seller-type-wholesaler"
+              checked={selectedFilters.sellerType.includes('wholesaler')}
+              onCheckedChange={() => toggleSellerType('wholesaler')}
+            />
+            <label 
+              htmlFor="seller-type-wholesaler"
+              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Wholesaler
+            </label>
+          </div>
         </div>
       </div>
       
@@ -260,6 +326,18 @@ const CategoryPage = () => {
     </div>
   );
 
+  const getPageTitle = () => {
+    let title = `${categoryName.replace(/-/g, ' ')}`;
+    
+    if (sellerType === 'student') {
+      title += ' from Students';
+    } else if (sellerType === 'wholesaler') {
+      title += ' from Wholesalers';
+    }
+    
+    return title;
+  };
+
   if (loading) {
     return (
       <>
@@ -288,14 +366,14 @@ const CategoryPage = () => {
           <div className="flex items-center space-x-2 text-sm text-gray-500 mb-2">
             <Link to="/" className="hover:text-orange-600">Home</Link>
             <span>/</span>
-            <span className="text-gray-900 font-medium">
+            <span className="text-gray-900 font-medium capitalize">
               {categoryName.replace(/-/g, ' ')}
             </span>
           </div>
           
           <div className="flex items-center justify-between">
             <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold capitalize`}>
-              {categoryName.replace(/-/g, ' ')}
+              {getPageTitle()}
             </h1>
             {isMobile && (
               <Badge variant="outline">
@@ -358,10 +436,10 @@ const CategoryPage = () => {
                     {products.length} items
                   </Badge>
                   
-                  {Object.values(selectedFilters).some(val => 
+                  {(Object.values(selectedFilters).some(val => 
                     Array.isArray(val) && val.length > 0 && 
                     !(val.length === 2 && val[0] === 0 && val[1] === 100000)
-                  ) && (
+                  ) || selectedFilters.sellerType.length > 0) && (
                     <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8">
                       Clear filters
                     </Button>
@@ -414,5 +492,6 @@ const CategoryPage = () => {
     </>
   );
 };
+
 
 export default CategoryPage;
