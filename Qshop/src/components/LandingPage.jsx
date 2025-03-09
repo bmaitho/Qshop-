@@ -48,9 +48,7 @@ const LandingPage = (props) => {
       {/* Left side - Authentication */}
       <div className="w-1/2 p-6 flex flex-col justify-center bg-[#0e1a19] text-white">
         <div className="max-w-md mx-auto w-full">
-          {/* Logo */}
-          <div className="text-3xl font-serif font-bold text-[#e7c65f] mb-6">UniHive</div>
-          <div className="text-md mb-6">Student Marketplace</div>
+          
           
           {/* Authentication Component */}
           {isLogin ? (
