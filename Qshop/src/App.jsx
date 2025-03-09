@@ -12,7 +12,6 @@ import SignUp from './components/auth/SignUp';
 import Login from './components/auth/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import LandingPage from './components/LandingPage';
-import MobileLandingPage from './components/MobileLandingpage';
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
 import ProductDetails from './components/ProductDetails';
@@ -61,9 +60,6 @@ const App = () => {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  // Determine which landing page to use based on screen size
-  const LandingPageComponent = isMobile ? MobileLandingPage : LandingPage;
-
   return (
     <ThemeProvider>
       <WishlistProvider>
@@ -74,7 +70,7 @@ const App = () => {
               <Route path="/" element={<Navigate to="/landingpage" replace />} />
               <Route 
                 path="/landingpage" 
-                element={<LandingPageComponent setToken={setToken} />} 
+                element={<LandingPage setToken={setToken} />} 
               />
               
               {/* Auth Routes */}
