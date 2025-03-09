@@ -77,15 +77,12 @@ const ProductDetails = () => {
       if (isWishlisted) {
         await removeFromWishlist(id);
         setIsWishlisted(false);
-        // Let the context handle the toast
       } else {
         await addToWishlist(product);
         setIsWishlisted(true);
-        // Let the context handle the toast
       }
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      // Only show error toast here if needed
     }
   };
 
@@ -98,10 +95,8 @@ const ProductDetails = () => {
       }
       
       await addToCart(product);
-      // Remove this duplicate toast - let the context handle it
     } catch (error) {
       console.error('Error adding to cart:', error);
-      // Only log the error, don't show toast
     }
   };
 
@@ -125,7 +120,7 @@ const ProductDetails = () => {
       <>
         <Navbar />
         <div className="max-w-7xl mx-auto p-4">
-          <p className="text-center text-primary/70 dark:text-gray-300">Product not found</p>
+          <p className="text-center text-primary/80 dark:text-gray-300">Product not found</p>
         </div>
       </>
     );
@@ -164,7 +159,7 @@ const ProductDetails = () => {
                   KES {product.price?.toLocaleString()}
                 </span>
                 {product.original_price && (
-                  <span className="text-lg text-primary/50 dark:text-gray-400 line-through">
+                  <span className="text-lg text-primary/60 dark:text-gray-400 line-through">
                     KES {product.original_price?.toLocaleString()}
                   </span>
                 )}
@@ -193,7 +188,7 @@ const ProductDetails = () => {
             <div className="flex space-x-4">
               <Button
                 onClick={handleAddToCart}
-                className="flex-1 bg-secondary text-primary hover:bg-secondary/90 dark:text-gray-900 dark:hover:bg-secondary/80"
+                className="flex-1 bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
               >
                 Add to Cart
               </Button>
