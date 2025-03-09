@@ -170,28 +170,28 @@ const ProfileCompletion = ({ token }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent dark:border-primary"></div>
       </div>
     );
   }
   
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background">
       <div className="max-w-md w-full px-4">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
+          <h1 className="text-3xl font-bold text-primary dark:text-primary">UniHive</h1>
+          <p className="text-foreground/80 dark:text-foreground/80 mt-2">Student Marketplace</p>
         </div>
         
-        <Card className="border-primary/10 dark:bg-gray-800 dark:border-gray-700">
+        <Card className="bg-card dark:bg-card border-border dark:border-border">
           <CardHeader>
-            <CardTitle className="text-center text-primary dark:text-gray-100">Complete Your Profile</CardTitle>
+            <CardTitle className="text-center text-foreground dark:text-foreground">Complete Your Profile</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="fullName" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                   Full Name
                 </label>
                 <Input
@@ -200,7 +200,8 @@ const ProfileCompletion = ({ token }) => {
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="Enter your full name"
-                  className={`dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.fullName ? "border-red-500 dark:border-red-400" : ""}`}
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  aria-invalid={errors.fullName ? "true" : "false"}
                 />
                 {errors.fullName && (
                   <p className="text-sm text-red-500 dark:text-red-400">{errors.fullName}</p>
@@ -208,7 +209,7 @@ const ProfileCompletion = ({ token }) => {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="phone" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                   Phone Number
                 </label>
                 <Input
@@ -218,12 +219,12 @@ const ProfileCompletion = ({ token }) => {
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="Enter your phone number"
-                  className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                   Campus Location
                 </label>
                 <Input
@@ -232,7 +233,8 @@ const ProfileCompletion = ({ token }) => {
                   value={formData.campusLocation}
                   onChange={handleChange}
                   placeholder="Enter your campus location"
-                  className={`dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  aria-invalid={errors.campusLocation ? "true" : "false"}
                 />
                 {errors.campusLocation && (
                   <p className="text-sm text-red-500 dark:text-red-400">{errors.campusLocation}</p>
@@ -246,11 +248,11 @@ const ProfileCompletion = ({ token }) => {
                   name="isSeller"
                   checked={formData.isSeller}
                   onChange={handleChange}
-                  className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-orange-500"
+                  className="rounded border-input dark:border-input bg-background dark:bg-muted checked:bg-accent dark:checked:bg-primary"
                 />
                 <label 
                   htmlFor="isSeller" 
-                  className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  className="text-sm font-medium text-foreground/80 dark:text-foreground/80"
                 >
                   Register as a Seller
                 </label>
@@ -259,7 +261,7 @@ const ProfileCompletion = ({ token }) => {
               <div className="pt-4">
                 <Button 
                   type="submit" 
-                  className="w-full bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white"
+                  className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-primary dark:text-foreground dark:hover:bg-primary/90"
                   disabled={submitting}
                 >
                   {submitting ? 'Saving Profile...' : 'Complete Profile'}

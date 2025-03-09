@@ -89,19 +89,19 @@ const Login = ({ setToken }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background">
       <div className="max-w-md w-full px-4 py-6">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
+          <h1 className="text-3xl font-bold text-primary dark:text-primary">UniHive</h1>
+          <p className="text-foreground/80 dark:text-foreground/80 mt-2">Student Marketplace</p>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-900/30">
-          <h2 className="text-2xl text-center font-bold mb-4 dark:text-gray-100">Welcome Back</h2>
+        <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+          <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Welcome Back</h2>
           
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Email
               </label>
               <Input
@@ -111,13 +111,13 @@ const Login = ({ setToken }) => {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
                 placeholder="Enter your email"
               />
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Password
               </label>
               <Input
@@ -127,14 +127,14 @@ const Login = ({ setToken }) => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
                 placeholder="Enter your password"
               />
             </div>
 
             <Button 
               type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white h-9"
+              className="w-full bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
               disabled={loading}
             >
               {loading ? 'Logging in...' : 'Login'}
@@ -144,10 +144,10 @@ const Login = ({ setToken }) => {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                <div className="w-full border-t border-border dark:border-border"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Or continue with</span>
+                <span className="px-2 bg-card dark:bg-card text-foreground/60 dark:text-foreground/60">Or continue with</span>
               </div>
             </div>
 
@@ -155,7 +155,7 @@ const Login = ({ setToken }) => {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full border-gray-300 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-700"
+                className="w-full border-border dark:border-border text-foreground dark:text-foreground hover:bg-muted dark:hover:bg-muted"
                 onClick={handleGoogleSignIn}
                 disabled={googleLoading}
               >
@@ -165,9 +165,9 @@ const Login = ({ setToken }) => {
             </div>
           </div>
 
-          <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-3 text-center text-sm text-foreground/60 dark:text-foreground/60">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
+            <Link to="/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
               Sign Up
             </Link>
           </p>

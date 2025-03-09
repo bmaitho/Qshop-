@@ -77,24 +77,24 @@ const AuthCallback = ({ setToken }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 flex-col">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-500 mb-4"></div>
-        <p className="text-gray-600 dark:text-gray-300">Verifying account...</p>
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background flex-col">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent dark:border-primary mb-4"></div>
+        <p className="text-foreground/80 dark:text-foreground/80">Verifying account...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 flex-col p-4">
+      <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background flex-col p-4">
         <div className="text-red-500 dark:text-red-400 mb-4">
           <AlertTriangle className="h-16 w-16 mx-auto" />
         </div>
-        <h2 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">Authentication Error</h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-4 text-center">{error}</p>
+        <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Authentication Error</h2>
+        <p className="text-foreground/80 dark:text-foreground/80 mb-4 text-center">{error}</p>
         <Button 
           onClick={() => navigate('/login')}
-          className="bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-600 dark:hover:bg-orange-700"
+          className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-primary dark:text-foreground dark:hover:bg-primary/90"
         >
           Return to Login
         </Button>

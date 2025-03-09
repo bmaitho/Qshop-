@@ -199,19 +199,19 @@ const SignUp = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-background dark:bg-background">
       <div className="max-w-md w-full px-4 py-6">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-orange-600 dark:text-orange-500">UniHive</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">Student Marketplace</p>
+          <h1 className="text-3xl font-bold text-primary dark:text-primary">UniHive</h1>
+          <p className="text-foreground/80 dark:text-foreground/80 mt-2">Student Marketplace</p>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:shadow-gray-900/30">
-          <h2 className="text-2xl text-center font-bold mb-4 dark:text-gray-100">Create an Account</h2>
+        <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+          <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Create an Account</h2>
           
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="fullName" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Full Name
               </label>
               <Input
@@ -220,7 +220,8 @@ const SignUp = () => {
                 value={formData.fullName}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.fullName ? "border-red-500 dark:border-red-400" : ""}`}
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                aria-invalid={errors.fullName ? "true" : "false"}
               />
               {errors.fullName && (
                 <p className="text-sm text-red-500 dark:text-red-400">{errors.fullName}</p>
@@ -228,7 +229,7 @@ const SignUp = () => {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Email
               </label>
               <Input
@@ -238,7 +239,8 @@ const SignUp = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.email ? "border-red-500 dark:border-red-400" : ""}`}
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                aria-invalid={errors.email ? "true" : "false"}
               />
               {errors.email && (
                 <p className="text-sm text-red-500 dark:text-red-400">{errors.email}</p>
@@ -246,7 +248,7 @@ const SignUp = () => {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Password
               </label>
               <Input
@@ -256,7 +258,8 @@ const SignUp = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
-                className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.password ? "border-red-500 dark:border-red-400" : ""}`}
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                aria-invalid={errors.password ? "true" : "false"}
               />
               {errors.password && (
                 <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
@@ -264,7 +267,7 @@ const SignUp = () => {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="phone" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Phone Number
               </label>
               <Input
@@ -274,17 +277,17 @@ const SignUp = () => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="Enter your phone number"
-                className="h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
               />
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="campusLocation" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Campus Location
               </label>
               
               {loadingCampuses ? (
-                <div className="text-sm text-gray-600 dark:text-gray-400">Loading campus locations...</div>
+                <div className="text-sm text-foreground/60 dark:text-foreground/60">Loading campus locations...</div>
               ) : campusLocations.length > 0 ? (
                 <Select
                   value={formData.campusLocationId}
@@ -292,11 +295,12 @@ const SignUp = () => {
                 >
                   <SelectTrigger 
                     id="campusLocationId"
-                    className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                    className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                    aria-invalid={errors.campusLocation ? "true" : "false"}
                   >
                     <SelectValue placeholder="Select your campus" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-80 dark:bg-gray-800">
+                  <SelectContent className="bg-card dark:bg-card text-foreground dark:text-foreground border-border dark:border-border">
                     {campusLocations.map((campus) => (
                       <SelectItem key={campus.id} value={campus.id.toString()}>
                         {campus.name}
@@ -312,7 +316,8 @@ const SignUp = () => {
                   value={formData.campusLocation}
                   onChange={handleChange}
                   placeholder="Enter your campus location"
-                  className={`h-9 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:border-secondary ${errors.campusLocation ? "border-red-500 dark:border-red-400" : ""}`}
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  aria-invalid={errors.campusLocation ? "true" : "false"}
                 />
               )}
               
@@ -328,11 +333,11 @@ const SignUp = () => {
                 name="isSeller"
                 checked={formData.isSeller}
                 onChange={handleChange}
-                className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-secondary"
+                className="rounded border-input dark:border-input bg-background dark:bg-muted checked:bg-accent dark:checked:bg-primary"
               />
               <label 
                 htmlFor="isSeller" 
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="text-sm font-medium text-foreground/80 dark:text-foreground/80"
               >
                 Register as a Seller
               </label>
@@ -340,16 +345,16 @@ const SignUp = () => {
 
             <Button 
               type="submit" 
-              className="w-full mt-4 bg-orange-600 hover:bg-orange-700 dark:bg-orange-600 dark:hover:bg-orange-700 text-white h-9"
+              className="w-full mt-4 bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
               disabled={loading}
             >
               {loading ? 'Creating Account...' : 'Sign Up'}
             </Button>
           </form>
           
-          <p className="mt-3 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-3 text-center text-sm text-foreground/60 dark:text-foreground/60">
             Already have an account?{' '}
-            <Link to="/login" className="text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 hover:underline font-medium">
+            <Link to="/login" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
               Login
             </Link>
           </p>
