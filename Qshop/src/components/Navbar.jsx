@@ -78,6 +78,10 @@ const Navbar = () => {
     }
   };
 
+  // Define gold color style for consistent application
+  const goldTextStyle = { color: '#ebc75c' };
+  const goldIconStyle = { color: '#ebc75c' };
+
   const navLinks = [
     { name: 'Home', path: '/home' },
     { 
@@ -96,35 +100,35 @@ const Navbar = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
-              <User className="h-4 w-4 text-orange-600" />
+            <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+              <User className="h-4 w-4" style={goldIconStyle} />
             </div>
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="h-4 w-4" style={goldIconStyle} />
           </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end">
+      <DropdownMenuContent className="w-56 bg-card dark:bg-card border-border dark:border-border" align="end">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userData?.email}</p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-border dark:bg-border" />
         <DropdownMenuItem asChild>
-          <Link to="/profile" className="cursor-pointer flex items-center">
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <Link to="/profile" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
+            <User className="mr-2 h-4 w-4" style={goldIconStyle} />
+            <span style={goldTextStyle}>Profile</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/profile" className="cursor-pointer flex items-center">
-            <Package className="mr-2 h-4 w-4" />
-            <span>My Listings</span>
+          <Link to="/profile" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
+            <Package className="mr-2 h-4 w-4" style={goldIconStyle} />
+            <span style={goldTextStyle}>My Listings</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="bg-border dark:bg-border" />
         <DropdownMenuItem 
-          className="text-red-600 cursor-pointer focus:text-red-600" 
+          className="text-red-600 dark:text-red-400 cursor-pointer hover:bg-destructive/10"
           onClick={handleLogout}
         >
           <LogOut className="mr-2 h-4 w-4" />
@@ -135,12 +139,12 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="bg-white shadow-md dark:bg-gray-800 dark:text-white transition-colors duration-200">
+    <nav className="bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
-            <span className="text-2xl font-bold text-orange-600 dark:text-orange-500">UniHive</span>
+            <span className="text-2xl font-bold" style={goldTextStyle}>UniHive</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -149,11 +153,8 @@ const Navbar = () => {
               <Link
                 key={link.name}
                 to={link.path}
-                className={`transition-colors ${
-                  link.highlight 
-                    ? 'text-orange-600 hover:text-orange-700 dark:text-orange-500 dark:hover:text-orange-400 font-semibold' 
-                    : 'text-gray-600 hover:text-orange-600 dark:text-gray-300 dark:hover:text-orange-400'
-                }`}
+                className="transition-colors font-medium"
+                style={goldTextStyle}
               >
                 {link.name}
               </Link>
@@ -165,20 +166,20 @@ const Navbar = () => {
             <ThemeToggle />
             
             <Link to="/wishlist" className="relative">
-              <Button variant="ghost" size="icon">
-                <Heart className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                <Heart className="h-5 w-5" style={goldIconStyle} />
                 {wishlist?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {wishlist.length}
                   </span>
                 )}
               </Button>
             </Link>
             <Link to="/cart" className="relative">
-              <Button variant="ghost" size="icon">
-                <ShoppingCart className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                <ShoppingCart className="h-5 w-5" style={goldIconStyle} />
                 {cart?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
                     {cart.length}
                   </span>
                 )}
@@ -188,7 +189,7 @@ const Navbar = () => {
               <ProfileDropdown />
             ) : (
               <Link to="/">
-                <Button>Sign In</Button>
+                <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90">Sign In</Button>
               </Link>
             )}
           </div>
