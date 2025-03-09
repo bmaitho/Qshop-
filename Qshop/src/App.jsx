@@ -12,7 +12,7 @@ import SignUp from './components/auth/SignUp';
 import Login from './components/auth/Login';
 import AuthCallback from './components/auth/AuthCallback';
 import LandingPage from './components/LandingPage';
-import MobileLandingPage from './components/MobileLandingPage';
+import MobileLandingPage from './components/MobileLandingpage';
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
 import ProductDetails from './components/ProductDetails';
