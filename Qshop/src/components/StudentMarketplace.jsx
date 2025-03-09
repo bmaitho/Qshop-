@@ -1,5 +1,6 @@
+// Updated StudentMarketplace.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Filter, Search } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,17 @@ const StudentMarketplace = ({ token }) => {
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Parse search query from URL if present
+  useEffect(() => {
+    const query = new URLSearchParams(location.search).get('q');
+    if (query) {
+      setSearchQuery(query);
+    }
+  }, [location.search]);
   
   useEffect(() => {
     fetchCategories();
@@ -52,15 +63,36 @@ const StudentMarketplace = ({ token }) => {
     }
   };
 
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+    // Optional: update URL to reflect category
+    // navigate(`/category/${category}`);
+  };
+
   const FilterContent = () => (
     <div className="space-y-4">
       <h3 className="font-semibold text-primary dark:text-gray-100">Categories</h3>
       <div className="space-y-2">
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className={`block w-full text-left px-2 py-1.5 rounded ${
+            selectedCategory === null 
+              ? 'bg-primary/10 dark:bg-gray-700 font-medium text-primary dark:text-gray-100' 
+              : 'text-primary/70 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700'
+          }`}
+        >
+          All Products
+        </button>
+        
         {categories.map((category) => (
           <button
             key={category}
-            onClick={() => navigate(`/category/${category}`)}
-            className="block w-full text-left px-2 py-1.5 rounded text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+            onClick={() => handleCategoryClick(category)}
+            className={`block w-full text-left px-2 py-1.5 rounded ${
+              selectedCategory === category 
+                ? 'bg-primary/10 dark:bg-gray-700 font-medium text-primary dark:text-gray-100' 
+                : 'text-primary/70 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700'
+            }`}
           >
             {category}
           </button>
@@ -136,12 +168,27 @@ const StudentMarketplace = ({ token }) => {
         {isMobile && categories.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3 text-primary dark:text-gray-100">Categories</h2>
-            <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-hide">
+            <div className="flex overflow-x-auto space-x-2 pb-2 hide-scrollbar">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm ${
+                  selectedCategory === null 
+                    ? 'bg-secondary text-primary dark:bg-primary dark:text-gray-100' 
+                    : 'bg-primary/10 dark:bg-gray-700 text-primary/70 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-gray-600'
+                } transition-colors`}
+              >
+                All
+              </button>
+              
               {categories.slice(0, 10).map((category) => (
                 <button
                   key={category}
-                  onClick={() => navigate(`/category/${category}`)}
-                  className="flex-shrink-0 px-3 py-1.5 bg-primary/10 dark:bg-gray-700 rounded-full text-sm text-primary dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => handleCategoryClick(category)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm ${
+                    selectedCategory === category 
+                      ? 'bg-secondary text-primary dark:bg-primary dark:text-gray-100' 
+                      : 'bg-primary/10 dark:bg-gray-700 text-primary/70 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-gray-600'
+                  } transition-colors`}
                 >
                   {category}
                 </button>
@@ -163,7 +210,10 @@ const StudentMarketplace = ({ token }) => {
           
           {/* Product grid */}
           <main className="flex-1">
-            <ProductGrid />
+            <ProductGrid 
+              category={selectedCategory} 
+              searchQuery={searchQuery} 
+            />
           </main>
         </div>
       </div>
