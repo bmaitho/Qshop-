@@ -244,6 +244,21 @@ const MyShop = () => {
     <>
       <Navbar />
       <div className="max-w-7xl mx-auto p-4 mt-12 mb-16">
+        {/* Shop Banner */}
+        {shopData?.banner_url && (
+          <div className="w-full h-32 md:h-48 lg:h-64 rounded-lg overflow-hidden mb-6">
+            <img 
+              src={shopData.banner_url} 
+              alt={`${getShopName()} banner`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "/api/placeholder/1200/400";
+              }}
+            />
+          </div>
+        )}
+        
         {/* Shop Header - Mobile Responsive */}
         <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-between items-center'} mb-4`}>
           <div>
