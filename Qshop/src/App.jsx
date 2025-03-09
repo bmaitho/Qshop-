@@ -11,7 +11,7 @@ import SellerProfile from './components/SellerProfile';
 import SignUp from './components/auth/SignUp';
 import Login from './components/auth/Login';
 import AuthCallback from './components/auth/AuthCallback';
-
+import LandingPage from './components/LandingPage';
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
 import ProductDetails from './components/ProductDetails';
@@ -29,7 +29,6 @@ const App = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
-    // Check for existing token in sessionStorage on component mount
     const storedToken = sessionStorage.getItem('token');
     if (storedToken) {
       try {
@@ -39,9 +38,8 @@ const App = () => {
         sessionStorage.removeItem('token');
       }
     }
-    setLoading(false); // Mark loading as complete
-    
-    // Set up listener for screen size changes
+    setLoading(false);
+
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -51,16 +49,13 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    // Update sessionStorage whenever token changes
     if (token) {
       sessionStorage.setItem('token', JSON.stringify(token));
     } else if (token === null && !loading) {
-      // Only remove if we're not in the initial loading state
       sessionStorage.removeItem('token');
     }
   }, [token, loading]);
 
-  // Don't render routes until we've checked for the token
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
@@ -71,55 +66,26 @@ const App = () => {
         <CartProvider>
           <div className={isMobile ? "pb-16" : ""}>
             <Routes>
-              {/* Public Routes */}
+              {/* Redirect root to /landingpage */}
+              <Route path="/" element={<Navigate to="/landingpage" replace />} />
+              <Route path="/landingpage" element={<LandingPage setToken={setToken} />} />
+              
+              {/* Auth Routes */}
               <Route path="/signup" element={<SignUp />} />
               <Route path="/login" element={<Login setToken={setToken} />} />
               <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
-              <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/login" />} />
-              
-              {/* Redirect root to login or home based on authentication */}
-              <Route 
-                path="/" 
-                element={token ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />} 
-              />
+              <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/landingpage" />} />
               
               {/* Protected Routes */}
-              <Route 
-                path="/home" 
-                element={token ? <Home token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/studentmarketplace" 
-                element={token ? <StudentMarketplace token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/product/:id" 
-                element={token ? <ProductDetails token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/myshop" 
-                element={token ? <MyShop token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/cart" 
-                element={token ? <Cart token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-               path="/seller/:id" 
-               element={token ? <SellerProfile /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/wishlist" 
-                element={token ? <Wishlist token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/profile" 
-                element={token ? <Profile token={token} /> : <Navigate to="/login" />} 
-              />
-              <Route 
-                path="/category/:categoryName" 
-                element={token ? <CategoryPage token={token} /> : <Navigate to="/login" />} 
-              />
+              <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/studentmarketplace" element={token ? <StudentMarketplace token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/product/:id" element={token ? <ProductDetails token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/myshop" element={token ? <MyShop token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/cart" element={token ? <Cart token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/seller/:id" element={token ? <SellerProfile /> : <Navigate to="/landingpage" />} />
+              <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/category/:categoryName" element={token ? <CategoryPage token={token} /> : <Navigate to="/landingpage" />} />
               
               {/* Catch-all Route */}
               <Route path="*" element={<NotFound />} />
