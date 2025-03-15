@@ -8,10 +8,8 @@ import { ThemeProvider } from './components/ThemeContext';
 import SellerProfile from './components/SellerProfile';
 
 // Components
-import SignUp from './components/auth/SignUp';
-import Login from './components/auth/Login';
+import AuthLayout from './components/auth/AuthLayout';
 import AuthCallback from './components/auth/AuthCallback';
-import LandingPage from './components/LandingPage';
 import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
 import ProductDetails from './components/ProductDetails';
@@ -66,29 +64,28 @@ const App = () => {
         <CartProvider>
           <div className={isMobile ? "pb-16" : ""}>
             <Routes>
-              {/* Redirect root to /landingpage */}
-              <Route path="/" element={<Navigate to="/landingpage" replace />} />
-              <Route 
-                path="/landingpage" 
-                element={<LandingPage setToken={setToken} />} 
-              />
+              {/* Redirect root to /auth */}
+              <Route path="/" element={<Navigate to="/auth" replace />} />
               
-              {/* Auth Routes */}
-              <Route path="/signup" element={<SignUp />} />
-              <Route path="/login" element={<Login setToken={setToken} />} />
+              {/* Auth layout that contains both Login and SignUp components */}
+              <Route path="/auth/*" element={<AuthLayout setToken={setToken} />} />
+              
+              {/* Auth callback route - kept separate */}
               <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
-              <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/landingpage" />} />
+              
+              {/* Complete profile route */}
+              <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/auth" />} />
               
               {/* Protected Routes */}
-              <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/studentmarketplace" element={token ? <StudentMarketplace token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/product/:id" element={token ? <ProductDetails token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/myshop" element={token ? <MyShop token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/cart" element={token ? <Cart token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/seller/:id" element={token ? <SellerProfile /> : <Navigate to="/landingpage" />} />
-              <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/landingpage" />} />
-              <Route path="/category/:categoryName" element={token ? <CategoryPage token={token} /> : <Navigate to="/landingpage" />} />
+              <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/studentmarketplace" element={token ? <StudentMarketplace token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/product/:id" element={token ? <ProductDetails token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/myshop" element={token ? <MyShop token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/cart" element={token ? <Cart token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/seller/:id" element={token ? <SellerProfile /> : <Navigate to="/auth" />} />
+              <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/auth" />} />
+              <Route path="/category/:categoryName" element={token ? <CategoryPage token={token} /> : <Navigate to="/auth" />} />
               
               {/* Catch-all Route */}
               <Route path="*" element={<NotFound />} />
