@@ -10,7 +10,7 @@ import Image2 from '../../assets/image2.jpg';
 import Image3 from '../../assets/image3.jpg';
 
 // Memoized slideshow component to prevent unnecessary re-renders
-const Slideshow = memo(({ slides, interval = 5000 }) => {
+const Slideshow = memo(({ slides, interval = 10000 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Auto-scrolling effect
