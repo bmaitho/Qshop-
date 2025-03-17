@@ -1,9 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from "react-hook-form";
-import { ImagePlus, Camera, X, Upload } from 'lucide-react';
+import { ImagePlus, Camera, X, Upload, Plus } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -11,51 +21,141 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { shopToasts } from '@/utils/toastConfig';
+import { shopToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
 
-const AddProductForm = ({ onSuccess }) => {
+const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
+  const [newCategory, setNewCategory] = useState({ name: '', description: '' });
+
+  const handleSubmit = () => {
+    onSubmit(newCategory);
+    setNewCategory({ name: '', description: '' });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Suggest New Category</DialogTitle>
+          <DialogDescription>
+            Your suggestion will be reviewed by our team.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="categoryName">Category Name</Label>
+            <Input
+              id="categoryName"
+              value={newCategory.name}
+              onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Enter category name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="categoryDescription">Description (Optional)</Label>
+            <Textarea
+              id="categoryDescription"
+              value={newCategory.description}
+              onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Describe this category"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleSubmit}>Submit</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default function AddProductForm({ onSuccess }) {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
-  const { register, handleSubmit, setValue, reset, watch, formState: { errors, isSubmitting } } = useForm({
+  const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
       category: '',
-      condition: 'new', // Default value
+      condition: 'new',
     }
   });
 
-  // Watch form values for debugging
-  const watchAllFields = watch();
-  
   useEffect(() => {
-    // Register the fields that use Select component
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     register("category", { required: "Category is required" });
     register("condition", { required: "Condition is required" });
   }, [register]);
 
-  // Using the existing shopToasts from utils/toastConfig
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('status', 'approved')
+        .order('name');
 
-  // Handle file selection (from file dialog or camera)
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      shopToasts.error('Failed to load categories');
+    }
+  };
+
+  const handleNewCategory = async (categoryData) => {
+    try {
+      if (!categoryData.name.trim()) {
+        shopToasts.error('Category name is required');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([{
+          name: categoryData.name.trim(),
+          description: categoryData.description.trim(),
+          created_by: user.id,
+          status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      shopToasts.success('Category suggestion submitted for approval');
+      setShowNewCategoryDialog(false);
+      fetchCategories(); // Refresh the list
+    } catch (error) {
+      console.error('Error adding category:', error);
+      shopToasts.error('Failed to add category');
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        shopToasts.imageTypeError();
+        shopToasts.error('Please upload an image file');
         return;
       }
       setImageFile(file);
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
-      setValue('image', file); // Set the value in the form
     }
   };
 
-  // Handle drag events
   const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -83,42 +183,24 @@ const AddProductForm = ({ onSuccess }) => {
     if (files?.length) {
       const file = files[0];
       if (file.type.startsWith('image/')) {
-        setImageFile(file);
-        setValue('image', file); // Set the value in the form
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
+        handleFileChange({ target: { files } });
       } else {
-        shopToasts.imageTypeError();
+        shopToasts.error('Please upload an image file');
       }
     }
   };
 
-  // Open file browser
-  const openFileBrowser = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Open camera
-  const openCamera = () => {
-    cameraInputRef.current?.click();
-  };
-
-  // Remove selected image
-  const removeImage = () => {
-    setImageFile(null);
-    setPreviewUrl(null);
-    setValue('image', null);
-  };
-
-  const uploadImage = async (file) => {
+  const uploadImage = async () => {
+    if (!imageFile) return null;
+    
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, file);
+        .upload(filePath, imageFile);
 
       if (uploadError) throw uploadError;
 
@@ -139,54 +221,32 @@ const AddProductForm = ({ onSuccess }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        shopToasts.addProductError();
+        shopToasts.error('Please sign in to add products');
         return;
-      }
-      
-      // Check if the required fields are there
-      if (!data.category || !data.condition) {
-        shopToasts.addProductError();
-        return;
-      }
-      
-      // Upload image if provided
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
       }
 
-      // Get user's campus location
-      const { data: profile, error: profileError } = await supabase
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await uploadImage();
+      }
+
+      const { data: profile } = await supabase
         .from('profiles')
         .select('campus_location')
         .eq('id', user.id)
         .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
-      }
-
-      // Map condition value to readable format
-      const conditionMap = {
-        'new': 'New',
-        'like_new': 'Used - Like New',
-        'good': 'Used - Good',
-        'fair': 'Used - Fair'
-      };
 
       const productData = {
         name: data.name,
         price: parseFloat(data.price),
         description: data.description,
         category: data.category,
-        condition: conditionMap[data.condition] || data.condition,
+        condition: data.condition,
         image_url: imageUrl,
         seller_id: user.id,
         status: 'active',
         location: profile?.campus_location || 'Unknown'
       };
-
-      console.log('Submitting product data:', productData);
 
       const { error } = await supabase
         .from('products')
@@ -194,93 +254,108 @@ const AddProductForm = ({ onSuccess }) => {
 
       if (error) throw error;
 
-      shopToasts.addProductSuccess();
+      shopToasts.success('Product added successfully');
       reset();
       setImageFile(null);
       setPreviewUrl(null);
       onSuccess?.();
     } catch (error) {
       console.error('Error adding product:', error);
-      shopToasts.addProductError();
+      shopToasts.error('Failed to add product');
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="h-[calc(100vh-100px)] overflow-y-auto p-4 bg-white rounded-lg shadow-sm">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New Product</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-20">
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Product Name</label>
+    <div className="relative max-h-[80vh] overflow-y-auto p-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Product Name */}
+        <div className="space-y-2">
+          <Label htmlFor="name">Product Name</Label>
           <Input
+            id="name"
             {...register("name", { required: "Product name is required" })}
             placeholder="Enter product name"
-            className="focus:border-orange-500 focus:ring-orange-500"
           />
           {errors.name && (
-            <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
+            <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Price (KES)</label>
+        {/* Price */}
+        <div className="space-y-2">
+          <Label htmlFor="price">Price (KES)</Label>
           <Input
+            id="price"
             type="number"
             {...register("price", { 
               required: "Price is required",
               min: { value: 0, message: "Price must be positive" }
             })}
             placeholder="Enter price in KES"
-            className="focus:border-orange-500 focus:ring-orange-500"
           />
           {errors.price && (
-            <p className="text-sm text-red-500 mt-1">{errors.price.message}</p>
+            <p className="text-sm text-destructive">{errors.price.message}</p>
           )}
         </div>
 
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Description</label>
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
           <Textarea
+            id="description"
             {...register("description", { required: "Description is required" })}
             placeholder="Describe your product"
-            className="min-h-[100px] focus:border-orange-500 focus:ring-orange-500"
+            className="min-h-[100px]"
           />
           {errors.description && (
-            <p className="text-sm text-red-500 mt-1">{errors.description.message}</p>
+            <p className="text-sm text-destructive">{errors.description.message}</p>
           )}
         </div>
 
+        {/* Category and Condition */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Category</label>
-            <Select 
-              onValueChange={(value) => setValue("category", value)}
-              value={watchAllFields.category}
-            >
-              <SelectTrigger className="focus:ring-orange-500">
-                <SelectValue placeholder="Select Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="electronics">Electronics</SelectItem>
-                <SelectItem value="books">Books</SelectItem>
-                <SelectItem value="clothing">Clothing</SelectItem>
-                <SelectItem value="furniture">Furniture</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <div className="flex gap-2">
+              <Select 
+                onValueChange={(value) => setValue("category", value)}
+                value={watch("category")}
+              >
+                <SelectTrigger id="category" className="flex-1">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowNewCategoryDialog(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
             {errors.category && (
-              <p className="text-sm text-red-500 mt-1">{errors.category.message}</p>
+              <p className="text-sm text-destructive">{errors.category.message}</p>
             )}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-gray-700">Condition</label>
+          <div className="space-y-2">
+            <Label htmlFor="condition">Condition</Label>
             <Select
-              value={watchAllFields.condition}
+              value={watch("condition")}
               onValueChange={(value) => setValue("condition", value)}
             >
-              <SelectTrigger className="focus:ring-orange-500">
+              <SelectTrigger id="condition">
                 <SelectValue placeholder="Select Condition" />
               </SelectTrigger>
               <SelectContent>
@@ -291,16 +366,22 @@ const AddProductForm = ({ onSuccess }) => {
               </SelectContent>
             </Select>
             {errors.condition && (
-              <p className="text-sm text-red-500 mt-1">{errors.condition.message}</p>
+              <p className="text-sm text-destructive">{errors.condition.message}</p>
             )}
           </div>
         </div>
 
-        {/* Enhanced Image Upload Section */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Product Image</label>
+        {/* Image Upload */}
+        <div className="space-y-2">
+          <Label>Product Image</Label>
           <div
-            className={`border-2 ${isDragging ? 'border-orange-500 bg-orange-50' : previewUrl ? 'border-orange-300' : 'border-dashed border-gray-300'} rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
+            className={`border-2 ${
+              isDragging 
+                ? 'border-ring bg-ring/5' 
+                : previewUrl 
+                  ? 'border-ring/50' 
+                  : 'border-dashed border-input'
+            } rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -313,37 +394,38 @@ const AddProductForm = ({ onSuccess }) => {
                   alt="Product preview" 
                   className="w-full h-64 object-contain rounded"
                 />
-                <button
+                <Button
                   type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2"
+                  onClick={() => {
+                    setImageFile(null);
+                    setPreviewUrl(null);
+                  }}
                 >
-                  <X className="h-5 w-5 text-red-500" />
-                </button>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             ) : (
               <div className="text-center">
-                <ImagePlus className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-600">
+                <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
                   Drag and drop an image, or use the options below
                 </p>
                 <div className="flex justify-center mt-4 space-x-3">
                   <Button 
                     type="button"
                     variant="outline" 
-                    size="sm"
-                    onClick={openFileBrowser}
-                    className="flex items-center hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Browse Files
                   </Button>
                   <Button 
                     type="button"
-                    variant="outline" 
-                    size="sm"
-                    onClick={openCamera}
-                    className="flex items-center hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    variant="outline"
+                    onClick={() => cameraInputRef.current?.click()}
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     Take Photo
@@ -352,7 +434,6 @@ const AddProductForm = ({ onSuccess }) => {
               </div>
             )}
             
-            {/* Hidden file inputs */}
             <input
               ref={fileInputRef}
               type="file"
@@ -369,21 +450,24 @@ const AddProductForm = ({ onSuccess }) => {
               className="hidden"
             />
           </div>
-          {errors.image && (
-            <p className="text-sm text-red-500 mt-1">{errors.image.message}</p>
-          )}
         </div>
 
+        {/* Submit Button */}
         <Button 
           type="submit" 
-          className="w-full mt-6 bg-orange-600 hover:bg-orange-700 text-white py-3"
-          disabled={uploading || isSubmitting}
+          className="w-full bg-secondary text-primary hover:bg-secondary/90"
+          disabled={uploading}
         >
-          {uploading || isSubmitting ? "Adding Product..." : "Add Product"}
+          {uploading ? "Adding Product..." : "Add Product"}
         </Button>
       </form>
+
+      {/* New Category Dialog */}
+      <NewCategoryDialog
+        open={showNewCategoryDialog}
+        onClose={() => setShowNewCategoryDialog(false)}
+        onSubmit={handleNewCategory}
+      />
     </div>
   );
-};
-
-export default AddProductForm;
+}
