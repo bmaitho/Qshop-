@@ -23,7 +23,7 @@ const MobileNavbar = () => {
     <>
       {/* Top header with logo, theme toggle and cart */}
       <div className="fixed top-0 left-0 w-full z-50 bg-transparent">
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-3">
           <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-border/50 dark:border-border/50">
             <Link to="/home" className="text-xl font-bold" style={goldTextStyle}>
               UniHive
@@ -36,17 +36,17 @@ const MobileNavbar = () => {
               className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-2 shadow-lg border border-border/50 dark:border-border/50"
             >
               {theme === 'dark' ? (
-                <Sun size={20} style={goldIconStyle} />
+                <Sun size={18} style={goldIconStyle} />
               ) : (
-                <Moon size={20} style={goldIconStyle} />
+                <Moon size={18} style={goldIconStyle} />
               )}
             </button>
             
             <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-2 shadow-lg border border-border/50 dark:border-border/50">
               <Link to="/cart" className="relative">
-                <ShoppingCart size={20} style={goldIconStyle} />
+                <ShoppingCart size={18} style={goldIconStyle} />
                 {cartItemCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-secondary text-primary dark:text-primary text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 bg-secondary text-primary dark:text-primary text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
                     {cartItemCount}
                   </span>
                 )}
@@ -57,8 +57,8 @@ const MobileNavbar = () => {
       </div>
       
       {/* Bottom navigation */}
-      <div className="fixed bottom-0 left-0 w-full z-50 bg-transparent p-4">
-        <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-3 px-2">
+      <div className="fixed bottom-0 left-0 w-full z-50 bg-transparent p-3">
+        <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-2 px-2">
           <Link 
             to="/home" 
             className={`flex flex-col items-center rounded-full p-2 ${
@@ -67,8 +67,8 @@ const MobileNavbar = () => {
                 : 'hover:bg-background/20 dark:hover:bg-background/20'
             }`}
           >
-            <Home size={20} style={goldIconStyle} />
-            <span className="text-xs mt-1" style={goldTextStyle}>Home</span>
+            <Home size={18} style={goldIconStyle} />
+            <span className="text-[10px] mt-0.5" style={goldTextStyle}>Home</span>
           </Link>
           
           <Link 
@@ -79,8 +79,8 @@ const MobileNavbar = () => {
                 : 'hover:bg-background/20 dark:hover:bg-background/20'
             }`}
           >
-            <Search size={20} style={goldIconStyle} />
-            <span className="text-xs mt-1" style={goldTextStyle}>Marketplace</span>
+            <Search size={18} style={goldIconStyle} />
+            <span className="text-[10px] mt-0.5" style={goldTextStyle}>Marketplace</span>
           </Link>
           
           <Link 
@@ -91,8 +91,8 @@ const MobileNavbar = () => {
                 : 'hover:bg-background/20 dark:hover:bg-background/20'
             }`}
           >
-            <Store size={20} style={goldIconStyle} />
-            <span className="text-xs mt-1" style={goldTextStyle}>My Shop</span>
+            <Store size={18} style={goldIconStyle} />
+            <span className="text-[10px] mt-0.5" style={goldTextStyle}>My Shop</span>
           </Link>
           
           <Link 
@@ -103,13 +103,13 @@ const MobileNavbar = () => {
                 : 'hover:bg-background/20 dark:hover:bg-background/20'
             }`}
           >
-            <Heart size={20} style={goldIconStyle} />
+            <Heart size={18} style={goldIconStyle} />
             {wishlistItemCount > 0 && (
               <span className="absolute top-0 right-1 bg-secondary text-primary dark:text-primary text-xs rounded-full h-4 w-4 flex items-center justify-center">
                 {wishlistItemCount}
               </span>
             )}
-            <span className="text-xs mt-1" style={goldTextStyle}>Wishlist</span>
+            <span className="text-[10px] mt-0.5" style={goldTextStyle}>Wishlist</span>
           </Link>
           
           <Link 
@@ -120,8 +120,8 @@ const MobileNavbar = () => {
                 : 'hover:bg-background/20 dark:hover:bg-background/20'
             }`}
           >
-            <User size={20} style={goldIconStyle} />
-            <span className="text-xs mt-1" style={goldTextStyle}>Account</span>
+            <User size={18} style={goldIconStyle} />
+            <span className="text-[10px] mt-0.5" style={goldTextStyle}>Account</span>
           </Link>
         </div>
       </div>
