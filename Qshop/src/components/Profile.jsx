@@ -10,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import ProductCard from './ProductCard';
 import Navbar from './Navbar';
 import { Link } from 'react-router-dom';
+import OrderHistory from './OrderHistory';
 
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
@@ -378,61 +379,7 @@ const Profile = () => {
           {/* Orders Tab (Both sellers and buyers) */}
           <TabsContent value="orders" className="mt-6">
             <h2 className="text-xl font-semibold mb-4">My Orders</h2>
-            
-            <div className="grid grid-cols-1 gap-4">
-              {userOrders.length > 0 ? (
-                userOrders.map(order => (
-                  <Card key={order.id} className="overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="bg-muted p-3 border-b">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              Order #{order.id.substring(0, 8)}
-                            </p>
-                            <p className="text-sm font-medium">
-                              {new Date(order.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
-                              Status: <span className="text-green-600">Completed</span>
-                            </div>
-                            <p className="text-sm font-bold">
-                              KES {(order.products?.price * order.quantity).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-4 flex items-center space-x-4">
-                        <img 
-                          src={order.products?.image_url || "/api/placeholder/100/100"} 
-                          alt={order.products?.name} 
-                          className="w-16 h-16 object-cover rounded"
-                        />
-                        <div>
-                          <p className="font-medium">{order.products?.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Quantity: {order.quantity}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  <ShoppingBag className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p className="mb-4">You haven't placed any orders yet</p>
-                  <Link to="/studentmarketplace">
-                    <Button variant="outline" size={isMobile ? "sm" : "default"}>
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Start Shopping
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
+            <OrderHistory />
           </TabsContent>
           
           {/* History Tab (Buyers only) */}

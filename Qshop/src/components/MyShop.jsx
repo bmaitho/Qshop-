@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Settings, Package, Star, DollarSign, ShoppingBag, Edit, Pencil } from 'lucide-react';
+import { 
+  Plus, 
+  Settings, 
+  Package, 
+  Star, 
+  DollarSign, 
+  ShoppingBag, 
+  Edit, 
+  Pencil,
+  Clock
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +30,7 @@ import Navbar from './Navbar';
 import AddProductForm from './AddProductForm';
 import ShopSettingsForm from './ShopSettingsForm';
 import EditProductForm from './EditProductForm';
+import SellerOrders from './SellerOrders'; // Import the SellerOrders component
 
 const MyShop = () => {
   const [shopData, setShopData] = useState(null);
@@ -29,11 +40,13 @@ const MyShop = () => {
     totalRevenue: 0,
     activeListings: 0,
     soldItems: 0,
-    averageRating: 0
+    averageRating: 0,
+    pendingOrders: 0
   });
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [activeTab, setActiveTab] = useState('active');
+  const [isSeller, setIsSeller] = useState(false);
+  const [activeTab, setActiveTab] = useState('');
   const [productToEdit, setProductToEdit] = useState(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showShopSettings, setShowShopSettings] = useState(false);
@@ -52,6 +65,14 @@ const MyShop = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Set the initial activeTab after determining seller status
+  useEffect(() => {
+    if (shopData) {
+      // Default to listings tab
+      setActiveTab('listings');
+    }
+  }, [shopData]);
+
   const fetchShopData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -67,7 +88,6 @@ const MyShop = () => {
       setShopData(shop);
     } catch (error) {
       console.error('Error fetching shop data:', error);
-      // This is fine, we'll create the shop if it doesn't exist
     }
   };
 
@@ -100,7 +120,7 @@ const MyShop = () => {
         .select('sale_price')
         .eq('seller_id', user.id);
 
-      if (salesError) throw salesError;
+      if (salesError && salesError.code !== 'PGRST116') throw salesError;
 
       // Get product statistics
       const { data: productStats, error: productError } = await supabase
@@ -118,6 +138,15 @@ const MyShop = () => {
 
       if (ratingError && ratingError.code !== 'PGRST116') throw ratingError;
 
+      // Get pending orders count
+      const { data: pendingOrders, error: ordersError } = await supabase
+        .from('order_items')
+        .select('id', { count: 'exact' })
+        .eq('seller_id', user.id)
+        .eq('status', 'processing');
+
+      if (ordersError && ordersError.code !== 'PGRST116') throw ordersError;
+
       // Calculate statistics
       const totalSales = salesData?.length || 0;
       const totalRevenue = salesData?.reduce((sum, sale) => sum + (sale.sale_price || 0), 0) || 0;
@@ -126,13 +155,15 @@ const MyShop = () => {
       const averageRating = ratingData?.length 
         ? (ratingData.reduce((sum, rating) => sum + rating.rating, 0) / ratingData.length)
         : 0;
+      const pendingOrdersCount = pendingOrders?.count || 0;
 
       setStatistics({
         totalSales,
         totalRevenue,
         activeListings,
         soldItems,
-        averageRating
+        averageRating,
+        pendingOrders: pendingOrdersCount
       });
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -215,18 +246,16 @@ const MyShop = () => {
     return (
       <>
         <Navbar />
-        <div className="max-w-7xl mx-auto p-4 mt-12">
+        <div className="max-w-7xl mx-auto px-4 py-8 mt-12">
           <div className="animate-pulse">
-            <div className="h-24 bg-gray-200 rounded-lg mb-4"></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
-              ))}
+            <div className="bg-gray-200 h-32 rounded-lg mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-64 bg-gray-200 rounded"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -243,7 +272,7 @@ const MyShop = () => {
   return (
     <>
       <Navbar />
-      <div className="max-w-7xl mx-auto p-4 mt-12 mb-16">
+      <div className="max-w-7xl mx-auto px-4 py-8 mt-12 mb-16">
         {/* Shop Banner */}
         {shopData?.banner_url && (
           <div className="w-full h-32 md:h-48 lg:h-64 rounded-lg overflow-hidden mb-6">
@@ -262,12 +291,23 @@ const MyShop = () => {
         {/* Shop Header - Mobile Responsive */}
         <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-between items-center'} mb-4`}>
           <div>
-            <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-              {getShopName()}
-            </h1>
-            <p className="text-gray-600 text-sm line-clamp-2">
-              {shopData?.description || "No description available"}
-            </p>
+            <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{getShopName()}</h1>
+            <div className={`flex items-center gap-6 mb-4`}>
+              <div className="text-center">
+                <div className="font-bold">{statistics.activeListings}</div>
+                <div className="text-sm text-gray-600">Listings</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold">{statistics.pendingOrders}</div>
+                <div className="text-sm text-gray-600">Pending Orders</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-orange-600">
+                  Seller
+                </div>
+                <div className="text-sm text-gray-600">Account Type</div>
+              </div>
+            </div>
           </div>
           
           <div className={`flex ${isMobile ? 'w-full' : 'gap-2'}`}>
@@ -276,8 +316,7 @@ const MyShop = () => {
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
                     <Button variant="outline" size="sm" className="flex-1 mr-2">
-                      <Settings className="w-4 h-4 mr-1" />
-                      Customize Shop
+                      <Settings className="w-4 h-4 mr-1" /> Edit Shop
                     </Button>
                   </SheetTrigger>
                   <SheetContent>
@@ -298,7 +337,7 @@ const MyShop = () => {
                   <SheetTrigger asChild>
                     <Button size="sm" className="flex-1">
                       <Plus className="w-4 h-4 mr-1" />
-                      Add Item
+                      New Listing
                     </Button>
                   </SheetTrigger>
                   <SheetContent>
@@ -357,8 +396,22 @@ const MyShop = () => {
           </div>
         </div>
 
-        {/* Statistics - Mobile Responsive */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        {/* Statistics Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+                Active Listings
+              </CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent className="p-3 pt-0">
+              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+                {statistics.activeListings}
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
               <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
@@ -394,123 +447,81 @@ const MyShop = () => {
           <Card className="shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
               <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Active Listings
+                Pending Orders
               </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-                {statistics.activeListings}/{statistics.activeListings + statistics.soldItems}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Rating
-              </CardTitle>
-              <Star className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-                {statistics.averageRating.toFixed(1)}/5.0
+              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold ${statistics.pendingOrders > 0 ? 'text-orange-600' : ''}`}>
+                {statistics.pendingOrders}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Products Grid - Mobile Responsive */}
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="w-full md:w-auto mb-1 grid grid-cols-3">
-            <TabsTrigger value="active" className="text-xs md:text-sm">Active</TabsTrigger>
-            <TabsTrigger value="sold" className="text-xs md:text-sm">Sold</TabsTrigger>
-            <TabsTrigger value="out_of_stock" className="text-xs md:text-sm">Out of Stock</TabsTrigger>
+        {/* Main Tabs */}
+        <Tabs 
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="mb-6"
+        >
+          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+            <TabsTrigger value="listings">
+              <Package className="w-4 h-4 mr-2" />
+              <span className={isMobile ? "text-xs" : ""}>Products</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              <ShoppingBag className="w-4 h-4 mr-2" />
+              <span className={isMobile ? "text-xs" : ""}>Orders</span>
+              {statistics.pendingOrders > 0 && (
+                <span className="ml-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {statistics.pendingOrders}
+                </span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="space-y-4">
-            {products.filter(product => product.status === 'active').length === 0 ? (
-              <div className="bg-gray-50 text-center p-6 rounded-lg">
-                <Package className="h-10 w-10 mx-auto text-gray-400 mb-2" />
-                <h3 className="font-medium text-gray-700 mb-1">No active listings</h3>
-                <p className="text-gray-500 text-sm mb-4">Add your first product to start selling</p>
-                <Button 
-                  size={isMobile ? "sm" : "default"}
-                  onClick={() => setShowAddProduct(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Product
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {products
-                  .filter(product => product.status === 'active')
-                  .map(product => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product}
-                      isOwner={true}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteProduct}
-                      onEdit={() => handleEditProduct(product)}
-                    />
-                  ))
-                }
-              </div>
-            )}
+          {/* Listings Tab */}
+          <TabsContent value="listings" className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">My Listings</h2>
+              <Button onClick={() => setShowAddProduct(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                New Listing
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+              {products.length > 0 ? (
+                products.map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product}
+                    isOwner={true}
+                    onStatusChange={handleStatusChange}
+                    onDelete={handleDeleteProduct}
+                    onEdit={() => handleEditProduct(product)}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p className="mb-4">You haven't posted any listings yet</p>
+                  <Button onClick={() => setShowAddProduct(true)} variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Your First Listing
+                  </Button>
+                </div>
+              )}
+            </div>
           </TabsContent>
-
-          <TabsContent value="sold" className="space-y-4">
-            {products.filter(product => product.status === 'sold').length === 0 ? (
-              <div className="bg-gray-50 text-center p-6 rounded-lg">
-                <ShoppingBag className="h-10 w-10 mx-auto text-gray-400 mb-2" />
-                <h3 className="font-medium text-gray-700 mb-1">No sold items yet</h3>
-                <p className="text-gray-500 text-sm">Keep promoting your products to make sales</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {products
-                  .filter(product => product.status === 'sold')
-                  .map(product => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product}
-                      isOwner={true}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteProduct}
-                      onEdit={() => handleEditProduct(product)}
-                    />
-                  ))
-                }
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="out_of_stock" className="space-y-4">
-            {products.filter(product => product.status === 'out_of_stock').length === 0 ? (
-              <div className="bg-gray-50 text-center p-6 rounded-lg">
-                <Package className="h-10 w-10 mx-auto text-gray-400 mb-2" />
-                <h3 className="font-medium text-gray-700 mb-1">No out of stock items</h3>
-                <p className="text-gray-500 text-sm">Keep your inventory updated</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {products
-                  .filter(product => product.status === 'out_of_stock')
-                  .map(product => (
-                    <ProductCard 
-                      key={product.id} 
-                      product={product}
-                      isOwner={true}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteProduct}
-                      onEdit={() => handleEditProduct(product)}
-                    />
-                  ))
-                }
-              </div>
-            )}
+          
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="mt-6">
+            
+            
+            {/* Integrate the SellerOrders component */}
+            <SellerOrders />
           </TabsContent>
         </Tabs>
         
@@ -530,4 +541,5 @@ const MyShop = () => {
     </>
   );
 };
+
 export default MyShop;

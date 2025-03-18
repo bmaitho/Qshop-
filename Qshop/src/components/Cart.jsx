@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Minus, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowLeft, CreditCard } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,9 +22,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { initiateMpesaPayment } from '../Services/mpesaService';
 import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
+import { supabase } from '../components/SupabaseClient';
 
 const DELIVERY_FEE = 1; // 1 shilling for testing
 
@@ -34,6 +36,7 @@ const Cart = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const navigate = useNavigate();
   
   useEffect(() => {
     const handleResize = () => {
@@ -60,6 +63,9 @@ const Cart = () => {
       );
   
       if (response.success) {
+        // Create the order
+        await createOrder('pending');
+        
         toastSuccess(response.message || "Please check your phone for the M-Pesa prompt");
         setIsPaymentDialogOpen(false);
         setPhoneNumber('');
@@ -68,6 +74,89 @@ const Cart = () => {
       }
     } catch (error) {
       toastError(error.message || "Failed to initiate payment. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const createOrder = async (paymentStatus = 'pending') => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toastError("Please log in to complete your order");
+        return;
+      }
+      
+      // Generate a test receipt number if we're doing a test checkout
+      const mpesaReceipt = paymentStatus === 'completed' 
+        ? `TEST${Math.floor(Math.random() * 1000000)}`
+        : null;
+      
+      // 1. Create the order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          user_id: user.id,
+          amount: total + DELIVERY_FEE,
+          payment_status: paymentStatus,
+          phone_number: phoneNumber || '254712345678', // Use entered phone or default test number
+          order_status: paymentStatus === 'completed' ? 'processing' : 'pending_payment',
+          mpesa_receipt: mpesaReceipt
+        }])
+        .select()
+        .single();
+      
+      if (orderError) throw orderError;
+      
+      // 2. Create order items
+      const orderItems = cart.map(item => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        seller_id: item.products.seller_id,
+        quantity: item.quantity,
+        price_per_unit: item.products.price,
+        subtotal: item.products.price * item.quantity,
+        status: paymentStatus === 'completed' ? 'processing' : 'pending_payment'
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+      
+      if (itemsError) throw itemsError;
+      
+      // 3. Clear cart
+      await clearCart();
+      
+      // 4. Redirect based on payment status
+      if (paymentStatus === 'completed') {
+        // Navigate to order confirmation for completed test orders
+        navigate(`/order-confirmation/${order.id}`);
+      } else {
+        // Navigate to checkout page to complete payment
+        navigate(`/checkout/${order.id}`);
+      }
+      
+      return order;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toastError('Failed to create order');
+      throw error;
+    }
+  };
+
+  const createTestOrder = async () => {
+    try {
+      setIsProcessing(true);
+      
+      // Create order with simulated successful payment
+      await createOrder('completed');
+      
+      toastSuccess("Test order created successfully!");
+      setIsPaymentDialogOpen(false);
+    } catch (error) {
+      toastError("Failed to create test order: " + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -281,21 +370,22 @@ const Cart = () => {
                 </div>
               </div>
 
-              {/* M-Pesa Payment Dialog */}
+              {/* Payment Options */}
               <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Pay with M-Pesa</Button>
+                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Proceed to Checkout</Button>
                 </DialogTrigger>
                 <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
                   <DialogHeader>
-                    <DialogTitle className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700">M-Pesa Payment</DialogTitle>
+                    <DialogTitle className="text-primary dark:text-gray-100">Complete Your Order</DialogTitle>
                     <DialogDescription className="text-primary/70 dark:text-gray-300">
-                      Enter your phone number to receive the payment prompt
+                      Choose your payment method
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleMpesaPayment} className="space-y-4">
+                  
+                  <form onSubmit={handleMpesaPayment} className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-primary dark:text-gray-300">Phone Number</Label>
+                      <Label htmlFor="phone" className="text-primary dark:text-gray-300">Phone Number for M-Pesa</Label>
                       <Input
                         id="phone"
                         type="tel"
@@ -316,13 +406,30 @@ const Cart = () => {
                         KES {(total + DELIVERY_FEE).toFixed(2)}
                       </div>
                     </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? "Processing..." : "Pay Now"}
-                    </Button>
+                    
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white"
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? "Processing..." : "Pay with M-Pesa"}
+                      </Button>
+                      
+                      {/* Test Checkout Button - only shown in development */}
+                      {process.env.NODE_ENV !== 'production' && (
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          className="w-full border-secondary text-secondary dark:border-green-500 dark:text-green-500"
+                          disabled={isProcessing}
+                          onClick={createTestOrder}
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Test Checkout (No Payment)
+                        </Button>
+                      )}
+                    </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>

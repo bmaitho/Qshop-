@@ -20,6 +20,9 @@ import CategoryPage from './components/CategoryPage';
 import NotFound from './components/NotFound';
 import Home from './components/Home';
 import MyShop from './components/MyShop';
+import Checkout from './components/Checkout';
+import OrderConfirmation from './components/OrderConfirmation';
+import OrderDetails from './components/OrderDetails';
 
 const App = () => {
   const [token, setToken] = useState(null);
@@ -86,7 +89,9 @@ const App = () => {
               <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/auth" />} />
               <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/auth" />} />
               <Route path="/category/:categoryName" element={token ? <CategoryPage token={token} /> : <Navigate to="/auth" />} />
-              
+              <Route path="/checkout/:orderId" element={token ? <Checkout /> : <Navigate to="/auth" />} />
+              <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" />} />
+              <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" />} />
               {/* Catch-all Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>
