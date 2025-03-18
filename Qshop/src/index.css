@@ -167,3 +167,28 @@
     padding-left: 8px; /* Smaller gutter for mobile */
   }
 }
+.styled-scrollbar {
+  max-height: 75vh;
+  overflow-y: auto;
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: rgba(231, 198, 95, 0.5) rgba(17, 59, 30, 0.1); /* Gold thumb, green track for Firefox */
+}
+
+/* For Webkit browsers (Chrome, Safari, Edge) */
+.styled-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-track {
+  background: rgba(17, 59, 30, 0.1); /* Slight green tint */
+  border-radius: 10px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(231, 198, 95, 0.5); /* Gold with transparency */
+  border-radius: 10px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(231, 198, 95, 0.7); /* Darker gold on hover */
+}

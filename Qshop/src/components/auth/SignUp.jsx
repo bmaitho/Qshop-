@@ -411,7 +411,8 @@ const SignUp = () => {
   };
 
   return (
-    <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+    <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border styled-scrollbar">
+
       <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Create an Account</h2>
       
       <Tabs 
