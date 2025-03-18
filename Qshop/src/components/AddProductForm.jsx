@@ -11,7 +11,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -21,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { shopToasts } from '../utils/toastConfig';
+import { shopToasts } from '@/utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
 
 const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
@@ -34,7 +33,7 @@ const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-md mx-auto overflow-y-auto max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Suggest New Category</DialogTitle>
           <DialogDescription>
@@ -43,40 +42,39 @@ const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="categoryName">Category Name</Label>
+            <Label>Category Name</Label>
             <Input
-              id="categoryName"
+              placeholder="Enter category name"
               value={newCategory.name}
               onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter category name"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="categoryDescription">Description (Optional)</Label>
+            <Label>Description (Optional)</Label>
             <Textarea
-              id="categoryDescription"
+              placeholder="Describe this category"
               value={newCategory.description}
               onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe this category"
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit}>Submit</Button>
+        <DialogFooter className="flex sm:flex-row gap-2 mt-4 pt-2 border-t">
+          <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button onClick={handleSubmit} className="flex-1 bg-secondary text-primary">Submit</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default function AddProductForm({ onSuccess }) {
+const AddProductForm = ({ onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [categories, setCategories] = useState([]);
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
@@ -89,6 +87,16 @@ export default function AddProductForm({ onSuccess }) {
 
   useEffect(() => {
     fetchCategories();
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Set initial value
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -108,14 +116,14 @@ export default function AddProductForm({ onSuccess }) {
       setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      shopToasts.error('Failed to load categories');
+      console.error('Failed to load categories');
     }
   };
 
   const handleNewCategory = async (categoryData) => {
     try {
       if (!categoryData.name.trim()) {
-        shopToasts.error('Category name is required');
+        console.error('Category name is required');
         return;
       }
 
@@ -134,12 +142,12 @@ export default function AddProductForm({ onSuccess }) {
 
       if (error) throw error;
 
-      shopToasts.success('Category suggestion submitted for approval');
+      console.log('Category suggestion submitted for approval');
       setShowNewCategoryDialog(false);
-      fetchCategories(); // Refresh the list
+      fetchCategories();
     } catch (error) {
       console.error('Error adding category:', error);
-      shopToasts.error('Failed to add category');
+      console.error('Failed to add category');
     }
   };
 
@@ -147,7 +155,7 @@ export default function AddProductForm({ onSuccess }) {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        shopToasts.error('Please upload an image file');
+        console.error('Please upload an image file');
         return;
       }
       setImageFile(file);
@@ -185,7 +193,7 @@ export default function AddProductForm({ onSuccess }) {
       if (file.type.startsWith('image/')) {
         handleFileChange({ target: { files } });
       } else {
-        shopToasts.error('Please upload an image file');
+        console.error('Please upload an image file');
       }
     }
   };
@@ -221,7 +229,7 @@ export default function AddProductForm({ onSuccess }) {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        shopToasts.error('Please sign in to add products');
+        console.error('Please sign in to add products');
         return;
       }
 
@@ -254,38 +262,37 @@ export default function AddProductForm({ onSuccess }) {
 
       if (error) throw error;
 
-      shopToasts.success('Product added successfully');
+      console.log('Product added successfully');
       reset();
       setImageFile(null);
       setPreviewUrl(null);
       onSuccess?.();
     } catch (error) {
       console.error('Error adding product:', error);
-      shopToasts.error('Failed to add product');
+      console.error('Failed to add product');
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="relative max-h-[80vh] overflow-y-auto p-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Product Name */}
+    <div className="w-full max-w-4xl mx-auto px-4 py-6 pb-20 md:px-6 max-h-[85vh] overflow-y-auto">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="name">Product Name</Label>
+          <Label htmlFor="name" className="text-sm font-medium">Product Name</Label>
           <Input
             id="name"
             {...register("name", { required: "Product name is required" })}
             placeholder="Enter product name"
+            className="w-full"
           />
           {errors.name && (
             <p className="text-sm text-destructive">{errors.name.message}</p>
           )}
         </div>
 
-        {/* Price */}
         <div className="space-y-2">
-          <Label htmlFor="price">Price (KES)</Label>
+          <Label htmlFor="price" className="text-sm font-medium">Price (KES)</Label>
           <Input
             id="price"
             type="number"
@@ -294,30 +301,29 @@ export default function AddProductForm({ onSuccess }) {
               min: { value: 0, message: "Price must be positive" }
             })}
             placeholder="Enter price in KES"
+            className="w-full"
           />
           {errors.price && (
             <p className="text-sm text-destructive">{errors.price.message}</p>
           )}
         </div>
 
-        {/* Description */}
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description" className="text-sm font-medium">Description</Label>
           <Textarea
             id="description"
             {...register("description", { required: "Description is required" })}
             placeholder="Describe your product"
-            className="min-h-[100px]"
+            className="min-h-[100px] w-full"
           />
           {errors.description && (
             <p className="text-sm text-destructive">{errors.description.message}</p>
           )}
         </div>
 
-        {/* Category and Condition */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category" className="text-sm font-medium">Category</Label>
             <div className="flex gap-2">
               <Select 
                 onValueChange={(value) => setValue("category", value)}
@@ -326,7 +332,7 @@ export default function AddProductForm({ onSuccess }) {
                 <SelectTrigger id="category" className="flex-1">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto">
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
@@ -338,10 +344,12 @@ export default function AddProductForm({ onSuccess }) {
               <Button
                 type="button"
                 variant="outline"
-                size="icon"
                 onClick={() => setShowNewCategoryDialog(true)}
+                className="flex-shrink-0 h-10 px-3 rounded-md"
+                aria-label="Add new category"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">Add</span>
               </Button>
             </div>
             {errors.category && (
@@ -350,12 +358,12 @@ export default function AddProductForm({ onSuccess }) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="condition">Condition</Label>
+            <Label htmlFor="condition" className="text-sm font-medium">Condition</Label>
             <Select
               value={watch("condition")}
               onValueChange={(value) => setValue("condition", value)}
             >
-              <SelectTrigger id="condition">
+              <SelectTrigger id="condition" className="w-full">
                 <SelectValue placeholder="Select Condition" />
               </SelectTrigger>
               <SelectContent>
@@ -371,9 +379,8 @@ export default function AddProductForm({ onSuccess }) {
           </div>
         </div>
 
-        {/* Image Upload */}
         <div className="space-y-2">
-          <Label>Product Image</Label>
+          <Label className="text-sm font-medium">Product Image</Label>
           <div
             className={`border-2 ${
               isDragging 
@@ -381,7 +388,7 @@ export default function AddProductForm({ onSuccess }) {
                 : previewUrl 
                   ? 'border-ring/50' 
                   : 'border-dashed border-input'
-            } rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
+            } rounded-lg transition-colors ${!previewUrl ? 'p-4 md:p-6' : 'p-2'}`}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -392,32 +399,34 @@ export default function AddProductForm({ onSuccess }) {
                 <img 
                   src={previewUrl} 
                   alt="Product preview" 
-                  className="w-full h-64 object-contain rounded"
+                  className="w-full h-48 md:h-64 object-contain rounded"
                 />
                 <Button
                   type="button"
                   variant="destructive"
                   size="icon"
-                  className="absolute top-2 right-2"
+                  className="absolute top-2 right-2 h-8 w-8 rounded-full"
                   onClick={() => {
                     setImageFile(null);
                     setPreviewUrl(null);
                   }}
+                  aria-label="Remove image"
                 >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             ) : (
               <div className="text-center">
-                <ImagePlus className="mx-auto h-12 w-12 text-muted-foreground" />
+                <ImagePlus className="mx-auto h-10 w-10 md:h-12 md:w-12 text-muted-foreground" />
                 <p className="mt-2 text-sm text-muted-foreground">
                   Drag and drop an image, or use the options below
                 </p>
-                <div className="flex justify-center mt-4 space-x-3">
+                <div className="flex flex-col sm:flex-row justify-center mt-4 space-y-2 sm:space-y-0 sm:space-x-3">
                   <Button 
                     type="button"
                     variant="outline" 
                     onClick={() => fileInputRef.current?.click()}
+                    className="w-full sm:w-auto"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Browse Files
@@ -426,6 +435,7 @@ export default function AddProductForm({ onSuccess }) {
                     type="button"
                     variant="outline"
                     onClick={() => cameraInputRef.current?.click()}
+                    className="w-full sm:w-auto"
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     Take Photo
@@ -452,17 +462,15 @@ export default function AddProductForm({ onSuccess }) {
           </div>
         </div>
 
-        {/* Submit Button */}
         <Button 
           type="submit" 
-          className="w-full bg-secondary text-primary hover:bg-secondary/90"
+          className="w-full bg-secondary text-primary hover:bg-secondary/90 py-4 mt-6 text-base font-medium"
           disabled={uploading}
         >
           {uploading ? "Adding Product..." : "Add Product"}
         </Button>
       </form>
 
-      {/* New Category Dialog */}
       <NewCategoryDialog
         open={showNewCategoryDialog}
         onClose={() => setShowNewCategoryDialog(false)}
@@ -471,3 +479,5 @@ export default function AddProductForm({ onSuccess }) {
     </div>
   );
 }
+
+export default AddProductForm;
