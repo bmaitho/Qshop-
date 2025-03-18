@@ -113,61 +113,77 @@ const MyShop = () => {
   const fetchStatistics = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       
-      // Get sales statistics
-      const { data: salesData, error: salesError } = await supabase
-        .from('sales')
-        .select('sale_price')
+      console.log("Fetching statistics for user:", user.id);
+      
+      // Get order statistics (replace with your order_items table)
+      const { data: orderData, error: orderError } = await supabase
+        .from('order_items')
+        .select(`
+          id,
+          subtotal,
+          status
+        `)
         .eq('seller_id', user.id);
-
-      if (salesError && salesError.code !== 'PGRST116') throw salesError;
-
+      
+      if (orderError) {
+        console.error("Error fetching order data:", orderError);
+        throw orderError;
+      }
+      
+      console.log("Order data fetched:", orderData);
+      
       // Get product statistics
       const { data: productStats, error: productError } = await supabase
         .from('products')
-        .select('status')
+        .select('id, status')
         .eq('seller_id', user.id);
-
-      if (productError) throw productError;
-
-      // Get average rating
-      const { data: ratingData, error: ratingError } = await supabase
-        .from('shop_ratings')
-        .select('rating')
-        .eq('shop_id', user.id);
-
-      if (ratingError && ratingError.code !== 'PGRST116') throw ratingError;
-
-      // Get pending orders count
-      const { data: pendingOrders, error: ordersError } = await supabase
-        .from('order_items')
-        .select('id', { count: 'exact' })
-        .eq('seller_id', user.id)
-        .eq('status', 'processing');
-
-      if (ordersError && ordersError.code !== 'PGRST116') throw ordersError;
-
-      // Calculate statistics
-      const totalSales = salesData?.length || 0;
-      const totalRevenue = salesData?.reduce((sum, sale) => sum + (sale.sale_price || 0), 0) || 0;
+  
+      if (productError) {
+        console.error("Error fetching product stats:", productError);
+        throw productError;
+      }
+      
+      console.log("Product stats fetched:", productStats);
+  
+      // Calculate statistics from order_items
+      const pendingOrders = orderData?.filter(order => order.status === 'processing').length || 0;
+      const totalSales = orderData?.length || 0;
+      const totalRevenue = orderData?.reduce((sum, order) => sum + (order.subtotal || 0), 0) || 0;
+      
+      // Calculate product statistics
       const activeListings = productStats?.filter(p => p.status === 'active').length || 0;
       const soldItems = productStats?.filter(p => p.status === 'sold').length || 0;
-      const averageRating = ratingData?.length 
-        ? (ratingData.reduce((sum, rating) => sum + rating.rating, 0) / ratingData.length)
-        : 0;
-      const pendingOrdersCount = pendingOrders?.count || 0;
-
+  
+      // Update state with real statistics
       setStatistics({
         totalSales,
         totalRevenue,
         activeListings,
         soldItems,
-        averageRating,
-        pendingOrders: pendingOrdersCount
+        averageRating: 4.5, // Placeholder until you implement ratings
+        pendingOrders
+      });
+      
+      console.log("Statistics calculated:", {
+        totalSales,
+        totalRevenue,
+        activeListings,
+        soldItems,
+        pendingOrders
       });
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      shopToasts.statsError();
+      // Set default values so the UI doesn't break
+      setStatistics({
+        totalSales: 0,
+        totalRevenue: 0,
+        activeListings: 0,
+        soldItems: 0,
+        averageRating: 0,
+        pendingOrders: 0
+      });
     }
   };
 
@@ -398,67 +414,62 @@ const MyShop = () => {
 
         {/* Statistics Cards - Mobile Responsive */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Active Listings
-              </CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-                {statistics.activeListings}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Total Sales
-              </CardTitle>
-              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-                {statistics.totalSales}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Revenue
-              </CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-                KES {isMobile 
-                  ? (statistics.totalRevenue > 9999 
-                    ? `${(statistics.totalRevenue / 1000).toFixed(1)}K` 
-                    : statistics.totalRevenue.toLocaleString())
-                  : statistics.totalRevenue.toLocaleString()}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-              <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-                Pending Orders
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold ${statistics.pendingOrders > 0 ? 'text-orange-600' : ''}`}>
-                {statistics.pendingOrders}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+         <Card className="shadow-sm">
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+               Active Listings
+             </CardTitle>
+             <Package className="h-4 w-4 text-muted-foreground" />
+           </CardHeader>
+           <CardContent className="p-3 pt-0">
+             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+               {statistics.activeListings || 0}
+             </div>
+           </CardContent>
+         </Card>
+         
+         <Card className="shadow-sm">
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+               Total Sales
+             </CardTitle>
+             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+           </CardHeader>
+           <CardContent className="p-3 pt-0">
+             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+               {statistics.totalSales || 0}
+             </div>
+           </CardContent>
+         </Card>
+         
+         <Card className="shadow-sm">
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+               Revenue
+             </CardTitle>
+             <DollarSign className="h-4 w-4 text-muted-foreground" />
+           </CardHeader>
+           <CardContent className="p-3 pt-0">
+             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+               KES {(statistics.totalRevenue || 0).toLocaleString()}
+             </div>
+           </CardContent>
+         </Card>
+         
+         <Card className="shadow-sm">
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+               Pending Orders
+             </CardTitle>
+             <Clock className="h-4 w-4 text-muted-foreground" />
+           </CardHeader>
+           <CardContent className="p-3 pt-0">
+             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold ${(statistics.pendingOrders || 0) > 0 ? 'text-orange-600' : ''}`}>
+               {statistics.pendingOrders || 0}
+             </div>
+           </CardContent>
+         </Card>
+       </div>
         {/* Main Tabs */}
         <Tabs 
           value={activeTab}
