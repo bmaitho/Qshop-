@@ -417,7 +417,7 @@ const Cart = () => {
                       </Button>
                       
                       {/* Test Checkout Button - only shown in development */}
-                      {process.env.NODE_ENV !== 'production' && (
+                     (
                         <Button 
                           type="button"
                           variant="outline" 
@@ -428,7 +428,7 @@ const Cart = () => {
                           <CreditCard className="mr-2 h-4 w-4" />
                           Test Checkout (No Payment)
                         </Button>
-                      )}
+                      )
                     </DialogFooter>
                   </form>
                 </DialogContent>
