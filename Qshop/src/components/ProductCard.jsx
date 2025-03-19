@@ -192,6 +192,9 @@ const ProductCard = ({
     </>
   );
 
+  // Get the display category, either from the processed display_category or from the category field
+  const displayCategory = product.display_category || product.category || "Other";
+
   return (
     <div 
       className={`${className} bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer`}
@@ -257,12 +260,22 @@ const ProductCard = ({
             </p>
           )}
           
-          <div className="text-xs text-primary/70 dark:text-gray-400 mb-3 flex justify-between">
-            <span className="line-clamp-1">Condition: {product.condition}</span>
-            {product.location && (
-              <span className="line-clamp-1 text-primary/60 dark:text-gray-500">{product.location}</span>
-            )}
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs text-primary/70 dark:text-gray-400">
+              Condition: {product.condition}
+            </span>
+            
+            {/* Display formatted category (capitalized) */}
+            <Badge variant="outline" className="text-xs">
+              {displayCategory}
+            </Badge>
           </div>
+          
+          {product.location && (
+            <div className="text-xs text-primary/60 dark:text-gray-500 mb-3">
+              Location: {product.location}
+            </div>
+          )}
           
           {/* Seller Button instead of Link */}
           {product.seller_id && !isOwner && (

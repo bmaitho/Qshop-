@@ -9,8 +9,16 @@ import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import ProductGrid from './ProductGrid';
 
+// Function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const StudentMarketplace = ({ token }) => {
   const [categories, setCategories] = useState([]);
+  const [categoriesMap, setCategoriesMap] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -39,7 +47,25 @@ const StudentMarketplace = ({ token }) => {
 
   const fetchCategories = async () => {
     try {
-      // Fetch distinct categories from products
+      // First fetch categories from the categories table
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('status', 'approved')
+        .order('name');
+
+      if (categoriesError) throw categoriesError;
+      
+      // Create a mapping of category IDs to names
+      const mapping = {};
+      if (categoriesData) {
+        categoriesData.forEach(cat => {
+          mapping[cat.id] = cat.name;
+        });
+        setCategoriesMap(mapping);
+      }
+
+      // Now get unique categories from the products table (for backward compatibility)
       const { data, error } = await supabase
         .from('products')
         .select('category')
@@ -49,7 +75,15 @@ const StudentMarketplace = ({ token }) => {
       if (error) throw error;
 
       // Remove duplicates and null values
-      const uniqueCategories = [...new Set(data.map(item => item.category))].filter(Boolean);
+      const uniqueCategories = [...new Set(data.map(item => {
+        const category = item.category;
+        // Convert UUID categories to their names using the mapping
+        if (isUUID(category) && mapping[category]) {
+          return mapping[category];
+        }
+        return category;
+      }))].filter(Boolean);
+      
       setCategories(uniqueCategories);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -65,8 +99,27 @@ const StudentMarketplace = ({ token }) => {
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
-    // Optional: update URL to reflect category
-    // navigate(`/category/${category}`);
+    
+    // Find the category ID if this is a category name
+    let categoryId = category;
+    Object.entries(categoriesMap).forEach(([id, name]) => {
+      if (name === category) {
+        categoryId = id;
+      }
+    });
+    
+    // Navigate to the category page
+    navigate(`/category/${categoryId}`);
+  };
+
+  // Get display name for categories, handling both string names and UUIDs
+  const getCategoryDisplayName = (categoryValue) => {
+    // If it's a UUID, look up in the categoriesMap
+    if (isUUID(categoryValue)) {
+      return categoriesMap[categoryValue] || 'Unknown Category';
+    }
+    // If it's a string name, capitalize first letter
+    return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
   };
 
   const FilterContent = () => (
@@ -94,7 +147,7 @@ const StudentMarketplace = ({ token }) => {
                 : 'text-primary/70 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700'
             }`}
           >
-            {category}
+            {getCategoryDisplayName(category)}
           </button>
         ))}
       </div>
@@ -190,7 +243,7 @@ const StudentMarketplace = ({ token }) => {
                       : 'bg-primary/10 dark:bg-gray-700 text-primary/70 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-gray-600'
                   } transition-colors`}
                 >
-                  {category}
+                  {getCategoryDisplayName(category)}
                 </button>
               ))}
             </div>
@@ -213,6 +266,7 @@ const StudentMarketplace = ({ token }) => {
             <ProductGrid 
               category={selectedCategory} 
               searchQuery={searchQuery} 
+              categoriesMap={categoriesMap}
             />
           </main>
         </div>

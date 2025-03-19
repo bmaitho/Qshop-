@@ -1,5 +1,4 @@
-// CategoryPage.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,13 @@ import {
 import { supabase } from '../components/SupabaseClient';
 import ProductCard from './ProductCard';
 import Navbar from './Navbar';
+
+// Function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
 
 // Custom debounce function
 function useDebounce(value, delay) {
@@ -49,6 +55,8 @@ const CategoryPage = () => {
     priceRange: [0, 100000],
     location: []
   });
+  const [categories, setCategories] = useState([]);
+  const [categoriesMap, setCategoriesMap] = useState({});
 
   // Create debounced versions of filters for API calls
   const debouncedFilters = useDebounce(selectedFilters, 300);
@@ -60,6 +68,11 @@ const CategoryPage = () => {
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Fetch categories to build the mapping
+  useEffect(() => {
+    fetchCategories();
   }, []);
 
   // Separate useEffect for filter changes to show loading state
@@ -74,20 +87,58 @@ const CategoryPage = () => {
   // Another useEffect that triggers when debounced filters change
   useEffect(() => {
     fetchProducts();
-  }, [categoryName, debouncedFilters, sortOrder]);
+  }, [categoryName, debouncedFilters, sortOrder, categoriesMap]);
+
+  const fetchCategories = async () => {
+    try {
+      // Fetch all categories from the categories table
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('status', 'approved');
+
+      if (categoriesError) throw categoriesError;
+      
+      // Create a mapping from category ID to category name
+      const mapping = {};
+      categoriesData.forEach(cat => {
+        mapping[cat.id] = cat.name;
+      });
+      
+      setCategoriesMap(mapping);
+      setCategories(categoriesData);
+      
+      // Also get distinct category values from products for backward compatibility
+      const { data: distinctCategories, error } = await supabase
+        .from('products')
+        .select('category')
+        .not('category', 'is', null)
+        .order('category');
+
+      if (error) throw error;
+
+      // Remove duplicates and null values
+      const uniqueCategories = [...new Set(distinctCategories.map(item => item.category))].filter(Boolean);
+      
+      // Don't override the categories we got from the categories table
+      // This is just for reference
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
       setIsFiltering(true);
+      
       let query = supabase
         .from('products')
         .select(`
           *,
-          seller_details:seller_id (
+          profiles:seller_id (
             id,
             full_name,
-            campus_location,
-            phone
+            campus_location
           )
         `)
         .eq('category', categoryName);
@@ -125,6 +176,16 @@ const CategoryPage = () => {
       setLoading(false);
       setIsFiltering(false);
     }
+  };
+
+  // Get a display name for a category, handling both string names and UUIDs
+  const getCategoryDisplayName = (categoryValue) => {
+    // If it's a UUID, look up in the categoriesMap
+    if (isUUID(categoryValue)) {
+      return categoriesMap[categoryValue] || 'Unknown Category';
+    }
+    // If it's a string name, capitalize first letter
+    return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
   };
 
   // Immediate UI update for slider, but debounced filter application
@@ -289,13 +350,13 @@ const CategoryPage = () => {
             <Link to="/" className="hover:text-orange-600">Home</Link>
             <span>/</span>
             <span className="text-gray-900 font-medium">
-              {categoryName.replace(/-/g, ' ')}
+              {getCategoryDisplayName(categoryName)}
             </span>
           </div>
           
           <div className="flex items-center justify-between">
             <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold capitalize`}>
-              {categoryName.replace(/-/g, ' ')}
+              {getCategoryDisplayName(categoryName)}
             </h1>
             {isMobile && (
               <Badge variant="outline">
@@ -403,9 +464,16 @@ const CategoryPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-                {products.map(product => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+                {products.map(product => {
+                  // Process product to handle category before passing to ProductCard
+                  const processedProduct = {
+                    ...product,
+                    display_category: getCategoryDisplayName(product.category)
+                  };
+                  return (
+                    <ProductCard key={product.id} product={processedProduct} />
+                  );
+                })}
               </div>
             )}
           </div>

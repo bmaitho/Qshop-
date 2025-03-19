@@ -1,11 +1,18 @@
-// ProductGrid.jsx
+// ProductGrid.jsx with category fixes
 import React, { useState, useEffect } from 'react';
 import Masonry from 'react-masonry-css';
 import ProductCard from './ProductCard';
 import { supabase } from '../components/SupabaseClient';
 import { Loader } from 'lucide-react';
 
-const ProductGrid = ({ category, searchQuery }) => {
+// Function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
+const ProductGrid = ({ category, searchQuery, categoriesMap = {} }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,7 +27,7 @@ const ProductGrid = ({ category, searchQuery }) => {
 
   useEffect(() => {
     fetchProducts();
-  }, [category, searchQuery]);
+  }, [category, searchQuery, categoriesMap]);
 
   const fetchProducts = async () => {
     try {
@@ -39,9 +46,34 @@ const ProductGrid = ({ category, searchQuery }) => {
         `)
         .order('created_at', { ascending: false });
       
-      // Apply category filter if specified
+      // Apply category filter if specified, handling both direct names and UUIDs
       if (category) {
-        query = query.eq('category', category);
+        // Check if the category is a UUID or a name
+        if (isUUID(category)) {
+          // Direct UUID from categories table
+          query = query.eq('category', category);
+        } else {
+          // It's a display name, need to find matching categories
+          // First, look for direct matches with the string name (old format)
+          // Then look for matches in the categories map (new format)
+          
+          // Convert category to lowercase for case-insensitive matching
+          const lowercaseCategory = category.toLowerCase();
+          
+          // Find any category IDs that map to this category name
+          const matchingCategoryIds = Object.entries(categoriesMap)
+            .filter(([id, name]) => name.toLowerCase() === lowercaseCategory)
+            .map(([id]) => id);
+          
+          if (matchingCategoryIds.length > 0) {
+            // If we found matching IDs in the categories map
+            // Use .in() to match any of these IDs
+            query = query.in('category', [...matchingCategoryIds, category]);
+          } else {
+            // Otherwise, just use the direct category name
+            query = query.eq('category', category);
+          }
+        }
       }
       
       // Apply search filter if specified
@@ -54,7 +86,26 @@ const ProductGrid = ({ category, searchQuery }) => {
       console.log('Products response:', { data, error });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Process products to have display_category
+      const processedProducts = (data || []).map(product => {
+        let displayCategory = product.category;
+        
+        // If the category is a UUID, try to get the display name from the map
+        if (isUUID(product.category) && categoriesMap[product.category]) {
+          displayCategory = categoriesMap[product.category];
+        } else if (typeof product.category === 'string') {
+          // For string categories, capitalize the first letter
+          displayCategory = product.category.charAt(0).toUpperCase() + product.category.slice(1);
+        }
+        
+        return {
+          ...product,
+          display_category: displayCategory
+        };
+      });
+      
+      setProducts(processedProducts);
     } catch (err) {
       console.error('Error fetching products:', err);
       setError('Failed to load products');
