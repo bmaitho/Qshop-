@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { User, MapPin, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History, Crown } from 'lucide-react';
+import { User, MapPin, MessageCircle, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History, Crown } from 'lucide-react';
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +12,7 @@ import ProductCard from './ProductCard';
 import Navbar from './Navbar';
 import { Link } from 'react-router-dom';
 import OrderHistory from './OrderHistory';
+import MessageCenter from './MessageCenter';
 
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
@@ -21,7 +23,7 @@ const Profile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSeller, setIsSeller] = useState(false);
   const [activeTab, setActiveTab] = useState('');
-  const [isPro, setIsPro] = useState(false); // Track Pro status
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -182,7 +184,6 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // Assuming you have an orders table. Replace with your actual structure
       const { data, error } = await supabase
         .from('cart')  // Replace with your orders table if you have one
         .select(`
@@ -289,17 +290,17 @@ const Profile = () => {
                     </Button>
                   )}
                                   
-                 {!isPro && (
-                  <Link to="/subscription">
-                    <Button 
-                      variant="default" 
-                      size={isMobile ? "sm" : "default"}
-                      className="bg-[#E7C65F] text-[#113b1e] hover:bg-[#E7C65F]/90 font-medium"
-                    >
-                      <Crown className="w-4 h-4 mr-1" /> Go Pro
-                    </Button>
-                  </Link>
-                )}
+                  {!isPro && (
+                    <Link to="/subscription">
+                      <Button 
+                        variant="default" 
+                        size={isMobile ? "sm" : "default"}
+                        className="bg-[#E7C65F] text-[#113b1e] hover:bg-[#E7C65F]/90 font-medium"
+                      >
+                        <Crown className="w-4 h-4 mr-1" /> Go Pro
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -312,7 +313,7 @@ const Profile = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+          <TabsList className={`grid w-full max-w-md mx-auto ${isSeller ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {isSeller && (
               <TabsTrigger value="listings">
                 <Package className="w-4 h-4 mr-2" />
@@ -327,6 +328,11 @@ const Profile = () => {
               <ShoppingBag className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Orders</span>
             </TabsTrigger>
+            <TabsTrigger value="messages">
+              <MessageCircle className="w-4 h-4 mr-2" />
+              <span className={isMobile ? "text-xs" : ""}>Messages</span>
+            </TabsTrigger>
+
             {!isSeller && (
               <TabsTrigger value="history">
                 <History className="w-4 h-4 mr-2" />
@@ -391,6 +397,12 @@ const Profile = () => {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Messages Tab */}
+          <TabsContent value="messages" className="mt-6">
+            <h2 className="text-xl font-semibold mb-4">My Messages</h2>
+            <MessageCenter />
           </TabsContent>
           
           {/* Orders Tab (Both sellers and buyers) */}

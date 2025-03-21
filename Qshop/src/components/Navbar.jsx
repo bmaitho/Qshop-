@@ -8,7 +8,8 @@ import {
   LogOut,
   Package,
   ChevronDown,
-  Search
+  Search,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
+import { subscribeToMessages, getUnreadMessageCount } from '../utils/messagingUtils';
 import {
   Sheet,
   SheetContent,
@@ -42,6 +44,7 @@ const Navbar = () => {
   const { wishlist } = useWishlist();
   const [userData, setUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -57,6 +60,35 @@ const Navbar = () => {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle message notifications
+  useEffect(() => {
+    let subscription = null;
+    
+    // Use an async IIFE (Immediately Invoked Function Expression)
+    (async () => {
+      try {
+        // Get initial unread message count
+        const count = await getUnreadMessageCount();
+        setUnreadMessages(count);
+        
+        // Subscribe to new messages
+        subscription = await subscribeToMessages((newMessage) => {
+          // Update unread count when a new message is received
+          setUnreadMessages(prevCount => prevCount + 1);
+        });
+      } catch (error) {
+        console.error("Error setting up message notifications:", error);
+      }
+    })();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   // If we're on mobile, use MobileNavbar instead
@@ -164,6 +196,17 @@ const Navbar = () => {
           {/* Desktop Right Section */}
           <div className="hidden md:flex items-center space-x-4">
             <ThemeToggle />
+            
+            <Link to="/profile?tab=messages" className="relative">
+              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                <MessageCircle className="h-5 w-5" style={goldIconStyle} />
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadMessages}
+                  </span>
+                )}
+              </Button>
+            </Link>
             
             <Link to="/wishlist" className="relative">
               <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">

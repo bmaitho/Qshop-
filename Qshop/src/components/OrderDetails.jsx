@@ -1,4 +1,3 @@
-// src/components/OrderDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock } from 'lucide-react';
@@ -7,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
+import MessageDialog from './MessageDialog';
+import ReportIssueDialog from './ReportIssueDialog';
 
 const OrderDetails = () => {
   const { orderId } = useParams();
@@ -30,7 +31,7 @@ const OrderDetails = () => {
       if (orderError) throw orderError;
       setOrder(orderData);
 
-      // Fetch order items
+      // Fetch order items with seller information
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
@@ -228,10 +229,32 @@ const OrderDetails = () => {
           </CardContent>
         </Card>
 
-        {/* Action buttons */}
+        {/* Action buttons - Updated with new dialog components */}
         <div className="flex gap-4">
-          <Button variant="outline" className="flex-1">Contact Seller</Button>
-          <Button className="flex-1">Report Issue</Button>
+          {/* Use the seller ID from the first order item (assuming all items in an order are from the same seller) */}
+          {orderItems.length > 0 && (
+            <>
+              <MessageDialog 
+                recipientId={orderItems[0].seller_id}
+                orderId={orderId}
+                productId={orderItems[0].product_id}
+                buttonText="Contact Seller"
+                buttonVariant="outline"
+                buttonClassName="flex-1"
+                productName={orderItems[0].products?.name}
+              />
+              
+              <ReportIssueDialog 
+                sellerId={orderItems[0].seller_id}
+                orderId={orderId}
+                productId={orderItems[0].product_id}
+                buttonText="Report Issue"
+                buttonVariant="default"
+                buttonClassName="flex-1"
+                productName={orderItems[0].products?.name}
+              />
+            </>
+          )}
         </div>
       </div>
     </>
