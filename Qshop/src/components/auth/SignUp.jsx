@@ -1,4 +1,4 @@
-// src/components/auth/SignUp.jsx - Modified for AuthLayout
+// src/components/auth/SignUp.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
@@ -58,7 +58,8 @@ const SignUp = () => {
     businessPhone: '',
     businessEmail: '',
     businessDescription: '',
-    businessWebsite: ''
+    businessWebsite: '',
+    wholesalerCode: ''
   });
   
   const [errors, setErrors] = useState({});
@@ -135,6 +136,10 @@ const SignUp = () => {
         newErrors.businessName = "Business name is required";
       }
       
+      if (!formData.wholesalerCode.trim()) {
+        newErrors.wholesalerCode = "Wholesaler access code is required";
+      }
+      
       if (!documentFile) {
         newErrors.businessDocument = "Business verification document is required";
       }
@@ -143,8 +148,6 @@ const SignUp = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
-  // ... [rest of the component remains the same, just removing the outer page structure] ...
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -246,8 +249,7 @@ const SignUp = () => {
         toast.error('Please upload an image or PDF file');
       }
     }
-  };
-
+  }; 
   const openFileBrowser = () => {
     fileInputRef.current?.click();
   };
@@ -312,6 +314,25 @@ const SignUp = () => {
     setLoading(true);
 
     try {
+      // If account type is wholesaler, verify the code first
+      if (formData.accountType === 'wholesaler') {
+        const { data: codeData, error: codeError } = await supabase
+          .from('wholesaler_codes')
+          .select('*')
+          .eq('code', formData.wholesalerCode.trim())
+          .eq('is_used', false)
+          .single();
+        
+        if (codeError || !codeData) {
+          setErrors(prev => ({
+            ...prev,
+            wholesalerCode: "Invalid or already used access code"
+          }));
+          setLoading(false);
+          return;
+        }
+      }
+
       // 1. Sign up with Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
@@ -374,6 +395,20 @@ const SignUp = () => {
             ]);
             
           if (wholesalerError) throw wholesalerError;
+          
+          // 5. Mark the code as used
+          const { error: updateCodeError } = await supabase
+            .from('wholesaler_codes')
+            .update({
+              is_used: true,
+              used_by: formData.email,
+              used_at: new Date().toISOString()
+            })
+            .eq('code', formData.wholesalerCode.trim());
+          
+          if (updateCodeError) {
+            console.error('Error updating code status:', updateCodeError);
+          }
         }
         
         toast.success("Account created! Please Log in.", {
@@ -412,7 +447,6 @@ const SignUp = () => {
 
   return (
     <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border styled-scrollbar">
-
       <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Create an Account</h2>
       
       <Tabs 
@@ -431,7 +465,6 @@ const SignUp = () => {
       </Tabs>
       
       <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Form inputs remain the same... */}
         {/* Common fields for all account types */}
         <div className="space-y-1">
           <Input
@@ -465,33 +498,33 @@ const SignUp = () => {
         </div>
 
         <div className="space-y-1">
-  <div className="relative">
-    <Input
-      id="password"
-      type={showPassword ? "text" : "password"}
-      name="password"
-      value={formData.password}
-      onChange={handleChange}
-      placeholder="Enter your password"
-      className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring pr-10"
-      aria-invalid={errors.password ? "true" : "false"}
-    />
-    <button
-      type="button"
-      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
-      onClick={() => setShowPassword(!showPassword)}
-    >
-      {showPassword ? (
-        <EyeOff className="h-5 w-5" />
-      ) : (
-        <Eye className="h-5 w-5" />
-      )}
-    </button>
-  </div>
-  {errors.password && (
-    <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
-  )}
-</div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Enter your password"
+              className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring pr-10"
+              aria-invalid={errors.password ? "true" : "false"}
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-5 w-5" />
+              ) : (
+                <Eye className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
+          )}
+        </div>
 
         <div className="space-y-1">
           <Input
@@ -580,7 +613,10 @@ const SignUp = () => {
                     )}
                     <button
                       type="button"
-                      onClick={removeFile}
+                      onClick={() => {
+                        setDocumentFile(null);
+                        setPreviewUrl(null);
+                      }}
                       className="absolute top-2 right-2 p-1 bg-background rounded-full shadow-md hover:bg-destructive/10 transition-colors"
                     >
                       <X className="h-4 w-4 text-destructive" />
@@ -599,7 +635,7 @@ const SignUp = () => {
                       type="button"
                       variant="outline" 
                       size="sm"
-                      onClick={openFileBrowser}
+                      onClick={() => fileInputRef.current.click()}
                       className="mt-4 border-input dark:border-input text-foreground dark:text-foreground hover:bg-accent dark:hover:bg-accent"
                     >
                       <Upload className="h-4 w-4 mr-2" />
@@ -624,6 +660,25 @@ const SignUp = () => {
         {/* Wholesaler-specific fields */}
         {activeTab === 'wholesaler' && (
           <div className="p-4 border border-border dark:border-border rounded-md space-y-3 bg-background/50 dark:bg-muted/50">
+            {/* Wholesaler code field */}
+            <div className="space-y-1">
+              <label htmlFor="wholesalerCode" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
+                Wholesaler Access Code *
+              </label>
+              <Input
+                id="wholesalerCode"
+                name="wholesalerCode"
+                value={formData.wholesalerCode}
+                onChange={handleChange}
+                placeholder="Enter your access code"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                aria-invalid={errors.wholesalerCode ? "true" : "false"}
+              />
+              {errors.wholesalerCode && (
+                <p className="text-sm text-red-500 dark:text-red-400">{errors.wholesalerCode}</p>
+              )}
+            </div>
+
             <div className="space-y-1">
               <label htmlFor="businessName" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Business Name
@@ -744,7 +799,10 @@ const SignUp = () => {
                     )}
                     <button
                       type="button"
-                      onClick={removeFile}
+                      onClick={() => {
+                        setDocumentFile(null);
+                        setPreviewUrl(null);
+                      }}
                       className="absolute top-2 right-2 p-1 bg-background rounded-full shadow-md hover:bg-destructive/10 transition-colors"
                     >
                       <X className="h-4 w-4 text-destructive" />
@@ -755,7 +813,7 @@ const SignUp = () => {
                     <ImagePlus className="mx-auto h-10 w-10 text-foreground/40 dark:text-foreground/40" />
                     <p className="mt-2 text-sm text-foreground/60 dark:text-foreground/60">
                       Upload business license or registration document
-                    </p>
+                      </p>
                     <p className="text-xs text-foreground/50 dark:text-foreground/50 mt-1">
                       Supported formats: JPG, PNG, PDF
                     </p>
@@ -763,7 +821,7 @@ const SignUp = () => {
                       type="button"
                       variant="outline" 
                       size="sm"
-                      onClick={openFileBrowser}
+                      onClick={() => fileInputRef.current.click()}
                       className="mt-4 border-input dark:border-input text-foreground dark:text-foreground hover:bg-accent dark:hover:bg-accent"
                     >
                       <Upload className="h-4 w-4 mr-2" />
