@@ -24,6 +24,7 @@ import Checkout from './components/Checkout';
 import OrderConfirmation from './components/OrderConfirmation';
 import OrderDetails from './components/OrderDetails';
 import WholesalerCodes from './components/admin/WholesalerCodes';
+import SubscriptionPage from './components/SubscriptionPage';
 
 
 const App = () => {
@@ -94,7 +95,11 @@ const App = () => {
               <Route path="/checkout/:orderId" element={token ? <Checkout /> : <Navigate to="/auth" />} />
               <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" />} />
               <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" />} />
+              
+             
+              <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" />} />
               <Route  path="/admin/codes"  element={token ? <WholesalerCodes /> : <Navigate to="/auth" />} />
+
               {/* Catch-all Route */}
               <Route path="*" element={<NotFound />} />
             </Routes>

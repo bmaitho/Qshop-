@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, MapPin, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History } from 'lucide-react';
+import { User, MapPin, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History, Crown } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,7 @@ const Profile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSeller, setIsSeller] = useState(false);
   const [activeTab, setActiveTab] = useState('');
+  const [isPro, setIsPro] = useState(false); // Track Pro status
 
   useEffect(() => {
     fetchUserData();
@@ -77,6 +78,9 @@ const Profile = () => {
         // Use the first profile if multiple exist
         profileInfo = profile[0];
         setIsSeller(profileInfo.is_seller === true);
+        
+        // Check if user is Pro
+        setIsPro(profileInfo.is_pro === true);
       } else {
         // No profile exists yet, create a default profile object
         profileInfo = {
@@ -84,7 +88,8 @@ const Profile = () => {
           full_name: user.user_metadata?.full_name || 'User',
           campus_location: user.user_metadata?.campus_location || 'Not specified',
           created_at: new Date().toISOString(),
-          is_seller: user.user_metadata?.is_seller || false
+          is_seller: user.user_metadata?.is_seller || false,
+          is_pro: false
         };
         
         setIsSeller(profileInfo.is_seller === true);
@@ -235,14 +240,14 @@ const Profile = () => {
       <Navbar />
       <div className={`max-w-6xl mx-auto px-4 py-8 ${isMobile ? 'mt-12 mb-16' : ''}`}>
         <ToastContainer />
-        <Card className="mb-8">
+        <Card className="mb-6">
           <CardContent className={`p-4 md:p-6 ${isMobile ? 'flex flex-col items-center' : ''}`}>
             <div className={`${isMobile ? 'flex flex-col items-center text-center' : 'flex items-start gap-6'}`}>
               <div className={`${isMobile ? 'w-24 h-24 mb-4' : 'w-32 h-32'} rounded-full bg-gray-200 flex items-center justify-center`}>
                 <User className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} text-gray-400`} />
               </div>
               <div className={`${isMobile ? 'text-center' : 'flex-1'}`}>
-                <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{profileData.email}</h1>
+                <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{profileData.full_name}</h1>
                 <div className={`${isMobile ? 'justify-center' : ''} flex items-center gap-2 text-gray-600 mb-4`}>
                   <MapPin className="w-4 h-4" />
                   <span>{profileData.campus_location}</span>
@@ -262,7 +267,7 @@ const Profile = () => {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-orange-600">
-                      {isSeller ? "Seller" : "Buyer"}
+                      {isSeller ? (isPro ? "Pro Seller" : "Seller") : "Buyer"}
                     </div>
                     <div className="text-sm text-gray-600">Account Type</div>
                   </div>
@@ -283,6 +288,18 @@ const Profile = () => {
                       Become a Seller
                     </Button>
                   )}
+                                  
+                 {!isPro && (
+                  <Link to="/subscription">
+                    <Button 
+                      variant="default" 
+                      size={isMobile ? "sm" : "default"}
+                      className="bg-[#E7C65F] text-[#113b1e] hover:bg-[#E7C65F]/90 font-medium"
+                    >
+                      <Crown className="w-4 h-4 mr-1" /> Go Pro
+                    </Button>
+                  </Link>
+                )}
                 </div>
               </div>
             </div>
