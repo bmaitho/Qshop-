@@ -313,11 +313,16 @@ const Profile = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className={`grid w-full max-w-md mx-auto ${isSeller ? 'grid-cols-4' : 'grid-cols-3'}`}>
-            {isSeller && (
+          <TabsList className={`grid w-full max-w-md mx-auto ${isSeller ? 'grid-cols-4' : 'grid-cols-4'}`}>
+            {isSeller ? (
               <TabsTrigger value="listings">
                 <Package className="w-4 h-4 mr-2" />
                 <span className={isMobile ? "text-xs" : ""}>Listings</span>
+              </TabsTrigger>
+            ) : (
+              <TabsTrigger value="history">
+                <History className="w-4 h-4 mr-2" />
+                <span className={isMobile ? "text-xs" : ""}>History</span>
               </TabsTrigger>
             )}
             <TabsTrigger value="wishlist">
@@ -332,13 +337,6 @@ const Profile = () => {
               <MessageCircle className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Messages</span>
             </TabsTrigger>
-
-            {!isSeller && (
-              <TabsTrigger value="history">
-                <History className="w-4 h-4 mr-2" />
-                <span className={isMobile ? "text-xs" : ""}>History</span>
-              </TabsTrigger>
-            )}
           </TabsList>
 
           {/* Listings Tab (Sellers only) */}
