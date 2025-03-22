@@ -15,23 +15,48 @@ const MessageCenter = () => {
   const [activeConversation, setActiveConversation] = useState(null);
   const [conversationMessages, setConversationMessages] = useState([]);
   const [replyText, setReplyText] = useState('');
-  const [profiles, setProfiles] = useState({});
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
 
   useEffect(() => {
-    fetchMessages(activeTab);
-  }, [activeTab]);
+    // Get current user and their profile on component mount
+    const fetchCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser(user);
+        
+        // Also fetch the profile to get the name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (profile) {
+          setCurrentUserProfile(profile);
+        }
+      }
+    };
+    
+    fetchCurrentUser();
+  }, []);
 
   useEffect(() => {
-    if (activeConversation) {
+    if (currentUser) {
+      fetchMessages(activeTab);
+    }
+  }, [activeTab, currentUser]);
+
+  useEffect(() => {
+    if (activeConversation && currentUser) {
       fetchConversationMessages(activeConversation.otherUserId);
     }
-  }, [activeConversation]);
+  }, [activeConversation, currentUser]);
 
   const fetchMessages = async (type) => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUser) return;
 
       // Query based on tab type (sent or received)
       let query = supabase
@@ -40,20 +65,17 @@ const MessageCenter = () => {
         .order('created_at', { ascending: false });
 
       if (type === 'received') {
-        query = query.eq('recipient_id', user.id);
+        query = query.eq('recipient_id', currentUser.id);
       } else if (type === 'sent') {
-        query = query.eq('sender_id', user.id);
+        query = query.eq('sender_id', currentUser.id);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
       // Group messages by conversation partner
-      const conversations = groupMessagesByConversation(data, user.id, type);
+      const conversations = groupMessagesByConversation(data, currentUser.id, type);
       setMessages(conversations);
-
-      // Fetch profiles for all users involved
-      await fetchProfilesForUsers(conversations.map(c => c.otherUserId));
     } catch (error) {
       console.error('Error fetching messages:', error);
       toastError("Failed to load messages");
@@ -62,42 +84,14 @@ const MessageCenter = () => {
     }
   };
 
-  const fetchProfilesForUsers = async (userIds) => {
-    try {
-      const uniqueIds = [...new Set(userIds)];
-      
-      // Only fetch profiles we don't already have
-      const idsToFetch = uniqueIds.filter(id => !profiles[id]);
-      if (idsToFetch.length === 0) return;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', idsToFetch);
-
-      if (error) throw error;
-      
-      // Add to profiles cache
-      const newProfiles = {};
-      data.forEach(profile => {
-        newProfiles[profile.id] = profile;
-      });
-      
-      setProfiles(prev => ({ ...prev, ...newProfiles }));
-    } catch (error) {
-      console.error('Error fetching profiles:', error);
-    }
-  };
-
   const fetchConversationMessages = async (otherUserId) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUser) return;
 
       const { data, error } = await supabase
         .from('messages')
         .select('*')
-        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`)
+        .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${currentUser.id})`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -106,7 +100,7 @@ const MessageCenter = () => {
 
       // Mark messages as read
       const messagesToMark = data
-        .filter(msg => msg.recipient_id === user.id && !msg.read)
+        .filter(msg => msg.recipient_id === currentUser.id && !msg.read)
         .map(msg => msg.id);
 
       if (messagesToMark.length > 0) {
@@ -127,9 +121,15 @@ const MessageCenter = () => {
       // Determine the other user in the conversation
       const otherUserId = type === 'received' ? msg.sender_id : msg.recipient_id;
       
+      // Use the name directly from the message record
+      const otherUserName = type === 'received' 
+        ? (msg.sender_name || 'Unknown User') 
+        : (msg.recipient_name || 'Unknown User');
+      
       if (!conversations[otherUserId]) {
         conversations[otherUserId] = {
           otherUserId,
+          otherUserName,
           lastMessage: msg,
           unreadCount: type === 'received' && !msg.read ? 1 : 0,
           productId: msg.product_id,
@@ -152,21 +152,30 @@ const MessageCenter = () => {
   };
 
   const sendReply = async () => {
-    if (!replyText.trim() || !activeConversation) return;
+    if (!replyText.trim() || !activeConversation || !currentUser || !currentUserProfile) return;
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
+      // Fetch the recipient profile to get their name
+      const { data: recipientProfile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', activeConversation.otherUserId)
+        .single();
+        
+      const senderName = currentUserProfile.full_name || currentUser.email || 'Unknown Sender';
+      const recipientName = recipientProfile?.full_name || recipientProfile?.email || 'Unknown Recipient';
+      
       const { error } = await supabase
         .from('messages')
         .insert([
           {
-            sender_id: user.id,
+            sender_id: currentUser.id,
             recipient_id: activeConversation.otherUserId,
             product_id: activeConversation.productId,
             order_id: activeConversation.orderId,
-            message: replyText.trim()
+            message: replyText.trim(),
+            sender_name: senderName,
+            recipient_name: recipientName
           }
         ]);
 
@@ -187,13 +196,6 @@ const MessageCenter = () => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString();
-  };
-
-  const getUserName = (userId) => {
-    if (profiles[userId]) {
-      return profiles[userId].full_name || profiles[userId].email || 'Unknown User';
-    }
-    return 'Loading...';
   };
 
   return (
@@ -239,7 +241,7 @@ const MessageCenter = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-center mb-1">
                         <h4 className="font-medium text-sm text-primary dark:text-gray-200 truncate">
-                          {getUserName(conversation.otherUserId)}
+                          {conversation.otherUserName}
                         </h4>
                         <span className="text-xs text-primary/60 dark:text-gray-400">
                           {new Date(conversation.lastMessage.created_at).toLocaleDateString()}
@@ -273,7 +275,7 @@ const MessageCenter = () => {
               </div>
               <div>
                 <h3 className="font-medium text-primary dark:text-gray-200">
-                  {getUserName(activeConversation.otherUserId)}
+                  {activeConversation.otherUserName}
                 </h3>
                 <p className="text-xs text-primary/60 dark:text-gray-400">
                   {activeConversation.productId ? 'Product Discussion' : 'General Conversation'}
@@ -284,8 +286,7 @@ const MessageCenter = () => {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {conversationMessages.map(msg => {
-                const { data: { user } } = supabase.auth.getUser();
-                const isOwnMessage = user && msg.sender_id === user.id;
+                const isOwnMessage = currentUser && msg.sender_id === currentUser.id;
                 
                 return (
                   <div 

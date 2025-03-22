@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../components/SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toastSuccess, toastError } from '../utils/toastConfig';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, User } from 'lucide-react';
 
 const MessageDialog = ({ 
   recipientId, 
@@ -27,6 +27,51 @@ const MessageDialog = ({
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [recipientDetails, setRecipientDetails] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
+
+  // Fetch recipient details when the dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchRecipientDetails();
+      fetchCurrentUserProfile();
+    }
+  }, [isOpen]);
+
+  const fetchRecipientDetails = async () => {
+    if (!recipientId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', recipientId)
+        .single();
+
+      if (error) throw error;
+      setRecipientDetails(data);
+    } catch (error) {
+      console.error('Error fetching recipient details:', error);
+    }
+  };
+
+  const fetchCurrentUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+      setCurrentUserProfile(data);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -41,7 +86,11 @@ const MessageDialog = ({
         throw new Error('You must be logged in to send messages');
       }
 
-      // Create message record
+      // Get sender and recipient names
+      const senderName = currentUserProfile?.full_name || user.email || 'Unknown Sender';
+      const recipientName = recipientDetails?.full_name || recipientDetails?.email || 'Unknown Recipient';
+
+      // Create message record with names
       const { error } = await supabase
         .from('messages')
         .insert([
@@ -50,7 +99,9 @@ const MessageDialog = ({
             recipient_id: recipientId,
             product_id: productId,
             order_id: orderId,
-            message: message.trim()
+            message: message.trim(),
+            sender_name: senderName,
+            recipient_name: recipientName
           }
         ]);
 
@@ -68,6 +119,11 @@ const MessageDialog = ({
     }
   };
 
+  const getRecipientName = () => {
+    if (!recipientDetails) return "Seller";
+    return recipientDetails.full_name || recipientDetails.email || "Seller";
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -83,10 +139,17 @@ const MessageDialog = ({
       <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
         <DialogHeader>
           <DialogTitle className="text-primary dark:text-gray-100">
-            {productName ? `Message about ${productName}` : "Send Message"}
+            {productName ? `Message about ${productName}` : `Message to ${getRecipientName()}`}
           </DialogTitle>
           <DialogDescription className="text-primary/70 dark:text-gray-300">
-            Your message will be sent directly to the seller.
+            {recipientDetails && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="w-8 h-8 bg-primary/10 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary/60 dark:text-gray-400" />
+                </div>
+                <span>{getRecipientName()}</span>
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
         

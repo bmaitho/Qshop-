@@ -73,21 +73,12 @@ export const subscribeToMessages = async (callback) => {
  */
 const handleNewMessageNotification = async (message) => {
   try {
-    if (!message || !message.sender_id) {
+    if (!message) {
       throw new Error('Invalid message data');
     }
     
-    // Get sender profile info
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', message.sender_id)
-      .single();
-    
-    if (error) throw error;
-    
-    // Decide what name to display
-    const senderName = profile?.full_name || profile?.email || 'Someone';
+    // Use the sender_name directly from the message record
+    const senderName = message.sender_name || 'Someone';
     
     // Create a truncated preview of the message
     const messageText = message.message || '';
@@ -104,7 +95,32 @@ const handleNewMessageNotification = async (message) => {
   }
 };
 
+/**
+ * Get message thread between two users
+ * @param {string} otherUserId - The ID of the other user in the conversation
+ * @returns {Promise<Array>} - Array of messages
+ */
+export const getMessageThread = async (otherUserId) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user.id})`)
+      .order('created_at', { ascending: true });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting message thread:', error);
+    return [];
+  }
+};
+
 export default {
   getUnreadMessageCount,
-  subscribeToMessages
+  subscribeToMessages,
+  getMessageThread
 };
