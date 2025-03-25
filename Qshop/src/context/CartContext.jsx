@@ -110,13 +110,13 @@ export const CartProvider = ({ children }) => {
         cartToasts.error("Please login to add items to cart");
         return;
       }
-
+  
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         cartToasts.error("Authentication error");
         return;
       }
-
+  
       const quantity = product.quantity || 1;
       
       // Check if already in cart (local state check first for speed)
@@ -138,12 +138,15 @@ export const CartProvider = ({ children }) => {
           .from('cart')
           .update({ quantity: newQuantity })
           .eq('id', existingItem.id);
-
+  
         if (error) {
           // If there was an error, refresh the entire cart
           fetchCart();
           throw error;
         }
+  
+        // Always show toast for existing items
+        cartToasts.addSuccess(`${product.name} (quantity updated to ${newQuantity})`);
       } else {
         // Insert into database
         const { data, error } = await supabase
@@ -155,7 +158,7 @@ export const CartProvider = ({ children }) => {
           }])
           .select('*, products(*)')
           .single();
-
+  
         if (error) throw error;
         
         // Optimistically update local state
@@ -165,9 +168,10 @@ export const CartProvider = ({ children }) => {
             payload: data 
           });
         }
+  
+        // Show toast for new items
+        cartToasts.addSuccess(product.name);
       }
-
-      cartToasts.addSuccess(product.name);
     } catch (error) {
       console.error('Error adding to cart:', error);
       cartToasts.error();
