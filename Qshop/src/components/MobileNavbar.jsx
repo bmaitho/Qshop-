@@ -1,13 +1,17 @@
-import React from 'react';
-import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from './ThemeContext';
+import { toast } from 'react-toastify';
+import { supabase } from './SupabaseClient';
 
 const MobileNavbar = () => {
   const { cart } = useCart();
   const { wishlist } = useWishlist();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   
   const cartItemCount = cart?.length || 0;
   const wishlistItemCount = wishlist?.length || 0;
@@ -18,6 +22,27 @@ const MobileNavbar = () => {
   // Define gold color style for consistent application
   const goldTextStyle = { color: '#ebc75c' };
   const goldIconStyle = { color: '#ebc75c' };
+
+  const handleLogout = async () => {
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      // Clear session storage
+      sessionStorage.removeItem('token');
+      
+      // Show success message
+      toast.success('Logged out successfully');
+      
+      // Redirect to login page
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out');
+    }
+  };
   
   return (
     <>
@@ -34,6 +59,7 @@ const MobileNavbar = () => {
             <button 
               onClick={toggleTheme}
               className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? (
                 <Sun size={18} style={goldIconStyle} />
@@ -43,7 +69,7 @@ const MobileNavbar = () => {
             </button>
             
             <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
-              <a href="/cart" className="relative">
+              <a href="/cart" className="relative" aria-label="Cart">
                 <ShoppingCart size={18} style={goldIconStyle} />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-secondary text-primary dark:text-primary text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
@@ -52,6 +78,14 @@ const MobileNavbar = () => {
                 )}
               </a>
             </div>
+            
+            <button 
+              onClick={handleLogout}
+              className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
+              aria-label="Log out"
+            >
+              <LogOut size={18} style={goldIconStyle} />
+            </button>
           </div>
         </div>
       </div>
@@ -117,6 +151,7 @@ const NavItem = ({ href, icon: Icon, label, isActive, badge, goldStyle, textStyl
     className={`flex flex-col items-center px-2 py-1 rounded-full ${
       isActive ? 'bg-background/80 dark:bg-background/80' : ''
     }`}
+    aria-label={label}
   >
     <div className="relative">
       <Icon size={16} style={goldStyle} />
