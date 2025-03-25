@@ -22,7 +22,6 @@ const ShopSettingsForm = ({ shopData, onUpdate }) => {
       description: shopData?.description || '',
       businessHours: shopData?.business_hours ? JSON.stringify(shopData.business_hours) : '',
       policies: shopData?.policies || '',
-      preferredContact: shopData?.preferred_contact || '',
       offersDelivery: shopData?.offers_delivery || false
     }
   });
@@ -154,7 +153,6 @@ const ShopSettingsForm = ({ shopData, onUpdate }) => {
         description: data.description,
         business_hours: businessHours,
         policies: data.policies,
-        preferred_contact: data.preferredContact,
         banner_url: bannerUrl,
         offers_delivery: data.offersDelivery,
         updated_at: new Date().toISOString()
@@ -256,15 +254,6 @@ const ShopSettingsForm = ({ shopData, onUpdate }) => {
             {...register("description")}
             placeholder="Describe your shop"
             className="min-h-[100px]"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="preferredContact">Preferred Contact Method</Label>
-          <Input
-            id="preferredContact"
-            {...register("preferredContact")}
-            placeholder="e.g., WhatsApp, Email, Phone"
           />
         </div>
 
