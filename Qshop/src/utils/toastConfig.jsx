@@ -66,6 +66,7 @@ export const cartToasts = {
   updateSuccess: () => toastSuccess("Cart updated successfully"),
   clearSuccess: () => toastInfo("Cart cleared successfully"),
   error: () => toastError("Failed to update cart"),
+  success: (message) => toastSuccess(message)
 };
 
 export const wishlistToasts = {
