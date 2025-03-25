@@ -5,7 +5,6 @@ import {
   Share2, 
   User, 
   MapPin, 
-  MessageCircle,
   ChevronRight,
   ExternalLink,
   Package
@@ -31,7 +30,6 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [messageText, setMessageText] = useState('');
 
   useEffect(() => {
     fetchProductData();
@@ -90,14 +88,6 @@ const ProductDetails = () => {
       productToasts.loadError();
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleMessageSend = () => {
-    // Demo function - would normally send message to backend
-    if (messageText.trim()) {
-      productToasts.success("Message sent to seller!");
-      setMessageText('');
     }
   };
 
@@ -258,34 +248,6 @@ const ProductDetails = () => {
                     </div>
                   </div>
                   
-                  {/* Message Dialog */}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <MessageCircle className="w-4 h-4 mr-2" />
-                        Message
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Message Seller</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <Textarea
-                          placeholder="Write your message here..."
-                          value={messageText}
-                          onChange={(e) => setMessageText(e.target.value)}
-                          className="min-h-[100px]"
-                        />
-                        <Button 
-                          className="w-full"
-                          onClick={handleMessageSend}
-                        >
-                          Send Message
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
                 </div>
 
                 {shop?.description && (
