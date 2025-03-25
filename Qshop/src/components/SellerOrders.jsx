@@ -1,4 +1,3 @@
-// SellerOrders.jsx - Component to show in My Shop or Profile page
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../components/SupabaseClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,7 +32,6 @@ const SellerOrders = () => {
       
       if (!user) return;
       
-      // Different query based on tab/status
       let query = supabase
         .from('order_items')
         .select(`
@@ -43,7 +41,6 @@ const SellerOrders = () => {
         `)
         .eq('seller_id', user.id);
       
-      // Filter by status
       if (status === 'new') {
         query = query.eq('status', 'processing');
       } else if (status === 'shipped') {
@@ -51,15 +48,13 @@ const SellerOrders = () => {
       } else if (status === 'delivered') {
         query = query.eq('status', 'delivered');
       } else if (status === 'all') {
-        // No additional filter
+      
       }
       
-      // Add search if provided
       if (searchQuery) {
         query = query.or(`orders.id.ilike.%${searchQuery}%`);
       }
       
-      // Order by date
       query = query.order('created_at', { foreignTable: 'orders', ascending: false });
       
       const { data, error } = await query;
@@ -82,7 +77,6 @@ const SellerOrders = () => {
       
       if (error) throw error;
       
-      // Refresh the orders
       fetchSellerOrders(activeTab);
     } catch (error) {
       console.error('Error updating order status:', error);
@@ -127,7 +121,7 @@ const SellerOrders = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="shipped">Shipped</TabsTrigger>
+          <TabsTrigger value="shipped">In Transit</TabsTrigger>
           <TabsTrigger value="delivered">Delivered</TabsTrigger>
           <TabsTrigger value="all">All Orders</TabsTrigger>
         </TabsList>
@@ -147,7 +141,7 @@ const SellerOrders = () => {
                   {tab === 'new' 
                     ? "You don't have any new orders to fulfill" 
                     : tab === 'shipped'
-                    ? "You don't have any shipped orders"
+                    ? "You don't have any orders in transit"
                     : tab === 'delivered'
                     ? "You don't have any delivered orders"
                     : "You don't have any orders yet"}
@@ -177,7 +171,7 @@ const SellerOrders = () => {
                             onClick={() => updateOrderStatus(orderItem.id, 'shipped')}
                           >
                             <Truck className="h-4 w-4 mr-1" />
-                            Mark Shipped
+                            Mark as In Transit
                           </Button>
                         )}
                         {orderItem.status === 'shipped' && (
@@ -232,7 +226,6 @@ const SellerOrders = () => {
   );
 };
 
-// Helper component for status badges
 const StatusBadge = ({ status }) => {
   switch (status) {
     case 'pending_payment':
@@ -240,7 +233,7 @@ const StatusBadge = ({ status }) => {
     case 'processing':
       return <Badge variant="outline" className="bg-orange-100 text-orange-800">Processing</Badge>;
     case 'shipped':
-      return <Badge variant="outline" className="bg-blue-100 text-blue-800">Shipped</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800">In Transit</Badge>;
     case 'delivered':
       return <Badge variant="outline" className="bg-green-100 text-green-800">Delivered</Badge>;
     case 'cancelled':

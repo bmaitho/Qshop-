@@ -197,9 +197,9 @@ const ProductCard = ({
 
   return (
     <div 
-      className={`${className} bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer`}
-      onClick={handleProductClick}
-    >
+    className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer text-white`}
+  onClick={handleProductClick}
+>
       <div className="relative">
         {/* Image container with variable aspect ratio */}
         <div className={`${aspectRatioClass} w-full overflow-hidden bg-gray-100 dark:bg-gray-700`}>
