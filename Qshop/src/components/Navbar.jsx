@@ -33,6 +33,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import MobileNavbar from './MobileNavbar';
 
 const Navbar = () => {
@@ -195,46 +201,89 @@ const Navbar = () => {
 
           {/* Desktop Right Section */}
           <div className="hidden md:flex items-center space-x-4">
-            <ThemeToggle />
-            
-            <Link to="/profile?tab=messages" className="relative">
-              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
-                <MessageCircle className="h-5 w-5" style={goldIconStyle} />
-                {unreadMessages > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {unreadMessages}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            
-            <Link to="/wishlist" className="relative">
-              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
-                <Heart className="h-5 w-5" style={goldIconStyle} />
-                {wishlist?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {wishlist.length}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            <Link to="/cart" className="relative">
-              <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
-                <ShoppingCart className="h-5 w-5" style={goldIconStyle} />
-                {cart?.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {cart.length}
-                  </span>
-                )}
-              </Button>
-            </Link>
-            {userData ? (
-              <ProfileDropdown />
-            ) : (
-              <Link to="/">
-                <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90">Sign In</Button>
-              </Link>
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <ThemeToggle />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Toggle theme</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/profile?tab=messages" className="relative">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                      <MessageCircle className="h-5 w-5" style={goldIconStyle} />
+                      {unreadMessages > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {unreadMessages}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Messages</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/wishlist" className="relative">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                      <Heart className="h-5 w-5" style={goldIconStyle} />
+                      {wishlist?.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {wishlist.length}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Wishlist</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/cart" className="relative">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                      <ShoppingCart className="h-5 w-5" style={goldIconStyle} />
+                      {cart?.length > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-secondary dark:bg-secondary text-primary dark:text-primary text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {cart.length}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Shopping Cart</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              {userData ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <ProfileDropdown />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>User Profile</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Link to="/">
+                  <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90">Sign In</Button>
+                </Link>
+              )}
+            </TooltipProvider>
           </div>
         </div>
       </div>
