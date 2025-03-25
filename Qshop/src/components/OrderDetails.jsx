@@ -1,3 +1,4 @@
+// src/components/OrderDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Package, Truck, CheckCircle, Clock } from 'lucide-react';
@@ -14,13 +15,23 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
+    
+    // Optional: Set up an interval to refresh the order data periodically
+    const refreshInterval = setInterval(() => {
+      refreshOrderDetails();
+    }, 60000); // Refresh every minute
+    
+    return () => clearInterval(refreshInterval);
   }, [orderId]);
 
   const fetchOrderDetails = async () => {
     try {
+      setLoading(true);
+      
       // Fetch order details
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -31,7 +42,7 @@ const OrderDetails = () => {
       if (orderError) throw orderError;
       setOrder(orderData);
 
-      // Fetch order items with seller information
+      // Fetch order items with seller information and their current status
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
@@ -49,7 +60,20 @@ const OrderDetails = () => {
       setLoading(false);
     }
   };
+  
+  // Function to manually refresh order data
+  const refreshOrderDetails = async () => {
+    try {
+      setRefreshing(true);
+      await fetchOrderDetails();
+    } catch (error) {
+      console.error('Error refreshing order details:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
+  // Function to determine status step for progress bar
   const getStatusStep = (status) => {
     switch (status) {
       case 'pending': return 0;
@@ -58,6 +82,30 @@ const OrderDetails = () => {
       case 'delivered': return 3;
       default: return 0;
     }
+  };
+
+  // Get the overall status based on the most common item status
+  const getOverallStatus = () => {
+    if (!orderItems.length) return order?.order_status || 'pending';
+    
+    // Count occurrences of each status
+    const statusCounts = orderItems.reduce((acc, item) => {
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    }, {});
+    
+    // Find the most common status
+    let maxCount = 0;
+    let mostCommonStatus = order?.order_status || 'pending';
+    
+    for (const [status, count] of Object.entries(statusCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonStatus = status;
+      }
+    }
+    
+    return mostCommonStatus;
   };
 
   if (loading) {
@@ -86,20 +134,31 @@ const OrderDetails = () => {
     );
   }
 
-  const currentStatus = getStatusStep(order.order_status);
+  const currentStatus = getStatusStep(getOverallStatus());
 
   return (
     <>
       <Navbar />
       <div className="max-w-3xl mx-auto p-4 mt-12 mb-16">
-        <div className="flex items-center gap-4 mb-6">
-          <Link to="/profile">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Orders
-            </Button>
-          </Link>
-          <h1 className="text-xl font-bold">Order #{orderId.substring(0, 8)}</h1>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center">
+            <Link to="/profile">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Orders
+              </Button>
+            </Link>
+            <h1 className="text-xl font-bold">Order #{orderId.substring(0, 8)}</h1>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={refreshOrderDetails}
+            disabled={refreshing}
+          >
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
 
         {/* Order Status Timeline */}
@@ -229,7 +288,7 @@ const OrderDetails = () => {
           </CardContent>
         </Card>
 
-        {/* Action buttons - Updated with new dialog components */}
+        {/* Action buttons */}
         <div className="flex gap-4">
           {/* Use the seller ID from the first order item (assuming all items in an order are from the same seller) */}
           {orderItems.length > 0 && (

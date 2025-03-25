@@ -1,4 +1,4 @@
-// SellerOrderDetail.jsx
+// src/components/SellerOrderDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../components/SupabaseClient';
@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin } from 'lucide-react';
+import { updateOrderStatus } from '../utils/orderUtils';
 import Navbar from './Navbar';
 
 const SellerOrderDetail = () => {
@@ -15,6 +16,7 @@ const SellerOrderDetail = () => {
   const [buyer, setBuyer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [updateInProgress, setUpdateInProgress] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -63,19 +65,19 @@ const SellerOrderDetail = () => {
     }
   };
 
-  const updateOrderStatus = async (newStatus) => {
+  const handleUpdateOrderStatus = async (newStatus) => {
+    setUpdateInProgress(true);
+    
     try {
-      const { error } = await supabase
-        .from('order_items')
-        .update({ status: newStatus })
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      // Refresh the data
-      fetchOrderDetails();
+      const success = await updateOrderStatus(id, newStatus);
+      if (success) {
+        // Refresh the data after successful update
+        fetchOrderDetails();
+      }
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error("Error updating order status:", error);
+    } finally {
+      setUpdateInProgress(false);
     }
   };
 
@@ -83,12 +85,33 @@ const SellerOrderDetail = () => {
     if (!message.trim()) return;
     
     try {
-      // Here you would implement your messaging logic
-      // This could be a chat system, notification, or email
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
       
-      // For now, just show an alert
-      alert(`Message sent to buyer: ${message}`);
+      // Get sender and recipient names for better UX
+      const senderName = user.user_metadata?.full_name || user.email || 'Seller';
+      const recipientName = buyer?.full_name || buyer?.email || 'Buyer';
+      
+      // Create message record
+      const { error } = await supabase
+        .from('messages')
+        .insert([{
+          sender_id: user.id,
+          recipient_id: buyer.id,
+          product_id: orderItem.product_id,
+          order_id: orderItem.order_id,
+          order_item_id: orderItem.id,
+          message: message.trim(),
+          sender_name: senderName,
+          recipient_name: recipientName
+        }]);
+
+      if (error) throw error;
+      
+      // Reset message field and show success message
       setMessage('');
+      alert("Message sent successfully");
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -206,11 +229,12 @@ const SellerOrderDetail = () => {
                   <div className="space-y-4">
                     <p className="text-sm">This order is ready for shipment. Please update the status when you have shipped the item.</p>
                     <Button 
-                      onClick={() => updateOrderStatus('shipped')}
+                      onClick={() => handleUpdateOrderStatus('shipped')}
                       className="w-full"
+                      disabled={updateInProgress}
                     >
                       <Truck className="mr-2 h-4 w-4" />
-                      Mark as Shipped
+                      {updateInProgress ? "Updating..." : "Mark as Shipped"}
                     </Button>
                   </div>
                 )}
@@ -219,11 +243,12 @@ const SellerOrderDetail = () => {
                   <div className="space-y-4">
                     <p className="text-sm">This order has been shipped. Once the buyer has received it, you can mark it as delivered.</p>
                     <Button 
-                      onClick={() => updateOrderStatus('delivered')}
+                      onClick={() => handleUpdateOrderStatus('delivered')}
                       className="w-full"
+                      disabled={updateInProgress}
                     >
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Mark as Delivered
+                      {updateInProgress ? "Updating..." : "Mark as Delivered"}
                     </Button>
                   </div>
                 )}
@@ -251,7 +276,7 @@ const SellerOrderDetail = () => {
                   onChange={(e) => setMessage(e.target.value)}
                   className="min-h-[100px] mb-3"
                 />
-                <Button onClick={sendMessageToBuyer} className="w-full">
+                <Button onClick={sendMessageToBuyer} className="w-full" disabled={!message.trim()}>
                   Send Message
                 </Button>
               </CardContent>
@@ -277,10 +302,10 @@ const SellerOrderDetail = () => {
                       </div>
                     </div>
                     
-                    {buyer.phone_number && (
+                    {buyer.phone && (
                       <div className="flex items-center gap-2 text-sm">
                         <Phone className="h-4 w-4 text-gray-500" />
-                        <span>{buyer.phone_number}</span>
+                        <span>{buyer.phone}</span>
                       </div>
                     )}
                     
@@ -327,7 +352,7 @@ const SellerOrderDetail = () => {
                     completed={['processing', 'shipped', 'delivered'].includes(orderItem.status)}
                   />
                   <TimelineItem 
-                    title="Shipped" 
+                    title="Shipped"
                     date={null}
                     icon={<div className="w-4 h-4 bg-blue-500 rounded-full" />}
                     completed={['shipped', 'delivered'].includes(orderItem.status)}
