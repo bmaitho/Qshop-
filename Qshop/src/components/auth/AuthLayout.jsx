@@ -95,9 +95,9 @@ const AuthLayout = ({ setToken }) => {
   // Desktop Layout
   if (!isMobile) {
     return (
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex h-screen w-full overflow-hidden bg-[#0e1a19]">
         {/* Left side - Authentication */}
-        <div className="w-1/2 p-6 flex flex-col justify-center bg-[#0e1a19] text-white">
+        <div className="w-5/12 p-6 flex flex-col justify-center text-white">
           <div className="max-w-md mx-auto w-full">
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
@@ -113,8 +113,10 @@ const AuthLayout = ({ setToken }) => {
         </div>
         
         {/* Right side - Image slider (memoized) */}
-        <div className="w-1/2">
-          <Slideshow slides={slides} />
+        <div className="w-7/12 flex items-center justify-center bg-[#0e1a19] pr-8">
+          <div className="w-full h-full overflow-hidden">
+            <Slideshow slides={slides} />
+          </div>
         </div>
       </div>
     );
@@ -122,16 +124,21 @@ const AuthLayout = ({ setToken }) => {
   
   // Mobile Layout
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
       {/* Top Image Slider Section */}
-      <div className="w-full h-2/5">
-        <Slideshow slides={slides} />
+      <div className="w-full h-2/5 bg-[#0e1a19] pt-2 px-4">
+        <div className="h-full overflow-hidden">
+          <Slideshow slides={slides} />
+        </div>
       </div>
 
       {/* Bottom Authentication Section */}
-      <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto bg-[#0e1a19] text-white">
+      <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto text-white">
         <div className="max-w-md mx-auto w-full">
-          
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
+            <p className="text-gray-400 mt-2">Student Marketplace</p>
+          </div>
           
           {/* Routes for Login and SignUp components */}
           <Routes>
