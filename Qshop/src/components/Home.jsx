@@ -88,6 +88,7 @@ const Home = () => {
     }
   ];
 
+ 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -98,7 +99,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              Your Student Marketplace
+              Your Campus Marketplace
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               Buy, sell, and discover great deals on textbooks, electronics, and more from your fellow students
@@ -115,7 +116,7 @@ const Home = () => {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-white/20 hover:bg-white/10 w-full sm:w-auto"
+                className="bg-black border-[#e7c65f] hover:bg-[#e7c65f]/20 w-full sm:w-auto text-[#e7c65f]"
                 onClick={() => navigate('/myshop')}
               >
                 Open Your Shop
@@ -129,10 +130,10 @@ const Home = () => {
       {/* Categories Section */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e]">
+          <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e] dark:text-white">
             Browse Categories
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Explore our wide range of student essentials, from textbooks to technology
           </p>
         </div>
@@ -146,7 +147,7 @@ const Home = () => {
                 className="cursor-pointer group"
                 onClick={() => navigate(category.path)}
               >
-                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-none bg-white">
+                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-none bg-black">
                   <div className="relative">
                     <div className="w-full h-48 overflow-hidden">
                       <img 
@@ -179,5 +180,7 @@ const Home = () => {
 
     </div>
   );
+
 }
+
 export default Home;
