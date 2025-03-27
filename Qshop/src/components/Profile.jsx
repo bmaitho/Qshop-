@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User, MapPin, MessageCircle, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History, Crown } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const Profile = () => {
   const [isSeller, setIsSeller] = useState(false);
   const [activeTab, setActiveTab] = useState('');
   const [isPro, setIsPro] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     fetchUserData();
@@ -36,13 +38,18 @@ const Profile = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Set the initial activeTab after determining seller status
+  // Parse URL query parameters to set the active tab
   useEffect(() => {
-    if (profileData) {
+    const queryParams = new URLSearchParams(location.search);
+    const tabParam = queryParams.get('tab');
+    
+    if (tabParam && ['messages', 'wishlist', 'orders', 'listings', 'history'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else if (profileData) {
       // Set default tab based on seller status
       setActiveTab(isSeller ? 'listings' : 'wishlist');
     }
-  }, [isSeller, profileData]);
+  }, [location.search, isSeller, profileData]);
 
   // Load appropriate data when tab changes
   useEffect(() => {

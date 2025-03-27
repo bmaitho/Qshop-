@@ -214,22 +214,22 @@ const Navbar = () => {
               </Tooltip>
               
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link to="/profile?tab=messages" className="relative">
-                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
-                      <MessageCircle className="h-5 w-5" style={goldIconStyle} />
-                      {unreadMessages > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                          {unreadMessages}
-                        </span>
-                      )}
-                    </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Messages</p>
-                </TooltipContent>
-              </Tooltip>
+  <TooltipTrigger asChild>
+    <Link to="/profile?tab=messages" className="relative">
+      <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+        <MessageCircle className="h-5 w-5" style={goldIconStyle} />
+        {unreadMessages > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            {unreadMessages}
+          </span>
+        )}
+      </Button>
+    </Link>
+  </TooltipTrigger>
+  <TooltipContent>
+    <p>Messages</p>
+  </TooltipContent>
+</Tooltip>
               
               <Tooltip>
                 <TooltipTrigger asChild>
