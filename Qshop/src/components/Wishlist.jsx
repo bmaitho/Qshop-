@@ -219,8 +219,7 @@ const Wishlist = () => {
             <h2 className="text-2xl font-bold mb-4 text-primary dark:text-gray-100">Your Wishlist is Empty</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-8">Save items you'd like to purchase later</p>
             <Link to="/studentmarketplace">
-              <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:text-gray-900">Continue Shopping</Button>
-            </Link>
+            <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-[#ebc75c]">Continue Shopping</Button>            </Link>
           </div>
         </div>
       </>

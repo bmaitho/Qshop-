@@ -203,8 +203,7 @@ const Cart = () => {
             <h2 className="text-2xl font-serif font-bold mb-4 text-primary dark:text-gray-100">Your Cart is Empty</h2>
             <p className="text-primary/70 dark:text-gray-300 mb-8">Browse our products and add some items to your cart</p>
             <Link to="/studentmarketplace">
-              <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:text-gray-900">Continue Shopping</Button>
-            </Link>
+            <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-[#ebc75c]">Continue Shopping</Button>            </Link>
           </div>
         </div>
       </>
