@@ -1,6 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, MoreVertical, Edit, Pencil } from 'lucide-react';
+import { 
+  Heart, 
+  MoreVertical, 
+  Edit, 
+  Pencil, 
+  MapPin, 
+  Tag,
+  ShoppingCart
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,22 +37,8 @@ const ProductCard = ({
   const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
   
-  // We'll use the product ID to create consistent but different heights
-  // This ensures the same product always has the same height between renders
-  const productIdSum = product.id ? 
-    product.id.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0) % 3 : 1;
-  
-  // Determine image aspect ratio based on productIdSum
-  // This creates 3 different image heights (4:3, 1:1, 3:4)
-  const aspectRatioClass = [
-    "aspect-[4/3]", // Landscape
-    "aspect-[1/1]", // Square
-    "aspect-[3/4]"  // Portrait
-  ][productIdSum];
-
-  // Determine description line count based on productIdSum
-  // This creates 3 different text heights
-  const descriptionLines = [2, 3, 4][productIdSum];
+  // Fixed aspect ratio for all products
+  const aspectRatioClass = "aspect-[4/3]";
 
   useEffect(() => {
     const status = isInWishlist(product.id);
@@ -197,13 +191,12 @@ const ProductCard = ({
 
   return (
     <div 
-    className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer text-white`}
-  onClick={handleProductClick}
->
+      className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer text-white`}
+      onClick={handleProductClick}
+    >
       <div className="relative">
-        {/* Image container with variable aspect ratio */}
+        {/* Image container with fixed aspect ratio */}
         <div className={`${aspectRatioClass} w-full overflow-hidden bg-gray-100 dark:bg-gray-700`}>
-          {/* Simplified image with direct src without conditional logic */}
           <img 
             src={product.image_url || "/api/placeholder/400/300"} 
             alt={product.name}
@@ -231,74 +224,74 @@ const ProductCard = ({
         )}
       </div>
       
-      <div className="p-4 flex flex-col justify-between">
-        <div>
-          <h3 className="font-serif font-medium text-sm mb-1 line-clamp-1 text-primary dark:text-gray-100">
-            {product.name}
-          </h3>
-          
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-base font-bold" style={{ color: '#E7C65F' }}>
-              KES {product.price?.toLocaleString()}
+      <div className="p-4 flex flex-col h-[calc(100%-33%)]">
+        {/* Product title */}
+        <h3 className="font-serif font-medium text-sm line-clamp-1 text-primary dark:text-gray-100 mb-2">
+          {product.name}
+        </h3>
+        
+        {/* Price section */}
+        <div className="mb-3">
+          <span className="text-base font-bold block" style={{ color: '#E7C65F' }}>
+            KES {product.price?.toLocaleString()}
+          </span>
+          {product.original_price && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 line-through">
+              KES {product.original_price?.toLocaleString()}
             </span>
-            {product.original_price && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 line-through">
-                KES {product.original_price?.toLocaleString()}
-              </span>
-            )}
-          </div>
-          
-          {/* Description with variable line count */}
-          <p className={`text-xs text-primary/70 dark:text-gray-300 mb-2 line-clamp-${descriptionLines} italic`}>
-            {product.description || "No description available"}
-          </p>
-          
-          {/* Conditionally show additional description content */}
-          {useFullDescription && product.description && product.description.length > 100 && (
-            <p className="text-xs text-primary/70 dark:text-gray-300 mb-3 italic">
-              This product may require pickup arrangements. Please contact the seller for more details.
-            </p>
           )}
-          
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs text-primary/70 dark:text-gray-400">
-              Condition: {product.condition}
-            </span>
+        </div>
+        
+        {/* Description - consistent 2-line limit */}
+        <p className="text-xs text-primary/70 dark:text-gray-300 line-clamp-2 mb-3">
+          {product.description || "No description available"}
+        </p>
+        
+        {/* Tags section with icons */}
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-1">
+              <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400" />
+              <span className="text-xs text-primary/70 dark:text-gray-400">
+                {product.condition}
+              </span>
+            </div>
             
-            {/* Display formatted category (capitalized) */}
             <Badge variant="outline" className="text-xs">
               {displayCategory}
             </Badge>
           </div>
           
           {product.location && (
-            <div className="text-xs text-primary/60 dark:text-gray-500 mb-3">
-              Location: {product.location}
-            </div>
-          )}
-          
-          {/* Seller Button instead of Link */}
-          {product.seller_id && !isOwner && (
-            <div className="mb-2">
-              <button 
-                className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                onClick={handleSellerClick}
-              >
-                View Seller
-              </button>
+            <div className="flex items-center gap-1 text-xs text-primary/60 dark:text-gray-500">
+              <MapPin className="h-3 w-3" />
+              <span>{product.location}</span>
             </div>
           )}
         </div>
         
-        {!isOwner && (
-          <Button 
-            className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80 mt-auto"
-            onClick={handleAddToCart}
-            disabled={product.status !== 'active'}
-          >
-            {product.status === 'active' ? 'Add to Cart' : 'Not Available'}
-          </Button>
-        )}
+        {/* Footer section */}
+        <div className="mt-auto">
+          {product.seller_id && !isOwner && (
+            <button 
+              className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mb-2 block"
+              onClick={handleSellerClick}
+            >
+              View Seller
+            </button>
+          )}
+          
+          {!isOwner && (
+            <Button 
+              className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80"
+              onClick={handleAddToCart}
+              disabled={product.status !== 'active'}
+            >
+              <ShoppingCart className="h-3 w-3 mr-1" />
+              {product.status === 'active' ? 'Add to Cart' : 'Not Available'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
