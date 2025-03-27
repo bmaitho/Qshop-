@@ -1,4 +1,4 @@
-// WishlistContext.jsx
+// WishlistContext.jsx - Optimized
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { supabase } from '../components/SupabaseClient';
 import { wishlistToasts } from '../utils/toastConfig';
@@ -36,6 +36,8 @@ export const WishlistProvider = ({ children }) => {
   const [state, dispatch] = useReducer(wishlistReducer, { items: [] });
   const [loading, setLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  // Add a local cache to speed up isInWishlist checks
+  const [wishlistItemIds, setWishlistItemIds] = useState(new Set());
 
   // Initial load and auth change listener setup
   useEffect(() => {
@@ -50,6 +52,7 @@ export const WishlistProvider = ({ children }) => {
         fetchWishlist();
       } else if (event === 'SIGNED_OUT') {
         dispatch({ type: 'CLEAR_WISHLIST' });
+        setWishlistItemIds(new Set());
       }
     });
 
@@ -57,6 +60,19 @@ export const WishlistProvider = ({ children }) => {
       subscription?.unsubscribe();
     };
   }, [isInitialized]);
+
+  // Update the wishlistItemIds whenever state.items changes
+  useEffect(() => {
+    const ids = new Set();
+    state.items.forEach(item => {
+      ids.add(item.product_id);
+      // Also add the id from product object if available
+      if (item.products && item.products.id) {
+        ids.add(item.products.id);
+      }
+    });
+    setWishlistItemIds(ids);
+  }, [state.items]);
 
   const fetchWishlist = async () => {
     try {
@@ -66,6 +82,7 @@ export const WishlistProvider = ({ children }) => {
       const token = sessionStorage.getItem('token');
       if (!token) {
         dispatch({ type: 'CLEAR_WISHLIST' });
+        setWishlistItemIds(new Set());
         return;
       }
 
@@ -73,6 +90,7 @@ export const WishlistProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         dispatch({ type: 'CLEAR_WISHLIST' });
+        setWishlistItemIds(new Set());
         return;
       }
       
@@ -105,12 +123,26 @@ export const WishlistProvider = ({ children }) => {
         return;
       }
 
-      // First check if already in wishlist locally
-      if (isInWishlist(product.id)) {
-        return; // Already in wishlist, do nothing
+      // First check if already in wishlist using our fast local cache
+      if (wishlistItemIds.has(product.id)) {
+        wishlistToasts.addSuccess(product.name);
+        return; // Already in wishlist, do nothing but show success toast
       }
 
-      // Add to database
+      // Optimistically update UI first for immediate feedback
+      const optimisticItem = {
+        id: `temp-${Date.now()}`,
+        user_id: user.id,
+        product_id: product.id,
+        products: product // Store the full product for UI display
+      };
+      
+      dispatch({ 
+        type: 'ADD_TO_WISHLIST', 
+        payload: optimisticItem 
+      });
+      
+      // Then add to database
       const { data, error } = await supabase
         .from('wishlist')
         .insert([{
@@ -120,20 +152,31 @@ export const WishlistProvider = ({ children }) => {
         .select('*, products(*)')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If error, revert optimistic update and refresh wishlist
+        console.error('Error adding to wishlist:', error);
+        fetchWishlist();
+        throw error;
+      }
       
-      // Optimistically update local state
+      // Update with real data from server (replacing our optimistic entry)
       if (data) {
+        // Remove the temporary optimistic item and add the real one
+        dispatch({ 
+          type: 'REMOVE_FROM_WISHLIST', 
+          payload: product.id 
+        });
         dispatch({ 
           type: 'ADD_TO_WISHLIST', 
           payload: data 
         });
       }
       
+      // Show toast immediately after updating state
       wishlistToasts.addSuccess(product.name);
     } catch (error) {
       console.error('Error adding to wishlist:', error);
-      wishlistToasts.error();
+      wishlistToasts.error("Failed to add to wishlist");
     }
   };
 
@@ -145,11 +188,18 @@ export const WishlistProvider = ({ children }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) return;
 
-      // Optimistically update local state first
+      // Optimistically update local state first for immediate UI feedback
       dispatch({ 
         type: 'REMOVE_FROM_WISHLIST', 
         payload: productId 
       });
+      
+      // Show toast immediately
+      if (productName) {
+        wishlistToasts.removeSuccess(productName);
+      } else {
+        wishlistToasts.success("Item removed from wishlist");
+      }
       
       // Then update database
       const { error } = await supabase
@@ -160,18 +210,13 @@ export const WishlistProvider = ({ children }) => {
 
       if (error) {
         // If there was an error, refresh the entire wishlist
+        console.error('Error removing from wishlist:', error);
         fetchWishlist();
         throw error;
       }
-      
-      if (productName) {
-        wishlistToasts.removeSuccess(productName);
-      } else {
-        wishlistToasts.success("Item removed from wishlist");
-      }
     } catch (error) {
       console.error('Error removing from wishlist:', error);
-      wishlistToasts.error();
+      wishlistToasts.error("Failed to remove from wishlist");
     }
   };
 
@@ -186,6 +231,9 @@ export const WishlistProvider = ({ children }) => {
       // Optimistically clear local state
       dispatch({ type: 'CLEAR_WISHLIST' });
       
+      // Show toast immediately
+      wishlistToasts.success("Wishlist cleared successfully");
+      
       // Then clear database
       const { error } = await supabase
         .from('wishlist')
@@ -197,8 +245,6 @@ export const WishlistProvider = ({ children }) => {
         fetchWishlist();
         throw error;
       }
-      
-      wishlistToasts.success("Wishlist cleared successfully");
     } catch (error) {
       console.error('Error clearing wishlist:', error);
       wishlistToasts.error("Failed to clear wishlist");
@@ -206,10 +252,8 @@ export const WishlistProvider = ({ children }) => {
   };
 
   const isInWishlist = (productId) => {
-    return state.items.some(item => 
-      item.product_id === productId || 
-      (item.products && item.products.id === productId)
-    );
+    // Use the faster Set-based lookup rather than array filtering
+    return wishlistItemIds.has(productId);
   };
 
   const value = {

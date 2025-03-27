@@ -4,9 +4,10 @@ import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './Navbar';
+import { supabase } from '../components/SupabaseClient';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -19,11 +20,19 @@ import {
 
 const Wishlist = () => {
   const { addToCart } = useCart();
-  const { wishlist, removeFromWishlist, clearWishlist } = useWishlist();
+  const { wishlist: contextWishlist, removeFromWishlist, clearWishlist } = useWishlist();
+  const [wishlist, setWishlist] = useState([]);
   const [quantities, setQuantities] = useState({});
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [imageErrors, setImageErrors] = useState({});
+
+  // Use our own state for wishlist items
+  useEffect(() => {
+    // Initialize from context initially
+    setWishlist(contextWishlist || []);
+    setLoading(false);
+  }, [contextWishlist]);
 
   useEffect(() => {
     if (wishlist && wishlist.length > 0) {
@@ -35,7 +44,6 @@ const Wishlist = () => {
       });
       setQuantities(initialQuantities);
     }
-    setLoading(false);
     
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -45,6 +53,28 @@ const Wishlist = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [wishlist]);
 
+  // Fetch fresh wishlist data from Supabase
+  const fetchWishlist = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('wishlist')
+        .select('*, products(*)')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setWishlist(data || []);
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+      toast.error('Failed to load wishlist');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImageError = (productId) => {
     setImageErrors(prev => ({
       ...prev,
@@ -52,25 +82,108 @@ const Wishlist = () => {
     }));
   };
 
-  const handleRemoveFromWishlist = async (productId, productName) => {
-    await removeFromWishlist(productId, productName);
+  const handleRemoveFromWishlist = async (wishlistItemId, productName) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Update local state first for immediate UI response
+      setWishlist(prevWishlist => 
+        prevWishlist.filter(item => item.id !== wishlistItemId)
+      );
+      
+      toast.success(`${productName} removed from wishlist`);
+
+      // Then update the database
+      const { error } = await supabase
+        .from('wishlist')
+        .delete()
+        .eq('id', wishlistItemId);
+
+      if (error) {
+        console.error("Delete error:", error);
+        toast.error("Failed to remove item");
+        // Revert UI if database operation fails
+        fetchWishlist();
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to remove item");
+      // Refresh wishlist on error
+      fetchWishlist();
+    }
   };
 
   const handleClearWishlist = async () => {
-    await clearWishlist();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Update local state first
+      setWishlist([]);
+      toast.success("Wishlist cleared successfully");
+
+      // Then update the database
+      const { error } = await supabase
+        .from('wishlist')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error("Clear wishlist error:", error);
+        toast.error("Failed to clear wishlist");
+        // Revert UI if database operation fails
+        fetchWishlist();
+      }
+    } catch (error) {
+      console.error("Clear wishlist error:", error);
+      toast.error("Failed to clear wishlist");
+      // Refresh wishlist on error
+      fetchWishlist();
+    }
   };
 
   const handleMoveToCart = async (item) => {
     if (!item?.products) return;
     
-    const quantity = quantities[item.products.id] || 1;
-    const productWithQuantity = { 
-      ...item.products, 
-      quantity 
-    };
-    
-    await addToCart(productWithQuantity);
-    await removeFromWishlist(item.products.id, item.products.name);
+    try {
+      const quantity = quantities[item.products.id] || 1;
+      const productWithQuantity = { 
+        ...item.products, 
+        quantity 
+      };
+      
+      // Update local state first for immediate UI response
+      setWishlist(prevWishlist => 
+        prevWishlist.filter(i => i.id !== item.id)
+      );
+      
+      // Add item to cart
+      await addToCart(productWithQuantity);
+      
+      toast.success(`${item.products.name} moved to cart`);
+      
+      // Delete from wishlist database
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('wishlist')
+        .delete()
+        .eq('id', item.id);
+
+      if (error) {
+        console.error("Move to cart error:", error);
+        toast.error("Added to cart but failed to remove from wishlist");
+        // Revert UI if database operation fails
+        fetchWishlist();
+      }
+    } catch (error) {
+      console.error("Move to cart error:", error);
+      toast.error("Failed to move item to cart");
+      // Refresh wishlist on error
+      fetchWishlist();
+    }
   };
 
   const updateQuantity = (productId, newQuantity) => {
@@ -247,7 +360,7 @@ const Wishlist = () => {
                         variant="ghost"
                         size="icon"
                         className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                        onClick={() => handleRemoveFromWishlist(productId, item.products.name)}
+                        onClick={() => handleRemoveFromWishlist(item.id, item.products.name)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                       </Button>
@@ -256,10 +369,10 @@ const Wishlist = () => {
                     <Button
                       variant="default"
                       size="sm"
-                     className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
+                      className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
                       onClick={() => handleMoveToCart(item)}
                     >
-                      <ShoppingCart className="h-4 w-4" />
+                      <ShoppingCart className="h-4 w-4 mr-2" />
                       Move to Cart
                     </Button>
                   </div>
@@ -269,7 +382,7 @@ const Wishlist = () => {
                 {!isMobile && (
                   <div className="flex flex-col items-end space-y-3">
                     <div className="flex items-center space-x-2">
-                    <Button 
+                      <Button 
                         variant="outline" 
                         size="icon"
                         className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
@@ -294,16 +407,17 @@ const Wishlist = () => {
                       <Button
                         variant="default"
                         size="sm"
-                        className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
+                        className="bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
+                        onClick={() => handleMoveToCart(item)}
                       >
-                        <ShoppingCart className="h-4 w-4" />
+                        <ShoppingCart className="h-4 w-4 mr-2" />
                         Move to Cart
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                        onClick={() => handleRemoveFromWishlist(productId, item.products.name)}
+                        onClick={() => handleRemoveFromWishlist(item.id, item.products.name)}
                       >
                         <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
                       </Button>
@@ -325,9 +439,8 @@ const Wishlist = () => {
               </Button>
             </Link>
             <Link to="/cart">
-              <Button size="sm" className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700"
->
-                <ShoppingCart className="h-4 w-4" />
+              <Button size="sm" className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700">
+                <ShoppingCart className="h-4 w-4 mr-2" />
                 View Cart
               </Button>
             </Link>
@@ -338,7 +451,7 @@ const Wishlist = () => {
               <Button variant="outline" className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700">Continue Shopping</Button>
             </Link>
             <Link to="/cart">
-              <Button className="w-full mb-2 bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700">View Cart</Button>
+              <Button className="bg-secondary dark:bg-green-600 text-primary dark:text-white hover:bg-secondary/90 dark:hover:bg-green-700">View Cart</Button>
             </Link>
           </div>
         )}
