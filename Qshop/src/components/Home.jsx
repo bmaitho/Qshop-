@@ -7,7 +7,8 @@ import {
   Laptop, 
   Pencil, 
   GraduationCap,
-  ShoppingBag
+  ShoppingBag,
+  Store
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import ProductCard from './ProductCard';
+import FeaturedShops from './FeaturedShops';
 
 // Import local images for categories
 import TextbooksImage from '../assets/categories/textbooks.jpg';
@@ -99,7 +101,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              Your Campus Marketplace
+              Your Student Marketplace
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               Buy, sell, and discover great deals on textbooks, electronics, and more from your fellow students
@@ -124,6 +126,30 @@ const Home = () => {
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Featured Shops Section */}
+      <div className="max-w-7xl mx-auto px-4 py-16 border-b border-gray-200 dark:border-gray-800">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e] dark:text-white">
+            Featured Shops
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+            Discover top Shops owned by students 
+          </p>
+        </div>
+        
+        <FeaturedShops />
+        
+        <div className="text-center mt-10">
+          <Button 
+            onClick={() => navigate('/studentmarketplace')}
+            className="bg-[#113b1e] text-white hover:bg-[#113b1e]/90 px-8"
+          >
+            Explore All Shops
+            <Store className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </div>
 
