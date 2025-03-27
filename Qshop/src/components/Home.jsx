@@ -98,7 +98,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              Your Campus Marketplace
+              Your Student Marketplace
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
               Buy, sell, and discover great deals on textbooks, electronics, and more from your fellow students
