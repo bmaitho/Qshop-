@@ -238,7 +238,7 @@ const ProductCard = ({
           </h3>
           
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-base font-bold text-secondary dark:text-green-400">
+            <span className="text-base font-bold" style={{ color: '#E7C65F' }}>
               KES {product.price?.toLocaleString()}
             </span>
             {product.original_price && (
