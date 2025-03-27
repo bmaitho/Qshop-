@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  ArrowRight, 
+  Sparkles, 
+  BookOpen, 
+  Laptop, 
+  Pencil, 
+  GraduationCap,
+  ShoppingBag
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +25,7 @@ import StationeryImage from '../assets/categories/stationery.jpg';
 import StudyMaterialsImage from '../assets/categories/study-materials.jpg';
 
 const Home = () => {
+  const navigate = useNavigate();
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,23 +60,31 @@ const Home = () => {
   const categories = [
     { 
       name: "Textbooks", 
-      image: TextbooksImage, 
-      description: "Find your course materials" 
+      image: TextbooksImage,
+      description: "Find your course materials",
+      icon: BookOpen,
+      path: "/category/textbooks"
     },
     { 
       name: "Electronics", 
-      image: ElectronicsImage, 
-      description: "Student tech deals" 
+      image: ElectronicsImage,
+      description: "Student tech deals",
+      icon: Laptop,
+      path: "/category/electronics"
     },
     { 
       name: "Stationery", 
-      image: StationeryImage, 
-      description: "Notes and supplies" 
+      image: StationeryImage,
+      description: "Notes and supplies",
+      icon: Pencil,
+      path: "/category/stationery"
     },
     { 
       name: "Study Materials", 
-      image: StudyMaterialsImage, 
-      description: "Past papers and notes" 
+      image: StudyMaterialsImage,
+      description: "Past papers and notes",
+      icon: GraduationCap,
+      path: "/category/study-materials"
     }
   ];
 
@@ -75,57 +92,92 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      {/* Featured Section */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 mb-8 border border-primary/20">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="h-5 w-5 text-secondary" />
-            <h2 className="text-xl font-serif font-semibold text-primary">Student Marketplace Deals</h2>
+      {/* Hero Section */}
+      <div className="relative overflow-hidden bg-[#113b1e] text-white">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#113b1e] to-[#0a2412] opacity-90"></div>
+        <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
+              Your Campus Marketplace
+            </h1>
+            <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              Buy, sell, and discover great deals on textbooks, electronics, and more from your fellow students
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                className="bg-[#e7c65f] text-[#113b1e] hover:bg-[#e7c65f]/90 w-full sm:w-auto"
+                onClick={() => navigate('/studentmarketplace')}
+              >
+                Start Shopping
+                <ShoppingBag className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-white/20 hover:bg-white/10 w-full sm:w-auto"
+                onClick={() => navigate('/myshop')}
+              >
+                Open Your Shop
+                <Sparkles className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
           </div>
-          <p className="text-primary/80 mb-6 max-w-2xl">
-            Save up to 70% on textbooks and supplies from fellow students!
-          </p>
-          <Link to="/studentmarketplace">
-            <Button className="bg-secondary text-primary hover:bg-secondary/90 shadow-md">
-              View All Student Deals
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-
-
-
-        {/* Categories Section */}
-        <h2 className="text-2xl font-serif font-bold mb-6 text-primary">Popular Categories</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {categories.map((category, index) => (
-            <Link 
-              key={index} 
-              to={`/category/${category.name.toLowerCase()}`}
-              className="group"
-            >
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow border border-primary/10">
-                <div className="relative">
-                  <div className="w-full h-40 overflow-hidden">
-                    <img 
-                      src={category.image} 
-                      alt={category.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent opacity-70"></div>
-                </div>
-                <CardContent className="p-4 relative z-10 -mt-16">
-                  <h3 className="font-serif text-lg font-semibold mb-1 text-white">{category.name}</h3>
-                  <p className="text-sm text-white/90">{category.description}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
         </div>
       </div>
+
+      {/* Categories Section */}
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e]">
+            Browse Categories
+          </h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Explore our wide range of student essentials, from textbooks to technology
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {categories.map((category, index) => {
+            const Icon = category.icon;
+            return (
+              <div 
+                key={index} 
+                className="cursor-pointer group"
+                onClick={() => navigate(category.path)}
+              >
+                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-none bg-white">
+                  <div className="relative">
+                    <div className="w-full h-48 overflow-hidden">
+                      <img 
+                        src={category.image}
+                        alt={category.name}
+                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                      />
+                      {/* Gradient overlay with additional dark base for white backgrounds */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#113b1e] via-[#113b1e]/60 to-transparent opacity-90"></div>
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent"></div>
+                    </div>
+                    <div className="absolute top-4 right-4 bg-white/90 p-2 rounded-full">
+                      <Icon className="w-6 h-6 text-[#113b1e]" />
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 p-6">
+                      <h3 className="font-serif text-xl font-bold mb-2 text-white group-hover:text-[#e7c65f] transition-colors drop-shadow-lg">
+                        {category.name}
+                      </h3>
+                      <p className="text-white text-sm drop-shadow-lg font-medium">
+                        {category.description}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
     </div>
   );
-};
-
+}
 export default Home;
