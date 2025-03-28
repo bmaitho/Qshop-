@@ -104,7 +104,7 @@ const Home = () => {
               Your Student Marketplace
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Buy, sell, and discover great deals on textbooks, electronics, and more from your fellow students
+            Buy, sell, and discover great deals on fashion, gadgets, and campus must-haves—all in one Hive!
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 

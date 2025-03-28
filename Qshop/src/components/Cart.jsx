@@ -372,7 +372,7 @@ const Cart = () => {
               {/* Payment Options */}
               <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Proceed to Checkout</Button>
+                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Proceed to Checkout </Button>
                 </DialogTrigger>
                 <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
                   <DialogHeader>
@@ -407,14 +407,13 @@ const Cart = () => {
                     </div>
                     
                     <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white"
-                        disabled={isProcessing}
-                      >
-                        {isProcessing ? "Processing..." : "Pay with M-Pesa"}
-                      </Button>
                       
+                    <Button 
+                    type="submit" 
+                    className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white"disabled // Simply adding this prop disables the button
+>
+  {isProcessing ? "Processing..." : "Pay with M-Pesa (Beta)"} 
+</Button>
                       {/* Test Checkout Button - only shown in development */}
                      (
                         <Button 
