@@ -1,17 +1,18 @@
-// src/components/auth/Login.jsx - Modified for AuthLayout
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from 'react-toastify';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
 const Login = ({ setToken }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -23,11 +24,21 @@ const Login = ({ setToken }) => {
       ...prev,
       [name]: value
     }));
+    
+    // Clear errors when user starts typing again
+    if (networkError) {
+      setNetworkError(false);
+    }
+    if (authError) {
+      setAuthError('');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setNetworkError(false);
+    setAuthError('');
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -48,14 +59,24 @@ const Login = ({ setToken }) => {
 
       navigate('/home');
     } catch (error) {
-      let errorMessage = 'Login failed';
-      if (error.message.includes('Invalid')) {
-        errorMessage = 'Invalid email or password';
+      console.error('Login error:', error);
+      
+      // Check error type to determine appropriate message
+      if (error.message && (error.message.includes('Invalid') || error.message.includes('password') || error.message.includes('not found'))) {
+        // Authentication error (incorrect email/password)
+        setAuthError('Invalid email or password');
+        toast.error('Invalid email or password', {
+          position: "top-right",
+          autoClose: 3000,
+        });
+      } else {
+        // Network or server error
+        setNetworkError(true);
+        toast.error('Please connect to a secure WiFi connection', {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 3000,
-      });
     } finally {
       setLoading(false);
     }
@@ -64,6 +85,7 @@ const Login = ({ setToken }) => {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
+      setNetworkError(false);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -82,10 +104,23 @@ const Login = ({ setToken }) => {
       // The AuthCallback component will handle the session and redirection to /home
     } catch (error) {
       console.error('Google sign-in error:', error);
-      toast.error('Google sign-in failed: ' + error.message, {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      
+      // For Google sign-in, most errors are likely network related
+      // But we can still check for specific error types
+      if (error.message && error.message.includes('popup blocked')) {
+        toast.error('Google sign-in popup was blocked', {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      } else {
+        // Display network error for other errors
+        setNetworkError(true);
+        toast.error('Please connect to a secure WiFi connection', {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      }
+      
       setGoogleLoading(false);
     }
     // Note: We don't set googleLoading to false here because page will redirect
@@ -95,6 +130,29 @@ const Login = ({ setToken }) => {
     <>
       <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
         <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Welcome Back</h2>
+        
+        {networkError && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <div className="flex items-center text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Connection Error</p>
+                <p className="text-sm">Please connect to a secure WiFi connection and try again.</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {authError && (
+          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+            <div className="flex items-center text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+              <div>
+                <p className="text-sm">{authError}</p>
+              </div>
+            </div>
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
@@ -114,33 +172,34 @@ const Login = ({ setToken }) => {
           </div>
 
           <div className="space-y-1">
-  <label htmlFor="password" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-    Password
-  </label>
-  <div className="relative">
-    <Input
-      id="password"
-      type={showPassword ? "text" : "password"}
-      name="password"
-      value={formData.password}
-      onChange={handleChange}
-      required
-      className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring pr-10"
-      placeholder="Enter your password"
-    />
-    <button
-      type="button"
-      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
-      onClick={() => setShowPassword(!showPassword)}
-    >
-      {showPassword ? (
-        <EyeOff className="h-5 w-5" />
-      ) : (
-        <Eye className="h-5 w-5" />
-      )}
-    </button>
-  </div>
-</div>
+            <label htmlFor="password" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring pr-10"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
           <Button 
             type="submit" 
             className="w-full bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
@@ -176,7 +235,7 @@ const Login = ({ setToken }) => {
 
         <p className="mt-3 text-center text-sm text-foreground/60 dark:text-foreground/60">
           Don't have an account?{' '}
-          <Link to="/auth/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
+          <Link to="/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
             Sign Up
           </Link>
         </p>
