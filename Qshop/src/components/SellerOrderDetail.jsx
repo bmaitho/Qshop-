@@ -1,256 +1,411 @@
+// src/components/SellerOrderDetail.jsx
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../components/SupabaseClient';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import MessageDialog from './MessageDialog';
-import {
-  Package,
-  Truck,
-  CheckCircle,
-  AlertCircle,
-  Search,
-  FileText,
-  MessageCircle
-} from 'lucide-react';
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin } from 'lucide-react';
+import { updateOrderStatus } from '../utils/orderUtils';
+import Navbar from './Navbar';
 
-const SellerOrdersDetail = () => {
-  const [orders, setOrders] = useState([]);
+const SellerOrderDetail = () => {
+  const { id } = useParams(); // order_item id
+  const [orderItem, setOrderItem] = useState(null);
+  const [order, setOrder] = useState(null);
+  const [buyer, setBuyer] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('new');
-  const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
-  
+  const [message, setMessage] = useState('');
+  const [updateInProgress, setUpdateInProgress] = useState(false);
+
   useEffect(() => {
-    fetchSellerOrders(activeTab);
-  }, [activeTab]);
-  
-  const fetchSellerOrders = async (status) => {
+    fetchOrderDetails();
+  }, [id]);
+
+  const fetchOrderDetails = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) return;
       
-      let query = supabase
+      // Fetch the order item with related data
+      const { data: itemData, error: itemError } = await supabase
         .from('order_items')
         .select(`
           *,
           orders(*),
           products(*)
         `)
-        .eq('seller_id', user.id);
+        .eq('id', id)
+        .eq('seller_id', user.id) // Security check - only allow seller to see their own orders
+        .single();
       
-      if (status === 'new') {
-        query = query.eq('status', 'processing');
-      } else if (status === 'shipped') {
-        query = query.eq('status', 'shipped');
-      } else if (status === 'delivered') {
-        query = query.eq('status', 'delivered');
-      } else if (status === 'all') {
+      if (itemError) throw itemError;
+      setOrderItem(itemData);
       
+      if (itemData?.orders) {
+        setOrder(itemData.orders);
+        
+        // Fetch buyer info
+        const { data: buyerData, error: buyerError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', itemData.orders.user_id)
+          .single();
+        
+        if (!buyerError) {
+          setBuyer(buyerData);
+        }
       }
-      
-      if (searchQuery) {
-        query = query.or(`orders.id.ilike.%${searchQuery}%`);
-      }
-      
-      query = query.order('created_at', { foreignTable: 'orders', ascending: false });
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      setOrders(data || []);
     } catch (error) {
-      console.error('Error fetching seller orders:', error);
+      console.error('Error fetching order details:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const updateOrderStatus = async (orderItemId, newStatus) => {
+  const handleUpdateOrderStatus = async (newStatus) => {
+    setUpdateInProgress(true);
+    
     try {
-      const { error } = await supabase
-        .from('order_items')
-        .update({ status: newStatus })
-        .eq('id', orderItemId);
-      
-      if (error) throw error;
-      
-      fetchSellerOrders(activeTab);
+      const success = await updateOrderStatus(id, newStatus);
+      if (success) {
+        // Refresh the data after successful update
+        fetchOrderDetails();
+      }
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error("Error updating order status:", error);
+    } finally {
+      setUpdateInProgress(false);
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchSellerOrders(activeTab);
+  const sendMessageToBuyer = async () => {
+    if (!message.trim()) return;
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Get sender and recipient names for better UX
+      const senderName = user.user_metadata?.full_name || user.email || 'Seller';
+      const recipientName = buyer?.full_name || buyer?.email || 'Buyer';
+      
+      // Create message record
+      const { error } = await supabase
+        .from('messages')
+        .insert([{
+          sender_id: user.id,
+          recipient_id: buyer.id,
+          product_id: orderItem.product_id,
+          order_id: orderItem.order_id,
+          order_item_id: orderItem.id,
+          message: message.trim(),
+          sender_name: senderName,
+          recipient_name: recipientName
+        }]);
+
+      if (error) throw error;
+      
+      // Reset message field and show success message
+      setMessage('');
+      alert("Message sent successfully");
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   };
 
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-4xl mx-auto p-4 my-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 w-1/2 mb-6 rounded"></div>
+            <div className="h-64 bg-gray-200 rounded mb-6"></div>
+            <div className="h-40 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!orderItem) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-4xl mx-auto p-4 my-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Order Not Found</h2>
+            <p className="mb-4">The order you're looking for doesn't exist or you don't have permission to view it.</p>
+            <Link to="/myshop">
+              <Button>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Orders
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Manage Orders</h2>
-        
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <Input
-            placeholder="Search order ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64"
-          />
-          <Button type="submit" variant="outline">
-            <Search className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
+    <>
+      <Navbar />
+      <div className="max-w-4xl mx-auto p-4 my-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Link to="/myshop">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Orders
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Order #{order?.id.substring(0, 8)}</h1>
+        </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => {
-          setActiveTab(value);
-        }}
-      >
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="new" className="relative">
-            New Orders
-            {orders.filter(o => o.status === 'processing').length > 0 && (
-              <Badge className="absolute -top-2 -right-2 bg-orange-500">
-                {orders.filter(o => o.status === 'processing').length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="shipped">In Transit</TabsTrigger>
-          <TabsTrigger value="delivered">Delivered</TabsTrigger>
-          <TabsTrigger value="all">All Orders</TabsTrigger>
-        </TabsList>
-
-        {['new', 'shipped', 'delivered', 'all'].map((tab) => (
-          <TabsContent key={tab} value={tab} className="mt-6">
-            {loading ? (
-              <div className="text-center py-10">
-                <div className="animate-spin w-8 h-8 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
-                <p className="mt-2 text-gray-500">Loading orders...</p>
-              </div>
-            ) : orders.length === 0 ? (
-              <div className="text-center py-10 bg-gray-50 rounded-lg">
-                <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <h3 className="text-lg font-medium mb-2">No orders found</h3>
-                <p className="text-gray-500">
-                  {tab === 'new' 
-                    ? "You don't have any new orders to fulfill" 
-                    : tab === 'shipped'
-                    ? "You don't have any orders in transit"
-                    : tab === 'delivered'
-                    ? "You don't have any delivered orders"
-                    : "You don't have any orders yet"}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((orderItem) => (
-                  <div 
-                    key={orderItem.id}
-                    className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden"
-                  >
-                    <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-gray-500">
-                          Order #{orderItem.orders?.id.substring(0, 8)}
-                        </p>
-                        <p className="text-sm font-medium">
-                          {new Date(orderItem.orders?.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={orderItem.status} />
-                        {orderItem.status === 'processing' && (
-                          <Button 
-                            size="sm"
-                            onClick={() => updateOrderStatus(orderItem.id, 'shipped')}
-                          >
-                            <Truck className="h-4 w-4 mr-1" />
-                            Mark as In Transit
-                          </Button>
-                        )}
-                        {orderItem.status === 'shipped' && (
-                          <Button 
-                            size="sm"
-                            onClick={() => updateOrderStatus(orderItem.id, 'delivered')}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Mark Delivered
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="p-4 flex items-start gap-4">
-                      <div className="w-20 h-20 bg-gray-100 rounded flex-shrink-0">
-                        <img
-                          src={orderItem.products?.image_url || "/api/placeholder/80/80"}
-                          alt={orderItem.products?.name}
-                          className="w-full h-full object-cover rounded"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium">{orderItem.products?.name}</h3>
-                        <p className="text-sm text-gray-500">
-                          Quantity: {orderItem.quantity} × KES {orderItem.price_per_unit?.toLocaleString()}
-                        </p>
-                        <p className="font-bold text-lg mt-1">
-                          Total: KES {orderItem.subtotal?.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => navigate(`/seller/order/${orderItem.id}`)}
-                        >
-                          <FileText className="h-4 w-4 mr-1" />
-                          Details
-                        </Button>
-                        <MessageDialog 
-                          recipientId={orderItem.orders?.user_id}
-                          productId={orderItem.product_id}
-                          orderId={orderItem.order_id}
-                          buttonText="Contact Buyer"
-                          buttonVariant="outline"
-                          buttonSize="sm"
-                          productName={orderItem.products?.name}
-                        />
-                      </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Order Summary - Left Column */}
+          <div className="md:col-span-2 space-y-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Order Details</h2>
+                  <StatusBadge status={orderItem.status} />
+                </div>
+                
+                <div className="flex items-start gap-4 border-b pb-4 mb-4">
+                  <div className="w-24 h-24 bg-gray-100 rounded flex-shrink-0">
+                    <img
+                      src={orderItem.products?.image_url || "/api/placeholder/96/96"}
+                      alt={orderItem.products?.name}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium">{orderItem.products?.name}</h3>
+                    <p className="text-sm text-gray-500">Product ID: {orderItem.product_id}</p>
+                    <div className="flex justify-between mt-2">
+                      <p className="text-sm text-gray-600">
+                        Quantity: {orderItem.quantity} × KES {orderItem.price_per_unit?.toLocaleString()}
+                      </p>
+                      <p className="font-bold">
+                        KES {orderItem.subtotal?.toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
-    </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order Date:</span>
+                    <span>{new Date(order?.created_at).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment Status:</span>
+                    <span className="capitalize">{order?.payment_status}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment Method:</span>
+                    <span>M-Pesa</span>
+                  </div>
+                  {order?.mpesa_receipt && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Receipt Number:</span>
+                      <span>{order.mpesa_receipt}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Action Required</h2>
+                
+                {orderItem.status === 'processing' && (
+                  <div className="space-y-4">
+                    <p className="text-sm">This order is ready for shipment. Please update the status when you have shipped the item.</p>
+                    <Button 
+                      onClick={() => handleUpdateOrderStatus('shipped')}
+                      className="w-full"
+                      disabled={updateInProgress}
+                    >
+                      <Truck className="mr-2 h-4 w-4" />
+                      {updateInProgress ? "Updating..." : "Mark as Shipped"}
+                    </Button>
+                  </div>
+                )}
+                
+                {orderItem.status === 'shipped' && (
+                  <div className="space-y-4">
+                    <p className="text-sm">This order has been shipped. Once the buyer has received it, you can mark it as delivered.</p>
+                    <Button 
+                      onClick={() => handleUpdateOrderStatus('delivered')}
+                      className="w-full"
+                      disabled={updateInProgress}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {updateInProgress ? "Updating..." : "Mark as Delivered"}
+                    </Button>
+                  </div>
+                )}
+                
+                {orderItem.status === 'delivered' && (
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <p className="text-green-700 text-sm">This order has been successfully delivered and is now complete.</p>
+                  </div>
+                )}
+                
+                {orderItem.status === 'cancelled' && (
+                  <div className="p-4 bg-red-50 rounded-lg">
+                    <p className="text-red-700 text-sm">This order has been cancelled.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Message Buyer</h2>
+                <Textarea
+                  placeholder="Write a message to the buyer..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-[100px] mb-3"
+                />
+                <Button onClick={sendMessageToBuyer} className="w-full" disabled={!message.trim()}>
+                  Send Message
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Buyer Information - Right Column */}
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Buyer Information</h2>
+                {buyer ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium">
+                          {buyer.full_name ? buyer.full_name[0].toUpperCase() : 'U'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{buyer.full_name || 'Anonymous'}</p>
+                        <p className="text-xs text-gray-500">Customer</p>
+                      </div>
+                    </div>
+                    
+                    {buyer.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-4 w-4 text-gray-500" />
+                        <span>{buyer.phone}</span>
+                      </div>
+                    )}
+                    
+                    {buyer.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <span>{buyer.email}</span>
+                      </div>
+                    )}
+                    
+                    {buyer.campus_location && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-gray-500" />
+                        <span>{buyer.campus_location}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Buyer information not available</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Status Timeline</h2>
+                <div className="space-y-4">
+                  <TimelineItem 
+                    title="Order Placed" 
+                    date={order?.created_at}
+                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
+                    completed={true}
+                  />
+                  <TimelineItem 
+                    title="Payment Received" 
+                    date={order?.updated_at}
+                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
+                    completed={order?.payment_status === 'completed'}
+                  />
+                  <TimelineItem 
+                    title="Processing" 
+                    date={null}
+                    icon={<div className="w-4 h-4 bg-orange-500 rounded-full" />}
+                    completed={['processing', 'shipped', 'delivered'].includes(orderItem.status)}
+                  />
+                  <TimelineItem 
+                    title="Shipped"
+                    date={null}
+                    icon={<div className="w-4 h-4 bg-blue-500 rounded-full" />}
+                    completed={['shipped', 'delivered'].includes(orderItem.status)}
+                  />
+                  <TimelineItem 
+                    title="Delivered" 
+                    date={null}
+                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
+                    completed={orderItem.status === 'delivered'}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
+// Helper component for status badges
 const StatusBadge = ({ status }) => {
   switch (status) {
     case 'pending_payment':
-      return <Badge variant="outline" className="bg-gray-100 text-gray-800">Awaiting Payment</Badge>;
+      return <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded text-xs font-medium">Awaiting Payment</div>;
     case 'processing':
-      return <Badge variant="outline" className="bg-orange-100 text-orange-800">Processing</Badge>;
+      return <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded text-xs font-medium">Processing</div>;
     case 'shipped':
-      return <Badge variant="outline" className="bg-blue-100 text-blue-800">In Transit</Badge>;
+      return <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-xs font-medium">Shipped</div>;
     case 'delivered':
-      return <Badge variant="outline" className="bg-green-100 text-green-800">Delivered</Badge>;
+      return <div className="bg-green-100 text-green-800 px-3 py-1 rounded text-xs font-medium">Delivered</div>;
     case 'cancelled':
-      return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelled</Badge>;
+      return <div className="bg-red-100 text-red-800 px-3 py-1 rounded text-xs font-medium">Cancelled</div>;
     default:
-      return <Badge variant="outline" className="bg-gray-100 text-gray-800">{status}</Badge>;
+      return <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded text-xs font-medium">{status}</div>;
   }
 };
 
+// Helper component for timeline items
+const TimelineItem = ({ title, date, icon, completed }) => (
+  <div className="flex items-start gap-3">
+    <div className={`mt-1 ${completed ? 'opacity-100' : 'opacity-40'}`}>
+      {icon}
+    </div>
+    <div className={completed ? 'opacity-100' : 'opacity-40'}>
+      <p className="font-medium">{title}</p>
+      {date && (
+        <p className="text-xs text-gray-500">
+          {new Date(date).toLocaleString()}
+        </p>
+      )}
+    </div>
+  </div>
+);
 
-export default SellerOrdersDetail
+export default SellerOrderDetail;

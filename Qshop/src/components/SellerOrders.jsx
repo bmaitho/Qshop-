@@ -207,12 +207,7 @@ const SellerOrders = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => {
-                            console.log('Order Item:', orderItem);
-                            console.log('Order ID:', orderItem.orders?.id);
-                            console.log('Order Item ID:', orderItem.order_id);
-                            navigate(`/orders/${orderItem.orders?.id}`);
-                          }}
+                          onClick={() => navigate(`/seller/order/${orderItem.id}`)}
                         >
                           <FileText className="h-4 w-4 mr-1" />
                           Details

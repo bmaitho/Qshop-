@@ -96,11 +96,11 @@ const App = () => {
               <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" />} />
               <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" />} />
               
+              {/* Make sure this route is properly defined */}
               <Route path="/seller/order/:id" element={token ? <SellerOrderDetail /> : <Navigate to="/auth" />} />
 
-             
               <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" />} />
-              <Route  path="/admin/codes"  element={token ? <WholesalerCodes /> : <Navigate to="/auth" />} />
+              <Route path="/admin/codes" element={token ? <WholesalerCodes /> : <Navigate to="/auth" />} />
 
               {/* Catch-all Route */}
               <Route path="*" element={<NotFound />} />
