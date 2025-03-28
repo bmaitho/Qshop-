@@ -304,10 +304,10 @@ const Login = ({ setToken }) => {
         </div>
 
         <p className="mt-6 text-center text-sm text-foreground/60 dark:text-foreground/60">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
-            Sign Up
-          </Link>
+        Don't have an account?{' '}
+        <Link to="/auth/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
+          Sign Up
+        </Link>
         </p>
       </div>
     </>
