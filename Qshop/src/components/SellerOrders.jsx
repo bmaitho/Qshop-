@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { supabase } from '../components/SupabaseClient';
-import { Tabs, TabsContent, TabsList, TabsTrigger , } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,9 @@ import {
   Package,
   Truck,
   CheckCircle,
-  AlertCircle,
   Search,
   FileText,
-  MessageCircle
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import MessageDialog from './MessageDialog';
 
 const SellerOrders = () => {
@@ -23,7 +20,8 @@ const SellerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();  
+  const navigate = useNavigate();
+  
   useEffect(() => {
     fetchSellerOrders(activeTab);
   }, [activeTab]);
@@ -206,23 +204,28 @@ const SellerOrders = () => {
                         </p>
                       </div>
                       <div className="flex flex-col gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => navigate(`/seller/order/${orderItem.id}`)}
-                      >
-                        <FileText className="h-4 w-4 mr-1" />
-                        Details
-                      </Button>
-                      <MessageDialog 
-                       recipientId={orderItem.orders?.user_id}
-                       productId={orderItem.product_id}
-                       orderId={orderItem.order_id}
-                       buttonText="Contact Buyer"
-                       buttonVariant="outline"
-                       buttonSize="sm"
-                       productName={orderItem.products?.name}
-                     />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            console.log('Order Item:', orderItem);
+                            console.log('Order ID:', orderItem.orders?.id);
+                            console.log('Order Item ID:', orderItem.order_id);
+                            navigate(`/orders/${orderItem.orders?.id}`);
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          Details
+                        </Button>
+                        <MessageDialog 
+                          recipientId={orderItem.orders?.user_id}
+                          productId={orderItem.product_id}
+                          orderId={orderItem.order_id}
+                          buttonText="Contact Buyer"
+                          buttonVariant="outline"
+                          buttonSize="sm"
+                          productName={orderItem.products?.name}
+                        />
                       </div>
                     </div>
                   </div>
