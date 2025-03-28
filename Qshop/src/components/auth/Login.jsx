@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../SupabaseClient';
+import { supabase, getSupabaseKeys } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from 'react-toastify';
@@ -41,16 +41,86 @@ const Login = ({ setToken }) => {
     setAuthError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+      // First try standard Supabase method
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) throw error;
+        
+        // Store token in sessionStorage
+        sessionStorage.setItem('token', JSON.stringify(data));
+        setToken(data);
+        
+        toast.success('Successfully logged in!', {
+          position: "top-right",
+          autoClose: 2000,
+        });
+
+        navigate('/home');
+        return; // Exit early if successful
+      } catch (standardError) {
+        // If standard method failed, try direct API method
+        console.log("Standard login failed, trying direct API method:", standardError);
+        
+        // Fall through to the direct API method if we get a CORS error
+        if (!standardError.message?.includes('CORS') && 
+            !standardError.message?.includes('network') &&
+            !standardError.message?.includes('Failed to fetch')) {
+          // If it's not a CORS or network error, rethrow it
+          throw standardError;
+        }
+      }
+      
+      // Direct API method (backup method for CORS issues)
+      const { url: supabaseUrl, key: supabaseAnonKey } = getSupabaseKeys();
+      
+      // Create a specific headers object for auth
+      const authHeaders = new Headers();
+      authHeaders.append('apikey', supabaseAnonKey);
+      authHeaders.append('Content-Type', 'application/json');
+      
+      // Direct fetch to auth endpoint with proper CORS
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+        mode: 'cors',
       });
-
-      if (error) throw error;
-
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error_description || 'Invalid login credentials');
+      }
+      
+      const authData = await response.json();
+      
+      // Create a session object similar to what supabase.auth.signInWithPassword returns
+      const authResult = {
+        data: {
+          session: {
+            access_token: authData.access_token,
+            refresh_token: authData.refresh_token,
+            user: authData.user
+          },
+          user: authData.user
+        }
+      };
+      
+      // Also update the supabase auth state
+      await supabase.auth.setSession({
+        access_token: authData.access_token,
+        refresh_token: authData.refresh_token
+      });
+      
       // Store token in sessionStorage
-      sessionStorage.setItem('token', JSON.stringify(data));
-      setToken(data);
+      sessionStorage.setItem('token', JSON.stringify(authResult.data));
+      setToken(authResult.data);
       
       toast.success('Successfully logged in!', {
         position: "top-right",
@@ -72,7 +142,7 @@ const Login = ({ setToken }) => {
       } else {
         // Network or server error
         setNetworkError(true);
-        toast.error('Please connect to a secure WiFi connection', {
+        toast.error('Please check your internet connection and try again', {
           position: "top-right",
           autoClose: 5000,
         });
@@ -115,7 +185,7 @@ const Login = ({ setToken }) => {
       } else {
         // Display network error for other errors
         setNetworkError(true);
-        toast.error('Please connect to a secure WiFi connection', {
+        toast.error('Network error. Please check your connection and try again.', {
           position: "top-right",
           autoClose: 5000,
         });
@@ -137,7 +207,7 @@ const Login = ({ setToken }) => {
               <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
               <div>
                 <p className="font-medium">Connection Error</p>
-                <p className="text-sm">Please connect to a secure WiFi connection and try again.</p>
+                <p className="text-sm">Please check your internet connection and try again.</p>
               </div>
             </div>
           </div>
@@ -233,7 +303,7 @@ const Login = ({ setToken }) => {
           </div>
         </div>
 
-        <p className="mt-3 text-center text-sm text-foreground/60 dark:text-foreground/60">
+        <p className="mt-6 text-center text-sm text-foreground/60 dark:text-foreground/60">
           Don't have an account?{' '}
           <Link to="/signup" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
             Sign Up

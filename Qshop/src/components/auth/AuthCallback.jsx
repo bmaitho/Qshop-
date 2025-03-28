@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../SupabaseClient';
+import { supabase, getSupabaseKeys } from '../SupabaseClient';
 import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from 'lucide-react';
@@ -9,11 +9,19 @@ const AuthCallback = ({ setToken }) => {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
+    handleAuthCallback();
+  }, [retryCount]); // Retry when retryCount changes
+
+  const handleAuthCallback = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Try standard method first
       try {
-        setLoading(true);
         // Get the session data
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
@@ -62,18 +70,102 @@ const AuthCallback = ({ setToken }) => {
         
         // Redirect existing user to home page
         navigate('/home');
-      } catch (err) {
-        console.error('Error in auth callback:', err);
-        setError(err.message);
-        toast.error('Authentication failed. Please try again.');
-        navigate('/login');
-      } finally {
-        setLoading(false);
+        return; // Exit if successful
+      } catch (standardError) {
+        // If standard method failed and it's a CORS/network error, try direct API method
+        console.log("Standard callback handling failed, attempting direct method:", standardError);
+        
+        if (!standardError.message?.includes('CORS') && 
+            !standardError.message?.includes('network') &&
+            !standardError.message?.includes('Failed to fetch')) {
+          // If it's not a CORS or network error, rethrow it
+          throw standardError;
+        }
       }
-    };
+      
+      // Fallback to direct URL parameter parsing
+      try {
+        // Parse the URL to get auth parameters
+        const url = new URL(window.location.href);
+        const accessToken = url.hash.match(/access_token=([^&]*)/)?.[1];
+        const refreshToken = url.hash.match(/refresh_token=([^&]*)/)?.[1];
+        
+        if (!accessToken) {
+          throw new Error('No access token found in URL');
+        }
+        
+        // Set the session manually
+        const { data: { user }, error: userError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        
+        if (userError) throw userError;
+        
+        if (!user) {
+          throw new Error('User information not found');
+        }
+        
+        // Check if user exists in profiles
+        const { data: existingProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-    handleAuthCallback();
-  }, [navigate, setToken]);
+        const userExists = existingProfile && !profileError;
+        
+        if (!userExists) {
+          // Sign them out first
+          await supabase.auth.signOut();
+          
+          toast.info('Please sign up for an account first', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          
+          // Redirect to signup
+          navigate('/signup');
+          return;
+        }
+        
+        // Create the token data
+        const session = {
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          user: user,
+        };
+        
+        const tokenData = { session };
+        sessionStorage.setItem('token', JSON.stringify(tokenData));
+        setToken(tokenData);
+        
+        toast.success('Welcome back!', {
+          position: "top-right",
+          autoClose: 2000,
+        });
+        
+        // Redirect existing user to home page
+        navigate('/home');
+      } catch (directMethodError) {
+        console.error("Direct method also failed:", directMethodError);
+        throw directMethodError;
+      }
+    } catch (err) {
+      console.error('Error in auth callback:', err);
+      setError(err.message);
+      toast.error('Authentication failed. Please try again.', {
+        position: "top-right", 
+        autoClose: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+  };
 
   if (loading) {
     return (
@@ -92,12 +184,21 @@ const AuthCallback = ({ setToken }) => {
         </div>
         <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Authentication Error</h2>
         <p className="text-foreground/80 dark:text-foreground/80 mb-4 text-center">{error}</p>
-        <Button 
-          onClick={() => navigate('/login')}
-          className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-primary dark:text-foreground dark:hover:bg-primary/90"
-        >
-          Return to Login
-        </Button>
+        
+        <div className="flex gap-4">
+          <Button 
+            onClick={() => navigate('/login')}
+            className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
+          >
+            Return to Login
+          </Button>
+          <Button 
+            onClick={handleRetry}
+            variant="outline"
+          >
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
