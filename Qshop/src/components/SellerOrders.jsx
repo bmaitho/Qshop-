@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { supabase } from '../components/SupabaseClient';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger , } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,13 +16,14 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import MessageDialog from './MessageDialog';
 
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('new');
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const navigate = useNavigate();  
   useEffect(() => {
     fetchSellerOrders(activeTab);
   }, [activeTab]);
@@ -203,16 +206,23 @@ const SellerOrders = () => {
                         </p>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <Link to={`/seller/order/${orderItem.id}`}>
-                          <Button variant="outline" size="sm">
-                            <FileText className="h-4 w-4 mr-1" />
-                            Details
-                          </Button>
-                        </Link>
-                        <Button variant="outline" size="sm">
-                          <MessageCircle className="h-4 w-4 mr-1" />
-                          Contact Buyer
-                        </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/seller/order/${orderItem.id}`)}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Details
+                      </Button>
+                      <MessageDialog 
+                       recipientId={orderItem.orders?.user_id}
+                       productId={orderItem.product_id}
+                       orderId={orderItem.order_id}
+                       buttonText="Contact Buyer"
+                       buttonVariant="outline"
+                       buttonSize="sm"
+                       productName={orderItem.products?.name}
+                     />
                       </div>
                     </div>
                   </div>

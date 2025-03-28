@@ -25,7 +25,7 @@ import OrderConfirmation from './components/OrderConfirmation';
 import OrderDetails from './components/OrderDetails';
 import WholesalerCodes from './components/admin/WholesalerCodes';
 import SubscriptionPage from './components/SubscriptionPage';
-
+import SellerOrderDetail from './components/SellerOrderDetail';
 
 const App = () => {
   const [token, setToken] = useState(null);
@@ -96,6 +96,8 @@ const App = () => {
               <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" />} />
               <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" />} />
               
+              <Route path="/seller/order/:id" element={token ? <SellerOrderDetail /> : <Navigate to="/auth" />} />
+
              
               <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" />} />
               <Route  path="/admin/codes"  element={token ? <WholesalerCodes /> : <Navigate to="/auth" />} />
