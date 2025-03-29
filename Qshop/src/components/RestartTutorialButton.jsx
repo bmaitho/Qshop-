@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { HelpCircle } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 
 // Create the context
 export const TutorialContext = createContext({
   restartTutorial: () => {},
   isTutorialActive: false,
-  setIsTutorialActive: () => {}
+  setIsTutorialActive: () => {},
+  isInitialized: false
 });
 
 // Hook to use the tutorial context
@@ -19,6 +21,7 @@ export const useTutorial = () => useContext(TutorialContext);
 export const TutorialProvider = ({ children }) => {
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const navigate = useNavigate();
   
   // Check tutorial status on component mount
   useEffect(() => {
@@ -29,7 +32,7 @@ export const TutorialProvider = ({ children }) => {
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('tutorial_completed')
+            .select('tutorial_completed, tutorial_progress')
             .eq('id', user.id)
             .single();
           
@@ -55,19 +58,25 @@ export const TutorialProvider = ({ children }) => {
         // Reset tutorial status in database
         const { error } = await supabase
           .from('profiles')
-          .update({ tutorial_completed: false })
+          .update({ 
+            tutorial_completed: false,
+            tutorial_progress: 'intro' // Start from the beginning
+          })
           .eq('id', user.id);
           
         if (error) {
           throw error;
         }
         
-        toast.success("Tutorial will restart when the page refreshes");
+        toast.success("Tutorial will restart on the home page");
         
-        // Reload the page to restart the tutorial
+        // First navigate to the home page where tutorial starts
+        navigate('/home');
+        
+        // Then reload after a short delay to ensure navigation completes
         setTimeout(() => {
           window.location.reload();
-        }, 1500);
+        }, 500);
       } else {
         toast.error("You need to be logged in to restart the tutorial");
       }
@@ -88,9 +97,6 @@ export const TutorialProvider = ({ children }) => {
     </TutorialContext.Provider>
   );
 };
-
-// Button variants: "default", "destructive", "outline", "secondary", "ghost", "link"
-// Button sizes: "default", "sm", "lg", "icon"
 
 // Button component that can be placed in the UI
 const RestartTutorialButton = ({ 

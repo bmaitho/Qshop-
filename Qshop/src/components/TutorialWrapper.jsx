@@ -2,9 +2,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
-import { supabase } from './SupabaseClient';
-import { useTutorial } from './RestartTutorialButton';
 import { X } from 'lucide-react';
+
+// Import the tutorial steps
+import {
+  getHomeSteps,
+  getMarketplaceSteps,
+  getProductSteps,
+  getMyShopSteps,
+  getCartSteps,
+  getFallbackSteps
+} from '../utils/tutorialSteps';
+
+// Local storage keys for tutorial state
+const TUTORIAL_COMPLETED_KEY = 'unihive_tutorial_completed';
+const TUTORIAL_PROGRESS_KEY = 'unihive_tutorial_progress';
 
 const TutorialWrapper = ({ children }) => {
   const [runTutorial, setRunTutorial] = useState(false);
@@ -14,29 +26,13 @@ const TutorialWrapper = ({ children }) => {
   const [ready, setReady] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
-  const { setIsTutorialActive } = useTutorial();
+  const [tutorialActive, setTutorialActive] = useState(false);
   const targetCheckerRef = useRef(null);
   const location = useLocation();
   
   // Check if mobile or touch experience for appropriate steps
   const isMobileExperience = isMobile || isTouchDevice;
   
-  // Reset target checking and step when route changes
-  useEffect(() => {
-    // If tutorial is running, pause it when changing routes
-    if (runTutorial) {
-      setRunTutorial(false);
-      
-      // Wait for new page to render, then restart element checking
-      setTimeout(() => {
-        setReady(false);
-        setTimeout(() => {
-          setReady(true);
-        }, 1000);
-      }, 300);
-    }
-  }, [location.pathname]);
-
   // Handle responsive design and touch detection
   useEffect(() => {
     const handleResize = () => {
@@ -73,61 +69,80 @@ const TutorialWrapper = ({ children }) => {
     }
   }, []);
 
-  // Check user tutorial status
+  // Check if tutorial should run
   useEffect(() => {
-    const checkTutorialStatus = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
-        
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('tutorial_completed')
-          .eq('id', user.id)
-          .single();
-        
-        if (profile && profile.tutorial_completed === false) {
-          // Don't start immediately - wait for elements to be ready
-          setIsTutorialActive(true);
-          
-          if (debugMode) {
-            console.log('User needs tutorial, waiting for app to load...');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking tutorial status:', error);
-      }
-    };
+    // Check local storage for tutorial status
+    const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
     
-    checkTutorialStatus();
-  }, [debugMode]);
+    if (!tutorialCompleted) {
+      setTutorialActive(true);
+    }
+  }, []);
 
-  // Set up DOM checking
+  // Handle route changes - pause tutorial and reset
   useEffect(() => {
-    // This ensures the app has rendered before checking for elements
+    if (runTutorial) {
+      setRunTutorial(false);
+    }
+    setReady(false);
+    
+    // Wait for the page to load before checking for elements
     const timer = setTimeout(() => {
       setReady(true);
-      if (debugMode) console.log('App ready, checking for tutorial target elements');
-    }, 1500);
+    }, 1000);
     
     return () => clearTimeout(timer);
-  }, [debugMode]);
+  }, [location.pathname]);
 
-  // Determine if a step's target element exists in DOM
-  const checkCurrentStepTarget = (steps, index) => {
-    if (!steps || !steps[index]) return false;
-
-    const currentStep = steps[index];
-    if (!currentStep.target || currentStep.target === 'body') return true;
-
-    // Handle multiple comma-separated selectors
-    const targetSelectors = currentStep.target.split(',').map(s => s.trim());
+  // Start the tutorial when the page is ready
+  useEffect(() => {
+    if (!ready || !tutorialActive) return;
     
-    // Check if any of the potential targets exist
-    return targetSelectors.some(selector => {
+    clearTimeout(targetCheckerRef.current);
+    
+    // Delay a bit to make sure all elements are rendered
+    targetCheckerRef.current = setTimeout(() => {
+      // Check if the elements exist before starting the tutorial
+      if (checkCurrentPageHasTargets()) {
+        setStepIndex(0);
+        setRunTutorial(true);
+        if (debugMode) console.log('Starting tutorial for', location.pathname);
+      } else {
+        if (debugMode) console.log('No tutorial targets found for', location.pathname);
+        // If no elements found, try fallback mode
+        setFallbackMode(true);
+        setStepIndex(0);
+        setRunTutorial(true);
+      }
+    }, 800);
+    
+    return () => clearTimeout(targetCheckerRef.current);
+  }, [ready, location.pathname, tutorialActive]);
+
+  // Check if the current page has valid tutorial targets
+  const checkCurrentPageHasTargets = () => {
+    const steps = getStepsForCurrentPage();
+    if (!steps || steps.length === 0) return false;
+    
+    // Check if at least one step target exists
+    return steps.some((step, index) => {
+      // Skip checks for body targets
+      if (!step.target || step.target === 'body') return true;
+      return checkElementExists(step.target);
+    });
+  };
+
+  // Check if an element exists for the given selector
+  const checkElementExists = (selector) => {
+    if (!selector) return false;
+    
+    // Handle multiple comma-separated selectors
+    const selectors = selector.split(',').map(s => s.trim());
+    
+    // Check if any of the selectors match an element
+    return selectors.some(s => {
       try {
-        const element = document.querySelector(selector);
+        const element = document.querySelector(s);
         return !!element;
       } catch (e) {
         return false;
@@ -135,196 +150,25 @@ const TutorialWrapper = ({ children }) => {
     });
   };
 
-  // Check if tutorial targets exist and start tutorial when ready
-  useEffect(() => {
-    if (!ready) return;
-    
-    clearInterval(targetCheckerRef.current);
-    
-    let attempts = 0;
-    const maxAttempts = 5;
-    
-    // Continuously check for DOM elements to ensure they exist before starting
-    targetCheckerRef.current = setInterval(() => {
-      // Get the appropriate steps based on device type
-      const steps = isMobileExperience ? getMobileSteps() : getDesktopSteps();
-      
-      // Check if the first step's target exists
-      const firstStepExists = checkCurrentStepTarget(steps, 0);
-      
-      if (debugMode) {
-        console.log('Tutorial target check:', {
-          attempt: attempts + 1,
-          firstStepExists,
-          path: location.pathname,
-          isMobileExperience
-        });
-      }
-      
-      if (firstStepExists) {
-        if (debugMode) console.log('Tutorial targets found, starting tutorial');
-        setStepIndex(0);
-        setRunTutorial(true);
-        clearInterval(targetCheckerRef.current);
-      } else {
-        attempts++;
-        
-        if (attempts >= maxAttempts) {
-          // Switch to fallback mode if elements not found
-          if (debugMode) console.log('Tutorial targets not found after multiple attempts, using fallback mode');
-          setFallbackMode(true);
-          setRunTutorial(true);
-          clearInterval(targetCheckerRef.current);
-        }
-      }
-    }, 800);
-    
-    // Clean up interval
-    return () => clearInterval(targetCheckerRef.current);
-  }, [ready, isMobileExperience, debugMode, location.pathname]);
-
-  // Define steps based on device type
-  const getMobileSteps = () => {
-    return [
-      {
-        content: 'Welcome to UniHive! Let\'s learn how to use the app.',
-        placement: 'center',
-        target: 'body',
-        disableBeacon: true,
-        spotlightClicks: false,
-      },
-      {
-        content: 'This is the main navigation. Tap these icons to move between different sections.',
-        placement: 'top',
-        target: '.fixed.bottom-2, .mobile-navbar',
-        disableBeacon: true,
-      },
-      {
-        content: 'Browse our categories to find what you need.',
-        placement: 'bottom',
-        target: '.category-section',
-        disableBeacon: true,
-      },
-      {
-        content: 'View your shopping cart and checkout here.',
-        placement: 'top',
-        target: '.cart-icon, a[href="/cart"]',
-        disableBeacon: true,
-      },
-      {
-        content: 'Access your account settings, orders, and profile information.',
-        placement: 'top',
-        target: 'a[href="/profile"]',
-        disableBeacon: true,
-      }
-    ];
-  };
-
-  const getDesktopSteps = () => {
-    return [
-      {
-        content: 'Welcome to UniHive! Let\'s learn how to use the app.',
-        placement: 'center',
-        target: 'body',
-        disableBeacon: true,
-        spotlightClicks: false,
-      },
-      {
-        content: 'This is the main navigation bar where you can access different parts of the app.',
-        placement: 'bottom',
-        target: '.navbar',
-        disableBeacon: true,
-      },
-      // We'll only show the search step if a search input actually exists
-      ...(document.querySelector('form input[type="search"]') ? [{
-        content: 'Search for products you\'re interested in here.',
-        placement: 'bottom',
-        target: 'form input[type="search"]',
-        disableBeacon: true,
-      }] : []),
-      {
-        content: 'Browse categories to find what you need.',
-        placement: 'bottom',
-        target: '.category-section',
-        disableBeacon: true,
-      },
-      {
-        content: 'Save items you like to your wishlist for later.',
-        placement: 'bottom',
-        target: '.wishlist-icon',
-        disableBeacon: true,
-      },
-      {
-        content: 'View your shopping cart and checkout here.',
-        placement: 'bottom',
-        target: '.cart-icon',
-        disableBeacon: true,
-      },
-      {
-        content: 'Access your account settings, orders, and profile information.',
-        placement: 'bottom',
-        target: '.profile-section',
-        disableBeacon: true,
-      }
-    ];
-  };
-
-  // Fallback tutorial uses body element for all steps
-  const getFallbackSteps = () => [
-    {
-      content: 'Welcome to UniHive! This is your student marketplace.',
-      placement: 'center',
-      target: 'body',
-      disableBeacon: true,
-    },
-    {
-      content: 'You can navigate using the menu at the bottom of the screen.',
-      placement: 'center',
-      target: 'body',
-      disableBeacon: true,
-    },
-    {
-      content: 'Browse products by category or search for specific items.',
-      placement: 'center',
-      target: 'body',
-      disableBeacon: true,
-    },
-    {
-      content: 'Add items to your wishlist or cart as you shop.',
-      placement: 'center',
-      target: 'body',
-      disableBeacon: true,
-    },
-    {
-      content: 'Access your profile to see orders and settings.',
-      placement: 'center',
-      target: 'body',
-      disableBeacon: true,
-    }
-  ];
-
-  // Check if the current step's target exists before showing
-  const ensureStepTargetExists = (steps, index) => {
-    if (index >= steps.length) return false;
-    
-    const targetExists = checkCurrentStepTarget(steps, index);
-    
-    if (!targetExists && index < steps.length - 1) {
-      // Skip to next step if current target doesn't exist
-      setStepIndex(index + 1);
-      return false;
+  // Get steps for the current page
+  const getStepsForCurrentPage = () => {
+    if (location.pathname === '/' || location.pathname === '/home') {
+      return getHomeSteps(isMobileExperience);
+    } else if (location.pathname === '/studentmarketplace' || location.pathname.includes('/search')) {
+      return getMarketplaceSteps(isMobileExperience);
+    } else if (location.pathname.includes('/product/')) {
+      return getProductSteps(isMobileExperience);
+    } else if (location.pathname === '/myshop') {
+      return getMyShopSteps(isMobileExperience);
+    } else if (location.pathname === '/cart') {
+      return getCartSteps(isMobileExperience);
     }
     
-    if (!targetExists && index === steps.length - 1) {
-      // If last step doesn't exist, end the tutorial
-      setRunTutorial(false);
-      return false;
-    }
-    
-    return true;
+    return [];
   };
 
-  const handleJoyrideCallback = async (data) => {
+  // Handle Joyride callbacks
+  const handleJoyrideCallback = (data) => {
     const { action, index, status, type } = data;
     
     // Log detailed info for debugging
@@ -332,70 +176,43 @@ const TutorialWrapper = ({ children }) => {
       console.log('Joyride callback:', { action, index, status, type });
     }
     
-    // Get the appropriate steps
-    const steps = fallbackMode ? getFallbackSteps() : 
-                 isMobileExperience ? getMobileSteps() : 
-                 getDesktopSteps();
+    // Get the appropriate steps based on the current page
+    const steps = fallbackMode ? getFallbackSteps() : getStepsForCurrentPage();
     
     // Handle step changes
     if (type === EVENTS.STEP_AFTER) {
       if (action === ACTIONS.NEXT) {
         const nextIndex = index + 1;
-        setStepIndex(nextIndex);
         
-        // Verify the next step's target exists
-        if (nextIndex < steps.length && !ensureStepTargetExists(steps, nextIndex)) {
-          if (debugMode) console.log(`Target for step ${nextIndex} doesn't exist, skipping`);
+        // If this is the last step, mark the tutorial as completed for this page
+        if (nextIndex >= steps.length) {
+          setRunTutorial(false);
+        } else {
+          setStepIndex(nextIndex);
         }
       } else if (action === ACTIONS.PREV) {
-        const prevIndex = index - 1;
-        setStepIndex(prevIndex);
-        
-        // Verify the previous step's target exists
-        if (prevIndex >= 0 && !ensureStepTargetExists(steps, prevIndex)) {
-          if (debugMode) console.log(`Target for step ${prevIndex} doesn't exist, skipping`);
-        }
+        setStepIndex(Math.max(0, index - 1));
       }
-    }
-    
-    // Handle tour start
-    if (type === EVENTS.TOUR_START) {
-      setIsTutorialActive(true);
     }
     
     // Handle tutorial completion or skipping
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
       // Mark tutorial as completed
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          await supabase
-            .from('profiles')
-            .update({ tutorial_completed: true })
-            .eq('id', user.id);
-            
-          if (debugMode) console.log('Tutorial marked as completed');
-        }
-      } catch (error) {
-        console.error('Error updating tutorial status:', error);
-      }
-      
+      localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
       setRunTutorial(false);
-      setIsTutorialActive(false);
+      setTutorialActive(false);
     }
   };
 
-  // Get the appropriate steps based on mode
-  const activeSteps = fallbackMode ? getFallbackSteps() : 
-                    isMobileExperience ? getMobileSteps() : 
-                    getDesktopSteps();
+  // Get the appropriate steps based on mode and current page
+  const activeSteps = fallbackMode 
+    ? getFallbackSteps() 
+    : getStepsForCurrentPage();
 
-  // Only run tutorial if the current step's target exists
-  const shouldRun = runTutorial && (stepIndex < activeSteps.length) && 
-                    (fallbackMode || ensureStepTargetExists(activeSteps, stepIndex));
+  // Only run tutorial if steps exist
+  const shouldRun = runTutorial && activeSteps.length > 0;
 
-  // Custom components for better mobile experience
+  // Joyride configuration
   const joyrideProps = {
     callback: handleJoyrideCallback,
     continuous: true,
@@ -409,6 +226,13 @@ const TutorialWrapper = ({ children }) => {
     disableOverlayClose: true,
     spotlightClicks: fallbackMode ? true : false,
     spotlightPadding: isMobileExperience ? 40 : 15,
+    hideBackButton: stepIndex === 0,
+    disableOverlay: false,
+    floaterProps: {
+      disableAnimation: isMobileExperience, // Disable animations which can cause rendering issues
+      hideArrow: isMobileExperience, // Hide arrows on mobile which can position incorrectly
+      offset: isMobileExperience ? 40 : 15, // Increase offset on mobile to improve visibility
+    },
     styles: {
       options: {
         zIndex: 10000,
@@ -454,12 +278,7 @@ const TutorialWrapper = ({ children }) => {
         marginTop: '10px',
       },
     },
-    floaterProps: {
-      disableAnimation: isMobileExperience, // Disable animations which can cause rendering issues
-      hideArrow: isMobileExperience, // Hide arrows on mobile which can position incorrectly
-      offset: isMobileExperience ? 40 : 15, // Increase offset on mobile to improve visibility
-    },
-    // Custom components for better mobile UI
+    // Custom tooltip for mobile
     tooltipComponent: isMobileExperience 
       ? ({ continuous, index, isLastStep, step, backProps, primaryProps, skipProps, tooltipProps }) => (
         <div 
@@ -473,7 +292,11 @@ const TutorialWrapper = ({ children }) => {
             <X size={16} />
           </button>
           
-          <div className="mb-4 mt-4">{step.content}</div>
+          {step.title && (
+            <h3 className="text-[#E7C65F] font-bold text-lg mb-2">{step.title}</h3>
+          )}
+          
+          <div className="mb-4 mt-2">{step.content}</div>
           
           <div className="flex justify-between items-center mt-4">
             <div className="text-xs text-white/70">
@@ -513,6 +336,21 @@ const TutorialWrapper = ({ children }) => {
       : undefined
   };
 
+  // The Reset Tutorial function - for the restart button
+  const resetTutorial = () => {
+    localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
+    localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
+    setTutorialActive(true);
+    setFallbackMode(false);
+    setStepIndex(0);
+    setRunTutorial(true);
+  };
+
+  // Make resetTutorial available to other components
+  React.useEffect(() => {
+    window.resetTutorial = resetTutorial;
+  }, []);
+
   return (
     <>
       <Joyride {...joyrideProps} />
@@ -521,7 +359,7 @@ const TutorialWrapper = ({ children }) => {
       {debugMode && (
         <div className="fixed top-0 right-0 bg-black/80 text-white p-2 text-xs z-[10001] max-w-[200px]">
           <div>Mobile: {isMobileExperience ? 'Yes' : 'No'}</div>
-          <div>Run Tutorial: {shouldRun ? 'Yes' : 'No'}</div>
+          <div>Tutorial: {shouldRun ? 'Running' : 'Stopped'}</div>
           <div>Step: {stepIndex + 1}/{activeSteps.length}</div>
           <div>Fallback: {fallbackMode ? 'Yes' : 'No'}</div>
           <div>Ready: {ready ? 'Yes' : 'No'}</div>
@@ -554,6 +392,12 @@ const TutorialWrapper = ({ children }) => {
               disabled={stepIndex === activeSteps.length - 1}
             >
               Next
+            </button>
+            <button 
+              onClick={resetTutorial} 
+              className="bg-green-500 px-2 py-1 rounded"
+            >
+              Reset
             </button>
           </div>
         </div>
