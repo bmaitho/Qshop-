@@ -388,7 +388,7 @@ const TutorialWrapper = ({ children }) => {
 
   // Get the appropriate steps based on mode
   const activeSteps = fallbackMode ? getFallbackSteps() : 
-                    isMobileExperience ? getMobileSteps() : 
+                    isMobileExperience ? getMobiaddleSteps() : 
                     getDesktopSteps();
 
   // Only run tutorial if the current step's target exists
