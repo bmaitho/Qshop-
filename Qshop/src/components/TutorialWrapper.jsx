@@ -18,6 +18,9 @@ const TutorialWrapper = ({ children }) => {
   const targetCheckerRef = useRef(null);
   const location = useLocation();
   
+  // Check if mobile or touch experience for appropriate steps
+  const isMobileExperience = isMobile || isTouchDevice;
+  
   // Reset target checking and step when route changes
   useEffect(() => {
     // If tutorial is running, pause it when changing routes
@@ -111,17 +114,14 @@ const TutorialWrapper = ({ children }) => {
     return () => clearTimeout(timer);
   }, [debugMode]);
 
-  // Determine if we're using mobile experience
-  const isMobileExperience = isMobile || isTouchDevice;
-
-  // Check if the current step's target element exists in DOM
+  // Determine if a step's target element exists in DOM
   const checkCurrentStepTarget = (steps, index) => {
     if (!steps || !steps[index]) return false;
 
     const currentStep = steps[index];
-    if (currentStep.target === 'body') return true;
+    if (!currentStep.target || currentStep.target === 'body') return true;
 
-    // Handle multiple selector options separated by commas
+    // Handle multiple comma-separated selectors
     const targetSelectors = currentStep.target.split(',').map(s => s.trim());
     
     // Check if any of the potential targets exist
@@ -388,7 +388,7 @@ const TutorialWrapper = ({ children }) => {
 
   // Get the appropriate steps based on mode
   const activeSteps = fallbackMode ? getFallbackSteps() : 
-                    isMobileExperience ? getMobiaddleSteps() : 
+                    isMobileExperience ? getMobileSteps() : 
                     getDesktopSteps();
 
   // Only run tutorial if the current step's target exists
