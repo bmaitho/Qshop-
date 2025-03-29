@@ -58,10 +58,5 @@
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
     "vite": "^6.0.3"
-  },
-  "overrides": {
-    "@supabase/supabase-js": {
-      "supabase/auth-js": "2.61.0"
-    }
   }
 }
