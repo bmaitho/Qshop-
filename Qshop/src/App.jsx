@@ -5,6 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ThemeProvider } from './components/ThemeContext';
+import { TutorialProvider } from './components/RestartTutorialButton';
+import TutorialWrapper from './components/TutorialWrapper';
 import SellerProfile from './components/SellerProfile';
 
 // Components
@@ -60,66 +62,78 @@ const App = () => {
     }
   }, [token, loading]);
 
+  // Create a handler to safely log out
+  const handleLogout = () => {
+    setToken(null);
+    sessionStorage.removeItem('token');
+    // No need to navigate here, the effect will handle redirection
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
+  // Separate protected and unprotected components for better management
+  const protectedRoutes = (
+    <Routes>
+      <Route path="/home" element={<Home token={token} />} />
+      <Route path="/studentmarketplace" element={<StudentMarketplace token={token} />} />
+      <Route path="/product/:id" element={<ProductDetails token={token} />} />
+      <Route path="/myshop" element={<MyShop token={token} />} />
+      <Route path="/cart" element={<Cart token={token} />} />
+      <Route path="/seller/:id" element={<SellerProfile />} />
+      <Route path="/wishlist" element={<Wishlist token={token} />} />
+      <Route path="/profile" element={<Profile token={token} />} />
+      <Route path="/category/:categoryName" element={<CategoryPage token={token} />} />
+      <Route path="/checkout/:orderId" element={<Checkout />} />
+      <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
+      <Route path="/orders/:orderId" element={<OrderDetails />} />
+      <Route path="/seller/order/:id" element={<SellerOrderDetail />} />
+      <Route path="/subscription" element={<SubscriptionPage />} />
+      <Route path="/admin/codes" element={<WholesalerCodes />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
+    </Routes>
+  );
+
+  const unprotectedRoutes = (
+    <Routes>
+      <Route path="/" element={<Navigate to="/auth" replace />} />
+      <Route path="/auth/*" element={<AuthLayout setToken={setToken} />} />
+      <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
+      <Route path="/complete-profile" element={<ProfileCompletion token={token} />} />
+      <Route path="*" element={<Navigate to="/auth" replace />} />
+    </Routes>
+  );
+
   return (
     <ThemeProvider>
-      <WishlistProvider>
-        <CartProvider>
-          <div className={isMobile ? "pb-16" : ""}>
-            <Routes>
-              {/* Redirect root to /auth */}
-              <Route path="/" element={<Navigate to="/auth" replace />} />
-              
-              {/* Auth layout that contains both Login and SignUp components */}
-              <Route path="/auth/*" element={<AuthLayout setToken={setToken} />} />
-              
-              {/* Auth callback route - kept separate */}
-              <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
-              
-              {/* Complete profile route */}
-              <Route path="/complete-profile" element={token ? <ProfileCompletion token={token} /> : <Navigate to="/auth" />} />
-              
-              {/* Protected Routes */}
-              <Route path="/home" element={token ? <Home token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/studentmarketplace" element={token ? <StudentMarketplace token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/product/:id" element={token ? <ProductDetails token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/myshop" element={token ? <MyShop token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/cart" element={token ? <Cart token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/seller/:id" element={token ? <SellerProfile /> : <Navigate to="/auth" />} />
-              <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/category/:categoryName" element={token ? <CategoryPage token={token} /> : <Navigate to="/auth" />} />
-              <Route path="/checkout/:orderId" element={token ? <Checkout /> : <Navigate to="/auth" />} />
-              <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" />} />
-              <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" />} />
-              
-              {/* Make sure this route is properly defined */}
-              <Route path="/seller/order/:id" element={token ? <SellerOrderDetail /> : <Navigate to="/auth" />} />
-
-              <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" />} />
-              <Route path="/admin/codes" element={token ? <WholesalerCodes /> : <Navigate to="/auth" />} />
-
-              {/* Catch-all Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-          
-          <ToastContainer 
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-          />
-        </CartProvider>
-      </WishlistProvider>
+      <TutorialProvider>
+        <WishlistProvider>
+          <CartProvider>
+            <div className={isMobile ? "pb-16" : ""}>
+              {token ? (
+                <TutorialWrapper>
+                  {protectedRoutes}
+                </TutorialWrapper>
+              ) : (
+                unprotectedRoutes
+              )}
+            </div>
+            
+            <ToastContainer 
+              position="top-right"
+              autoClose={3000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+            />
+          </CartProvider>
+        </WishlistProvider>
+      </TutorialProvider>
     </ThemeProvider>
   );
 };

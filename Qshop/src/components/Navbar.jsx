@@ -18,6 +18,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { toast } from 'react-toastify';
+import { supabase } from './SupabaseClient';
 import { subscribeToMessages, getUnreadMessageCount } from '../utils/messagingUtils';
 import {
   Sheet,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/tooltip";
 import MobileNavbar from './MobileNavbar';
 import { useTutorial } from './RestartTutorialButton';
+
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -104,11 +106,31 @@ const Navbar = () => {
     return <MobileNavbar />;
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    setUserData(null);
-    toast.success('Logged out successfully');
-    navigate('/auth');
+  const handleLogout = async () => {
+    try {
+      // First make a copy of window.location to use after state is cleared
+      const currentLocation = window.location.href;
+      
+      // Clear session storage BEFORE signing out from Supabase
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('sb-vycftqpspmxdohfbkqjb-auth-token');
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Show success message
+      toast.success('Logged out successfully');
+      
+      // Force a complete page reload to clear all state
+      window.location.href = '/auth';
+      
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast.error('Failed to log out');
+      // Even on error, try to redirect
+      window.location.href = '/auth';
+    }
   };
 
   const handleSearch = (e) => {
@@ -150,7 +172,7 @@ const Navbar = () => {
       <DropdownMenuContent className="w-56 bg-card dark:bg-card border-border dark:border-border" align="end">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userData?.email}</p>
+            <p className="text-sm font-medium leading-none">{userData?.session?.user?.email || userData?.user?.email || 'User'}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator className="bg-border dark:bg-border" />
@@ -179,8 +201,8 @@ const Navbar = () => {
   );
 
   return (
-<nav className="navbar fixed top-0 w-full bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200 z-50">
-<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="navbar fixed top-0 w-full bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200 z-50">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
@@ -216,22 +238,22 @@ const Navbar = () => {
               </Tooltip>
               
               <Tooltip>
-  <TooltipTrigger asChild>
-    <Link to="/profile?tab=messages" className="relative">
-      <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
-        <MessageCircle className="h-5 w-5" style={goldIconStyle} />
-        {unreadMessages > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {unreadMessages}
-          </span>
-        )}
-      </Button>
-    </Link>
-  </TooltipTrigger>
-  <TooltipContent>
-    <p>Messages</p>
-  </TooltipContent>
-</Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/profile?tab=messages" className="relative">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                      <MessageCircle className="h-5 w-5" style={goldIconStyle} />
+                      {unreadMessages > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                          {unreadMessages}
+                        </span>
+                      )}
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Messages</p>
+                </TooltipContent>
+              </Tooltip>
               
               <Tooltip>
                 <TooltipTrigger asChild>

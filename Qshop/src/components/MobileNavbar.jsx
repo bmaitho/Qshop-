@@ -25,22 +25,24 @@ const MobileNavbar = () => {
 
   const handleLogout = async () => {
     try {
+      // Clear session storage BEFORE signing out from Supabase
+      sessionStorage.removeItem('token');
+      localStorage.removeItem('sb-vycftqpspmxdohfbkqjb-auth-token');
+      
       // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
-      
       if (error) throw error;
-      
-      // Clear session storage
-      sessionStorage.removeItem('token');
       
       // Show success message
       toast.success('Logged out successfully');
       
-      // Redirect to login page
-      navigate('/auth');
+      // Force a complete page reload to clear all state
+      window.location.href = '/auth';
     } catch (error) {
       console.error('Error logging out:', error);
       toast.error('Failed to log out');
+      // Even on error, try to redirect
+      window.location.href = '/auth';
     }
   };
   
