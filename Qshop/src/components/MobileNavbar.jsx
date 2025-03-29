@@ -48,11 +48,11 @@ const MobileNavbar = () => {
   
   return (
     <>
-      {/* Top header */}
-      <div className="fixed top-1 left-0 w-full z-50 px-3">
+      {/* Top header - added class for tutorial targeting */}
+      <div className="fixed top-1 left-0 w-full z-50 px-3 mobile-navbar-top">
         <div className="flex items-center justify-between">
           <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full px-3 py-1 shadow-lg border border-border/50 dark:border-border/50">
-            <a href="/home" className="text-base font-bold" style={goldTextStyle}>
+            <a href="/home" className="text-base font-bold unihive-logo" style={goldTextStyle}>
               UniHive
             </a>
           </div>
@@ -60,7 +60,7 @@ const MobileNavbar = () => {
           <div className="flex space-x-2">
             <button 
               onClick={toggleTheme}
-              className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
+              className="theme-toggle bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? (
@@ -71,7 +71,7 @@ const MobileNavbar = () => {
             </button>
             
             <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
-              <a href="/cart" className="relative" aria-label="Cart">
+              <a href="/cart" className="relative cart-icon" aria-label="Cart">
                 <ShoppingCart size={18} style={goldIconStyle} />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-secondary text-primary dark:text-primary text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
@@ -83,7 +83,7 @@ const MobileNavbar = () => {
             
             <button 
               onClick={handleLogout}
-              className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
+              className="logout-button bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
               aria-label="Log out"
             >
               <LogOut size={18} style={goldIconStyle} />
@@ -92,13 +92,14 @@ const MobileNavbar = () => {
         </div>
       </div>
       
-      {/* Bottom navigation - increased z-index and adjusted padding */}
-      <div className="fixed bottom-2 left-0 w-full z-[100] p-2">
-        <div className="bg-card/95 dark:bg-card/95 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-1.5">
+      {/* Bottom navigation - added class for tutorial targeting */}
+      <div className="fixed bottom-2 left-0 w-full z-[100] p-2 mobile-navbar">
+        <div className="mobile-navbar-content bg-card/95 dark:bg-card/95 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-1.5">
           <NavItem 
             href="/home"
             icon={Home}
             label="Home"
+            id="nav-home"  // Added ID for tutorial targeting
             isActive={pathname === '/home'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -108,6 +109,7 @@ const MobileNavbar = () => {
             href="/studentmarketplace"
             icon={Search}
             label="Shop"
+            id="nav-shop"  // Added ID for tutorial targeting
             isActive={pathname === '/studentmarketplace'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -117,6 +119,7 @@ const MobileNavbar = () => {
             href="/myshop"
             icon={Store}
             label="My Shop"
+            id="nav-myshop"  // Added ID for tutorial targeting
             isActive={pathname === '/myshop'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -126,6 +129,7 @@ const MobileNavbar = () => {
             href="/wishlist"
             icon={Heart}
             label="Wishlist"
+            id="nav-wishlist"  // Added ID for tutorial targeting
             isActive={pathname === '/wishlist'}
             badge={wishlistItemCount}
             goldStyle={goldIconStyle}
@@ -136,6 +140,7 @@ const MobileNavbar = () => {
             href="/profile"
             icon={User}
             label="Account"
+            id="nav-profile"  // Added ID for tutorial targeting
             isActive={pathname === '/profile'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -147,10 +152,20 @@ const MobileNavbar = () => {
 };
 
 // Separate NavItem component for cleaner code
-const NavItem = ({ href, icon: Icon, label, isActive, badge, goldStyle, textStyle }) => (
+const NavItem = ({ 
+  href, 
+  icon: Icon, 
+  label, 
+  isActive, 
+  badge, 
+  goldStyle, 
+  textStyle,
+  id
+}) => (
   <a 
     href={href} 
-    className={`flex flex-col items-center px-2 py-1 rounded-full ${
+    id={id} // Added ID for tutorial targeting
+    className={`nav-item flex flex-col items-center px-2 py-1 rounded-full ${
       isActive ? 'bg-background/80 dark:bg-background/80' : ''
     }`}
     aria-label={label}

@@ -35,17 +35,21 @@ const App = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
+    // Check for token in session storage
     const storedToken = sessionStorage.getItem('token');
     if (storedToken) {
       try {
         const parsedToken = JSON.parse(storedToken);
         setToken(parsedToken);
       } catch (error) {
+        // If token is invalid, remove it
+        console.error("Error parsing token:", error);
         sessionStorage.removeItem('token');
       }
     }
     setLoading(false);
 
+    // Set up responsive design listener
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -54,6 +58,7 @@ const App = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Persist token to session storage when it changes
   useEffect(() => {
     if (token) {
       sessionStorage.setItem('token', JSON.stringify(token));
@@ -70,10 +75,15 @@ const App = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent dark:border-primary"></div>
+        <p className="ml-2 text-foreground/80">Loading...</p>
+      </div>
+    );
   }
 
-  // Separate protected and unprotected components for better management
+  // Separate protected and unprotected routes for better management
   const protectedRoutes = (
     <Routes>
       <Route path="/home" element={<Home token={token} />} />
@@ -111,6 +121,7 @@ const App = () => {
         <WishlistProvider>
           <CartProvider>
             <div className={isMobile ? "pb-16" : ""}>
+              {/* Conditionally wrap with TutorialWrapper if authenticated */}
               {token ? (
                 <TutorialWrapper>
                   {protectedRoutes}
@@ -120,6 +131,7 @@ const App = () => {
               )}
             </div>
             
+            {/* Toast container for notifications */}
             <ToastContainer 
               position="top-right"
               autoClose={3000}
@@ -130,6 +142,14 @@ const App = () => {
               pauseOnFocusLoss
               draggable
               pauseOnHover
+              theme="light" // Add theme option for consistency
+              // Adjust container styles for better mobile positioning
+              style={isMobile ? { top: '4rem', maxWidth: '90vw' } : {}}
+              toastStyle={isMobile ? { 
+                fontSize: '14px', 
+                maxWidth: '100%', 
+                margin: '0 auto'
+              } : {}}
             />
           </CartProvider>
         </WishlistProvider>

@@ -1,4 +1,4 @@
-// Updated StudentMarketplace.jsx
+// Updated StudentMarketplace.jsx with enhanced tutorial support
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Filter, Search } from 'lucide-react';
@@ -183,7 +183,7 @@ const StudentMarketplace = ({ token }) => {
           
           {/* Only show search on desktop - mobile has search in navbar */}
           {!isMobile && (
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex gap-2 search-bar">
               <Input
                 type="search"
                 placeholder="Search products..."
@@ -196,7 +196,7 @@ const StudentMarketplace = ({ token }) => {
           )}
         </div>
         
-        {/* Mobile search bar */}
+        {/* Mobile search bar - Added class for tutorial targeting */}
         {isMobile && (
           <div className="search-bar fixed top-12 left-0 w-full z-40 bg-card dark:bg-card px-3 py-2 shadow-sm border-b border-border dark:border-border">
             <form onSubmit={handleSearch} className="flex gap-2">
@@ -217,9 +217,9 @@ const StudentMarketplace = ({ token }) => {
           </div>
         )}
         
-        {/* Mobile categories quick access */}
+        {/* Mobile categories quick access - Added class for tutorial targeting */}
         {isMobile && categories.length > 0 && (
-          <div className="mb-6">
+          <div className="mb-6 category-section">
             <h2 className="text-lg font-semibold mb-3 text-primary dark:text-gray-100">Categories</h2>
             <div className="flex overflow-x-auto space-x-2 pb-2 hide-scrollbar">
               <button
@@ -255,7 +255,7 @@ const StudentMarketplace = ({ token }) => {
           {/* Desktop side filters */}
           {!isMobile && (
             <div className="hidden lg:block w-64 space-y-6">
-              <div className="bg-card dark:bg-card p-4 rounded-lg shadow dark:shadow-gray-900/30 border border-primary/10 dark:border-gray-700">
+              <div className="bg-card dark:bg-card p-4 rounded-lg shadow dark:shadow-gray-900/30 border border-primary/10 dark:border-gray-700 category-section">
                 <FilterContent />
               </div>
             </div>

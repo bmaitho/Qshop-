@@ -153,14 +153,15 @@ const Navbar = () => {
     },
     {
       name: 'My shop',
-      path: '/myshop'
+      path: '/myshop',
+      className: 'shop-link' // Added class for tutorial targeting
     }
   ];
 
   const ProfileDropdown = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Button variant="ghost" className="profile-section relative h-10 w-10 rounded-full">
           <div className="flex items-center space-x-2">
             <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
               <User className="h-4 w-4" style={goldIconStyle} />
@@ -202,7 +203,7 @@ const Navbar = () => {
 
   return (
     <nav className="navbar fixed top-0 w-full bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200 z-50">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
@@ -210,12 +211,12 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-8 main-nav">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
-                className={`${link.path === '/myshop' ? 'shop-link' : ''} transition-colors font-medium`}
+                className={`${link.className || ''} transition-colors font-medium`}
                 style={goldTextStyle}
               >
                 {link.name}
@@ -224,7 +225,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Right Section */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-4 nav-actions">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -239,7 +240,7 @@ const Navbar = () => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link to="/profile?tab=messages" className="relative">
+                  <Link to="/profile?tab=messages" className="relative message-icon">
                     <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
                       <MessageCircle className="h-5 w-5" style={goldIconStyle} />
                       {unreadMessages > 0 && (
@@ -296,7 +297,7 @@ const Navbar = () => {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="hover:bg-accent dark:hover:bg-accent"
+                    className="tutorial-help hover:bg-accent dark:hover:bg-accent"
                     onClick={() => restartTutorial()}
                   >
                     <HelpCircle className="h-5 w-5" style={goldIconStyle} />
