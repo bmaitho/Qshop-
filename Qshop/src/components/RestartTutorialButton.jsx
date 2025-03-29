@@ -2,9 +2,12 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from 'lucide-react';
-import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+
+// Local storage keys for tutorial state
+const TUTORIAL_COMPLETED_KEY = 'unihive_tutorial_completed';
+const TUTORIAL_PROGRESS_KEY = 'unihive_tutorial_progress';
 
 // Create the context
 export const TutorialContext = createContext({
@@ -25,20 +28,13 @@ export const TutorialProvider = ({ children }) => {
   
   // Check tutorial status on component mount
   useEffect(() => {
-    const checkTutorialStatus = async () => {
+    const checkTutorialStatus = () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
         
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('tutorial_completed, tutorial_progress')
-            .eq('id', user.id)
-            .single();
-          
-          if (profile && profile.tutorial_completed === false) {
-            setIsTutorialActive(true);
-          }
+        // If tutorial is not marked as completed, set it as active
+        if (!tutorialCompleted) {
+          setIsTutorialActive(true);
         }
       } catch (error) {
         console.error('Error checking tutorial status:', error);
@@ -50,36 +46,22 @@ export const TutorialProvider = ({ children }) => {
     checkTutorialStatus();
   }, []);
   
-  const restartTutorial = async () => {
+  const restartTutorial = () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Reset tutorial status in local storage
+      localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
+      localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
       
-      if (user) {
-        // Reset tutorial status in database
-        const { error } = await supabase
-          .from('profiles')
-          .update({ 
-            tutorial_completed: false,
-            tutorial_progress: 'intro' // Start from the beginning
-          })
-          .eq('id', user.id);
-          
-        if (error) {
-          throw error;
-        }
-        
-        toast.success("Tutorial will restart on the home page");
-        
-        // First navigate to the home page where tutorial starts
-        navigate('/home');
-        
-        // Then reload after a short delay to ensure navigation completes
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      } else {
-        toast.error("You need to be logged in to restart the tutorial");
-      }
+      setIsTutorialActive(true);
+      toast.success("Tutorial will restart on the home page");
+      
+      // First navigate to the home page where tutorial starts
+      navigate('/home');
+      
+      // Then reload after a short delay to ensure navigation completes
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       console.error('Error restarting tutorial:', error);
       toast.error("Failed to restart tutorial");

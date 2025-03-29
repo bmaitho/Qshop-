@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
 import { X } from 'lucide-react';
+import { useTutorial } from './RestartTutorialButton';
 
 // Import the tutorial steps
 import {
@@ -19,6 +20,7 @@ const TUTORIAL_COMPLETED_KEY = 'unihive_tutorial_completed';
 const TUTORIAL_PROGRESS_KEY = 'unihive_tutorial_progress';
 
 const TutorialWrapper = ({ children }) => {
+  const { isTutorialActive, setIsTutorialActive } = useTutorial();
   const [runTutorial, setRunTutorial] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -26,7 +28,6 @@ const TutorialWrapper = ({ children }) => {
   const [ready, setReady] = useState(false);
   const [fallbackMode, setFallbackMode] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
-  const [tutorialActive, setTutorialActive] = useState(false);
   const targetCheckerRef = useRef(null);
   const location = useLocation();
   
@@ -69,16 +70,6 @@ const TutorialWrapper = ({ children }) => {
     }
   }, []);
 
-  // Check if tutorial should run
-  useEffect(() => {
-    // Check local storage for tutorial status
-    const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
-    
-    if (!tutorialCompleted) {
-      setTutorialActive(true);
-    }
-  }, []);
-
   // Handle route changes - pause tutorial and reset
   useEffect(() => {
     if (runTutorial) {
@@ -96,12 +87,20 @@ const TutorialWrapper = ({ children }) => {
 
   // Start the tutorial when the page is ready
   useEffect(() => {
-    if (!ready || !tutorialActive) return;
+    if (!ready) return;
+    
+    // Force check localStorage directly here to ensure it's current
+    const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
+    const shouldStartTutorial = !tutorialCompleted || isTutorialActive;
+    
+    if (!shouldStartTutorial) return;
     
     clearTimeout(targetCheckerRef.current);
     
     // Delay a bit to make sure all elements are rendered
     targetCheckerRef.current = setTimeout(() => {
+      console.log('Attempting to start tutorial for', location.pathname);
+      
       // Check if the elements exist before starting the tutorial
       if (checkCurrentPageHasTargets()) {
         setStepIndex(0);
@@ -117,7 +116,7 @@ const TutorialWrapper = ({ children }) => {
     }, 800);
     
     return () => clearTimeout(targetCheckerRef.current);
-  }, [ready, location.pathname, tutorialActive]);
+  }, [ready, location.pathname, isTutorialActive]);
 
   // Check if the current page has valid tutorial targets
   const checkCurrentPageHasTargets = () => {
@@ -181,6 +180,12 @@ const TutorialWrapper = ({ children }) => {
     
     // Handle step changes
     if (type === EVENTS.STEP_AFTER) {
+      // Save progress in local storage
+      localStorage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({
+        pathname: location.pathname,
+        index: index + 1
+      }));
+      
       if (action === ACTIONS.NEXT) {
         const nextIndex = index + 1;
         
@@ -200,7 +205,7 @@ const TutorialWrapper = ({ children }) => {
       // Mark tutorial as completed
       localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
       setRunTutorial(false);
-      setTutorialActive(false);
+      setIsTutorialActive(false);
     }
   };
 
@@ -336,73 +341,65 @@ const TutorialWrapper = ({ children }) => {
       : undefined
   };
 
-  // The Reset Tutorial function - for the restart button
-  const resetTutorial = () => {
-    localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
-    localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
-    setTutorialActive(true);
-    setFallbackMode(false);
-    setStepIndex(0);
-    setRunTutorial(true);
-  };
-
-  // Make resetTutorial available to other components
-  React.useEffect(() => {
-    window.resetTutorial = resetTutorial;
-  }, []);
+  // Debug panel
+  const DebugPanel = () => (
+    <div className="fixed top-0 right-0 bg-black/80 text-white p-2 text-xs z-[10001] max-w-[200px]">
+      <div>Mobile: {isMobileExperience ? 'Yes' : 'No'}</div>
+      <div>Tutorial: {shouldRun ? 'Running' : 'Stopped'}</div>
+      <div>Step: {stepIndex + 1}/{activeSteps.length}</div>
+      <div>Fallback: {fallbackMode ? 'Yes' : 'No'}</div>
+      <div>Ready: {ready ? 'Yes' : 'No'}</div>
+      <div>Path: {location.pathname.substring(0, 15)}</div>
+      <div className="flex gap-1 mt-1">
+        <button 
+          onClick={() => setRunTutorial(!runTutorial)} 
+          className="bg-blue-500 px-2 py-1 rounded"
+        >
+          {runTutorial ? 'Stop' : 'Start'}
+        </button>
+        <button 
+          onClick={() => setFallbackMode(!fallbackMode)} 
+          className="bg-orange-500 px-2 py-1 rounded"
+        >
+          {fallbackMode ? 'Normal' : 'Fallback'}
+        </button>
+      </div>
+      <div className="flex gap-1 mt-1">
+        <button 
+          onClick={() => setStepIndex(Math.max(0, stepIndex - 1))} 
+          className="bg-gray-500 px-2 py-1 rounded"
+          disabled={stepIndex === 0}
+        >
+          Prev
+        </button>
+        <button 
+          onClick={() => setStepIndex(Math.min(activeSteps.length - 1, stepIndex + 1))} 
+          className="bg-gray-500 px-2 py-1 rounded"
+          disabled={stepIndex === activeSteps.length - 1}
+        >
+          Next
+        </button>
+        <button 
+          onClick={() => {
+            localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
+            localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
+            setIsTutorialActive(true);
+            setFallbackMode(false);
+            setStepIndex(0);
+            setRunTutorial(true);
+          }} 
+          className="bg-green-500 px-2 py-1 rounded"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <Joyride {...joyrideProps} />
-      
-      {/* Debug panel */}
-      {debugMode && (
-        <div className="fixed top-0 right-0 bg-black/80 text-white p-2 text-xs z-[10001] max-w-[200px]">
-          <div>Mobile: {isMobileExperience ? 'Yes' : 'No'}</div>
-          <div>Tutorial: {shouldRun ? 'Running' : 'Stopped'}</div>
-          <div>Step: {stepIndex + 1}/{activeSteps.length}</div>
-          <div>Fallback: {fallbackMode ? 'Yes' : 'No'}</div>
-          <div>Ready: {ready ? 'Yes' : 'No'}</div>
-          <div>Path: {location.pathname.substring(0, 15)}</div>
-          <div className="flex gap-1 mt-1">
-            <button 
-              onClick={() => setRunTutorial(!runTutorial)} 
-              className="bg-blue-500 px-2 py-1 rounded"
-            >
-              {runTutorial ? 'Stop' : 'Start'}
-            </button>
-            <button 
-              onClick={() => setFallbackMode(!fallbackMode)} 
-              className="bg-orange-500 px-2 py-1 rounded"
-            >
-              {fallbackMode ? 'Normal' : 'Fallback'}
-            </button>
-          </div>
-          <div className="flex gap-1 mt-1">
-            <button 
-              onClick={() => setStepIndex(Math.max(0, stepIndex - 1))} 
-              className="bg-gray-500 px-2 py-1 rounded"
-              disabled={stepIndex === 0}
-            >
-              Prev
-            </button>
-            <button 
-              onClick={() => setStepIndex(Math.min(activeSteps.length - 1, stepIndex + 1))} 
-              className="bg-gray-500 px-2 py-1 rounded"
-              disabled={stepIndex === activeSteps.length - 1}
-            >
-              Next
-            </button>
-            <button 
-              onClick={resetTutorial} 
-              className="bg-green-500 px-2 py-1 rounded"
-            >
-              Reset
-            </button>
-          </div>
-        </div>
-      )}
-      
+      {debugMode && <DebugPanel />}
       {children}
     </>
   );
