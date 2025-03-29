@@ -351,7 +351,7 @@ const MyShop = () => {
                 
                 <Sheet open={showAddProduct} onOpenChange={setShowAddProduct}>
                   <SheetTrigger asChild>
-                    <Button size="sm" className="flex-1">
+                    <Button size="sm" className="flex-1 add-product-button">
                       <Plus className="w-4 h-4 mr-1" />
                       New Listing
                     </Button>
@@ -392,7 +392,7 @@ const MyShop = () => {
                 
                 <Sheet open={showAddProduct} onOpenChange={setShowAddProduct}>
                   <SheetTrigger asChild>
-                    <Button>
+                    <Button className="add-product-button">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Product
                     </Button>
@@ -481,7 +481,7 @@ const MyShop = () => {
               <Package className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Products</span>
             </TabsTrigger>
-            <TabsTrigger value="orders">
+            <TabsTrigger value="orders" className="orders-tab">
               <ShoppingBag className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Orders</span>
               {statistics.pendingOrders > 0 && (

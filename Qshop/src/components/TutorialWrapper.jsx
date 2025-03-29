@@ -30,6 +30,9 @@ const TutorialWrapper = ({ children }) => {
   const [debugMode, setDebugMode] = useState(false);
   const targetCheckerRef = useRef(null);
   const location = useLocation();
+  const [hasCompletedTutorial, setHasCompletedTutorial] = useState(
+    localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true'
+  );
   
   // Check if mobile or touch experience for appropriate steps
   const isMobileExperience = isMobile || isTouchDevice;
@@ -87,20 +90,83 @@ const TutorialWrapper = ({ children }) => {
 
   // Start the tutorial when the page is ready
   useEffect(() => {
-    if (!ready) return;
-    
-    // Force check localStorage directly here to ensure it's current
+    // Check local storage for tutorial status
     const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
-    const shouldStartTutorial = !tutorialCompleted || isTutorialActive;
     
-    if (!shouldStartTutorial) return;
+    // If tutorial is already completed, don't activate it again
+    if (tutorialCompleted) {
+      setIsTutorialActive(false);
+      setHasCompletedTutorial(true);
+    } else {
+      setIsTutorialActive(true);
+    }
+  }, []);
+  
+  // In handleJoyrideCallback function
+const handleJoyrideCallback = (data) => {
+  const { action, index, status, type } = data;
+  
+  // Special handling for cart page - when completing the cart tutorial, mark as done permanently
+  if (location.pathname === '/cart') {
+    if ((type === EVENTS.STEP_AFTER && index === (activeSteps.length - 1)) || 
+        [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      // Definitively end the tutorial - no more steps anywhere
+      localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
+      setRunTutorial(false);
+      setIsTutorialActive(false); // Use the correct state setter
+      return; // Exit early
+    }
+  }
+  
+  // Normal flow for other pages...
+  const steps = fallbackMode ? getFallbackSteps() : getStepsForCurrentPage();
+  
+  // Handle step changes
+  if (type === EVENTS.STEP_AFTER) {
+    if (action === ACTIONS.NEXT) {
+      const nextIndex = index + 1;
+      
+      if (nextIndex >= steps.length) {
+        setRunTutorial(false);
+      } else {
+        setStepIndex(nextIndex);
+      }
+    } else if (action === ACTIONS.PREV) {
+      setStepIndex(Math.max(0, index - 1));
+    }
+  }
+};
+  // Modify the useEffect for route changes - add hasCompletedTutorial check
+  useEffect(() => {
+    // If tutorial has been completed, don't run it again
+    if (hasCompletedTutorial) {
+      setRunTutorial(false);
+      setIsTutorialActive(false);
+      return;
+    }
+    
+    if (runTutorial) {
+      setRunTutorial(false);
+    }
+    setReady(false);
+    
+    // Wait for the page to load before checking for elements
+    const timer = setTimeout(() => {
+      setReady(true);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [location.pathname, hasCompletedTutorial]);
+  
+  // Similarly, modify the useEffect that starts the tutorial
+  useEffect(() => {
+    // If tutorial has been completed, don't run it
+    if (!ready || !isTutorialActive || hasCompletedTutorial) return;
     
     clearTimeout(targetCheckerRef.current);
     
     // Delay a bit to make sure all elements are rendered
     targetCheckerRef.current = setTimeout(() => {
-      console.log('Attempting to start tutorial for', location.pathname);
-      
       // Check if the elements exist before starting the tutorial
       if (checkCurrentPageHasTargets()) {
         setStepIndex(0);
@@ -116,21 +182,44 @@ const TutorialWrapper = ({ children }) => {
     }, 800);
     
     return () => clearTimeout(targetCheckerRef.current);
-  }, [ready, location.pathname, isTutorialActive]);
+  }, [ready, location.pathname, isTutorialActive, hasCompletedTutorial]);// Add isTutorialActive to dependency array
 
   // Check if the current page has valid tutorial targets
-  const checkCurrentPageHasTargets = () => {
-    const steps = getStepsForCurrentPage();
-    if (!steps || steps.length === 0) return false;
-    
-    // Check if at least one step target exists
-    return steps.some((step, index) => {
-      // Skip checks for body targets
-      if (!step.target || step.target === 'body') return true;
-      return checkElementExists(step.target);
-    });
-  };
-
+  // In TutorialWrapper.jsx, modify the checkCurrentPageHasTargets function
+const checkCurrentPageHasTargets = () => {
+  // First check if the tutorial has been completed
+  const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
+  
+  // If the tutorial is completed and we're on a page without specific steps (like wishlist),
+  // don't trigger the fallback steps
+  if (tutorialCompleted) {
+    const currentPath = location.pathname;
+    const hasSpecificTutorial = 
+      currentPath === '/' || 
+      currentPath === '/home' ||
+      currentPath === '/studentmarketplace' || 
+      currentPath.includes('/search') ||
+      currentPath.includes('/product/') ||
+      currentPath === '/myshop' ||
+      currentPath === '/cart';
+      
+    // If we're on a page without specific steps, don't show any tutorial
+    if (!hasSpecificTutorial) {
+      return false;
+    }
+  }
+  
+  // Regular check for specific tutorial steps
+  const steps = getStepsForCurrentPage();
+  if (!steps || steps.length === 0) return false;
+  
+  // Check if at least one step target exists
+  return steps.some((step, index) => {
+    // Skip checks for body targets
+    if (!step.target || step.target === 'body') return true;
+    return checkElementExists(step.target);
+  });
+};
   // Check if an element exists for the given selector
   const checkElementExists = (selector) => {
     if (!selector) return false;
@@ -166,49 +255,7 @@ const TutorialWrapper = ({ children }) => {
     return [];
   };
 
-  // Handle Joyride callbacks
-  const handleJoyrideCallback = (data) => {
-    const { action, index, status, type } = data;
-    
-    // Log detailed info for debugging
-    if (debugMode) {
-      console.log('Joyride callback:', { action, index, status, type });
-    }
-    
-    // Get the appropriate steps based on the current page
-    const steps = fallbackMode ? getFallbackSteps() : getStepsForCurrentPage();
-    
-    // Handle step changes
-    if (type === EVENTS.STEP_AFTER) {
-      // Save progress in local storage
-      localStorage.setItem(TUTORIAL_PROGRESS_KEY, JSON.stringify({
-        pathname: location.pathname,
-        index: index + 1
-      }));
-      
-      if (action === ACTIONS.NEXT) {
-        const nextIndex = index + 1;
-        
-        // If this is the last step, mark the tutorial as completed for this page
-        if (nextIndex >= steps.length) {
-          setRunTutorial(false);
-        } else {
-          setStepIndex(nextIndex);
-        }
-      } else if (action === ACTIONS.PREV) {
-        setStepIndex(Math.max(0, index - 1));
-      }
-    }
-    
-    // Handle tutorial completion or skipping
-    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      // Mark tutorial as completed
-      localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
-      setRunTutorial(false);
-      setIsTutorialActive(false);
-    }
-  };
-
+ 
   // Get the appropriate steps based on mode and current page
   const activeSteps = fallbackMode 
     ? getFallbackSteps() 

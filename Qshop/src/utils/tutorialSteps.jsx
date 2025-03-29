@@ -125,21 +125,21 @@ export const getHomeSteps = (isMobileExperience) => {
         title: 'Add New Products',
         content: 'Click here to add new products to your shop.',
         placement: 'bottom',
-        target: 'button:has(svg[data-lucide="Plus"]), button:contains("Add Product")',
+        target: '.add-product-button',
         disableBeacon: true,
       },
       {
         title: 'Manage Your Listings',
         content: 'Here you can see and manage all your product listings.',
         placement: 'top',
-        target: '.product-card',
+        target: '.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-3, div[class*="grid-cols"]',
         disableBeacon: true,
       },
       {
         title: 'Track Orders',
         content: 'The Orders tab lets you manage and track orders from customers.',
         placement: 'bottom',
-        target: 'button:contains("Orders")',
+        target: '.orders-tab, [value="orders"]',
         disableBeacon: true,
       },
       {
@@ -152,13 +152,17 @@ export const getHomeSteps = (isMobileExperience) => {
       }
     ];
   };
-  
   /**
    * Get steps for the shopping cart
    * @param {boolean} isMobileExperience - Whether user is on mobile or touch device
    * @returns {Array} Array of tutorial step objects
    */
   export const getCartSteps = (isMobileExperience) => {
+    // Check if cart is empty by looking for elements that would indicate items
+    const hasItems = document.querySelector('.product-card') || 
+                    document.querySelector('[class*="checkout"]') ||
+                    document.querySelector('[class*="proceed"]');
+    
     return [
       {
         title: 'Shopping Cart',
@@ -167,13 +171,24 @@ export const getHomeSteps = (isMobileExperience) => {
         target: 'body',
         disableBeacon: true,
       },
-      {
-        title: 'Checkout Process',
-        content: 'When you\'re ready to buy, you can proceed to checkout and pay for your items.',
-        placement: 'bottom',
-        target: 'button:contains("Checkout"), button:contains("Proceed to Checkout")',
-        disableBeacon: true,
-      },
+      // Conditional step based on whether there are items
+      ...(hasItems ? [
+        {
+          title: 'Checkout Process',
+          content: 'When you\'re ready to buy, you can proceed to checkout and pay for your items.',
+          placement: 'bottom',
+          target: '[class*="checkout"], button[class*="bg-secondary"], button.w-full',
+          disableBeacon: true,
+        }
+      ] : [
+        {
+          title: 'Empty Cart',
+          content: 'Your cart is currently empty. Add items from the marketplace before proceeding to checkout.',
+          placement: 'bottom',
+          target: 'a[href="/studentmarketplace"]',
+          disableBeacon: true,
+        }
+      ]),
       {
         title: 'Congratulations!',
         content: 'You\'ve completed the tutorial! Now you know how to navigate UniHive, browse and buy products, and even sell your own items.',
