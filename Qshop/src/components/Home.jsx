@@ -164,40 +164,37 @@ const Home = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="category-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {categories.map((category, index) => {
             const Icon = category.icon;
             return (
               <div 
                 key={index} 
-                className="cursor-pointer group"
+                className="category-card cursor-pointer group"
                 onClick={() => navigate(category.path)}
               >
-                <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 border-none bg-black">
-                  <div className="relative">
-                    <div className="w-full h-48 overflow-hidden">
-                      <img 
-                        src={category.image}
-                        alt={category.name}
-                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-                      />
-                      {/* Gradient overlay with additional dark base for white backgrounds */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#113b1e] via-[#113b1e]/60 to-transparent opacity-90"></div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent"></div>
-                    </div>
-                    <div className="absolute top-4 right-4 bg-white/90 p-2 rounded-full">
-                      <Icon className="w-6 h-6 text-[#113b1e]" />
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 p-6">
-                      <h3 className="font-serif text-xl font-bold mb-2 text-white group-hover:text-[#e7c65f] transition-colors drop-shadow-lg">
-                        {category.name}
-                      </h3>
-                      <p className="text-white text-sm drop-shadow-lg font-medium">
-                        {category.description}
-                      </p>
-                    </div>
+                <div className="relative">
+                  <div className="w-full h-48 overflow-hidden">
+                    <img 
+                      src={category.image}
+                      alt={category.name}
+                      className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#113b1e] via-[#113b1e]/60 to-transparent opacity-90"></div>
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent"></div>
                   </div>
-                </Card>
+                  <div className="absolute top-4 right-4 bg-white/90 p-2 rounded-full">
+                    <Icon className="w-6 h-6 text-[#113b1e]" />
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 p-6">
+                    <h3 className="font-serif text-xl font-bold mb-2 text-white group-hover:text-[#e7c65f] transition-colors drop-shadow-lg">
+                      {category.name}
+                    </h3>
+                    <p className="text-white text-sm drop-shadow-lg font-medium">
+                      {category.description}
+                    </p>
+                  </div>
+                </div>
               </div>
             );
           })}

@@ -198,7 +198,7 @@ const StudentMarketplace = ({ token }) => {
         
         {/* Mobile search bar */}
         {isMobile && (
-          <div className="mb-4">
+          <div className="search-bar fixed top-12 left-0 w-full z-40 bg-card dark:bg-card px-3 py-2 shadow-sm border-b border-border dark:border-border">
             <form onSubmit={handleSearch} className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-primary/50 dark:text-gray-400" />

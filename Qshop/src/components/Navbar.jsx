@@ -9,7 +9,8 @@ import {
   Package,
   ChevronDown,
   Search,
-  MessageCircle
+  MessageCircle,
+  HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import MobileNavbar from './MobileNavbar';
-
+import { useTutorial } from './RestartTutorialButton';
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -51,6 +52,7 @@ const Navbar = () => {
   const [userData, setUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { restartTutorial } = useTutorial();
   
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -177,8 +179,8 @@ const Navbar = () => {
   );
 
   return (
-    <nav className="bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<nav className="navbar fixed top-0 w-full bg-card dark:bg-card border-b border-border dark:border-border shadow-sm transition-colors duration-200 z-50">
+<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
           <Link to="/home" className="flex-shrink-0 flex items-center">
@@ -191,7 +193,7 @@ const Navbar = () => {
               <Link
                 key={link.name}
                 to={link.path}
-                className="transition-colors font-medium"
+                className={`${link.path === '/myshop' ? 'shop-link' : ''} transition-colors font-medium`}
                 style={goldTextStyle}
               >
                 {link.name}
@@ -233,7 +235,7 @@ const Navbar = () => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link to="/wishlist" className="relative">
+                  <Link to="/wishlist" className="wishlist-icon relative">
                     <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
                       <Heart className="h-5 w-5" style={goldIconStyle} />
                       {wishlist?.length > 0 && (
@@ -251,7 +253,7 @@ const Navbar = () => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Link to="/cart" className="relative">
+                  <Link to="/cart" className="cart-icon relative">
                     <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
                       <ShoppingCart className="h-5 w-5" style={goldIconStyle} />
                       {cart?.length > 0 && (
@@ -264,6 +266,22 @@ const Navbar = () => {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Shopping Cart</p>
+                </TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="hover:bg-accent dark:hover:bg-accent"
+                    onClick={() => restartTutorial()}
+                  >
+                    <HelpCircle className="h-5 w-5" style={goldIconStyle} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Tutorial</p>
                 </TooltipContent>
               </Tooltip>
               
