@@ -331,9 +331,9 @@ const MyShop = () => {
               <>
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
-                    <Button variant="outline" size="sm" className="flex-1 mr-2">
-                      <Settings className="w-4 h-4 mr-1" /> Edit Shop
-                    </Button>
+                  <Button variant="outline" size="sm" className="flex-1 mr-2 customize-shop-button">
+  <Settings className="w-4 h-4 mr-1" /> Edit Shop
+</Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
@@ -371,10 +371,10 @@ const MyShop = () => {
               <>
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
-                    <Button variant="outline">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Customize Shop
-                    </Button>
+                  <Button variant="outline" className="customize-shop-button">
+  <Settings className="w-4 h-4 mr-2" />
+  Customize Shop
+</Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
