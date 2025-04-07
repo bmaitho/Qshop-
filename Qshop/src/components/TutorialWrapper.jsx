@@ -1,9 +1,10 @@
 // src/components/TutorialWrapper.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
 import { X } from 'lucide-react';
 import { useTutorial } from './RestartTutorialButton';
+
 
 // Import the tutorial steps
 import {
@@ -30,6 +31,7 @@ const TutorialWrapper = ({ children }) => {
   const [debugMode, setDebugMode] = useState(false);
   const targetCheckerRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const [hasCompletedTutorial, setHasCompletedTutorial] = useState(
     localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true'
   );
@@ -103,39 +105,61 @@ const TutorialWrapper = ({ children }) => {
   }, []);
   
   // In handleJoyrideCallback function
-const handleJoyrideCallback = (data) => {
-  const { action, index, status, type } = data;
-  
-  // Special handling for cart page - when completing the cart tutorial, mark as done permanently
-  if (location.pathname === '/cart') {
-    if ((type === EVENTS.STEP_AFTER && index === (activeSteps.length - 1)) || 
-        [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      // Definitively end the tutorial - no more steps anywhere
-      localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
-      setRunTutorial(false);
-      setIsTutorialActive(false); // Use the correct state setter
-      return; // Exit early
-    }
-  }
-  
-  // Normal flow for other pages...
-  const steps = fallbackMode ? getFallbackSteps() : getStepsForCurrentPage();
-  
-  // Handle step changes
-  if (type === EVENTS.STEP_AFTER) {
-    if (action === ACTIONS.NEXT) {
-      const nextIndex = index + 1;
-      
-      if (nextIndex >= steps.length) {
+  const handleJoyrideCallback = (data) => {
+    const { action, index, status, type } = data;
+    
+    // Special handling for cart page - when completing the cart tutorial, mark as done permanently
+    if (location.pathname === '/cart') {
+      if ((type === EVENTS.STEP_AFTER && index === (activeSteps.length - 1)) || 
+          [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+        // Definitively end the tutorial - no more steps anywhere
+        localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
         setRunTutorial(false);
-      } else {
-        setStepIndex(nextIndex);
+        setIsTutorialActive(false);
+        return;
       }
-    } else if (action === ACTIONS.PREV) {
-      setStepIndex(Math.max(0, index - 1));
     }
-  }
-};
+    
+    // Normal flow for other pages...
+    const steps = fallbackMode ? getFallbackSteps() : getStepsForCurrentPage();
+    
+    // Handle step changes
+    if (type === EVENTS.STEP_AFTER) {
+      if (action === ACTIONS.NEXT) {
+        const nextIndex = index + 1;
+        
+        // Check if we've reached the end of steps for this page
+        if (nextIndex >= steps.length) {
+          setRunTutorial(false);
+          
+          // Navigate based on current page
+          if (location.pathname === '/' || location.pathname === '/home') {
+            navigate('/studentmarketplace');
+          } else if (location.pathname === '/studentmarketplace' || location.pathname.includes('/search')) {
+            // Find a product to navigate to
+            // This is a simplification - would need product data
+            const productElements = document.querySelectorAll('.product-card a');
+            if (productElements.length > 0) {
+              const href = productElements[0].getAttribute('href');
+              if (href) navigate(href);
+              else navigate('/myshop'); // Fallback
+            } else {
+              navigate('/myshop'); // Fallback if no products found
+            }
+          } else if (location.pathname.includes('/product/')) {
+            navigate('/myshop');
+          } else if (location.pathname === '/myshop') {
+            navigate('/cart');
+          }
+          // Cart is the final page
+        } else {
+          setStepIndex(nextIndex);
+        }
+      } else if (action === ACTIONS.PREV) {
+        setStepIndex(Math.max(0, index - 1));
+      }
+    }
+  };
   // Modify the useEffect for route changes - add hasCompletedTutorial check
   useEffect(() => {
     // If tutorial has been completed, don't run it again
@@ -331,61 +355,62 @@ const checkCurrentPageHasTargets = () => {
       },
     },
     // Custom tooltip for mobile
-    tooltipComponent: isMobileExperience 
-      ? ({ continuous, index, isLastStep, step, backProps, primaryProps, skipProps, tooltipProps }) => (
-        <div 
-          {...tooltipProps} 
-          className="bg-[#113b1e] text-white p-4 rounded-lg shadow-xl max-w-[300px] mx-auto"
+    tooltipComponent: ({ continuous, index, isLastStep, step, backProps, primaryProps, skipProps, tooltipProps }) => (
+      <div 
+        {...tooltipProps} 
+        className="bg-[#113b1e] text-white p-4 rounded-lg shadow-xl max-w-[300px] mx-auto relative"
+      >
+        <button 
+          className="absolute top-2 right-2 text-white/70 hover:text-white z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            skipProps.onClick(e);
+          }}
+          aria-label="Close tutorial"
         >
-          <button 
-            className="absolute top-2 right-2 text-white/70 hover:text-white" 
-            onClick={skipProps.onClick}
-          >
-            <X size={16} />
-          </button>
-          
-          {step.title && (
-            <h3 className="text-[#E7C65F] font-bold text-lg mb-2">{step.title}</h3>
-          )}
-          
-          <div className="mb-4 mt-2">{step.content}</div>
-          
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-xs text-white/70">
-              {index + 1}/{activeSteps.length}
-            </div>
-            <div className="flex gap-2">
-              {index > 0 && (
-                <button 
-                  {...backProps} 
-                  className="text-[#E7C65F] text-sm px-3 py-1 border border-[#E7C65F] rounded"
-                >
-                  Back
-                </button>
-              )}
-              <button 
-                {...primaryProps} 
-                className="bg-[#E7C65F] text-[#113b1e] text-sm font-medium px-4 py-1 rounded"
-              >
-                {isLastStep ? 'Finish' : 'Next'}
-              </button>
-            </div>
+          <X size={16} />
+        </button>
+        
+        {step.title && (
+          <h3 className="text-[#E7C65F] font-bold text-lg mb-2">{step.title}</h3>
+        )}
+        
+        <div className="mb-4 mt-2">{step.content}</div>
+        
+        <div className="flex justify-between items-center mt-4">
+          <div className="text-xs text-white/70">
+            {index + 1}/{activeSteps.length}
           </div>
-          
-          {/* Step indicators */}
-          <div className="flex items-center justify-center mt-3 space-x-1">
-            {activeSteps.map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  i === index ? 'bg-[#E7C65F]' : 'bg-white/30'
-                }`}
-              />
-            ))}
+          <div className="flex gap-2">
+            {index > 0 && (
+              <button 
+                {...backProps} 
+                className="text-[#E7C65F] text-sm px-3 py-1 border border-[#E7C65F] rounded"
+              >
+                Back
+              </button>
+            )}
+            <button 
+              {...primaryProps} 
+              className="bg-[#E7C65F] text-[#113b1e] text-sm font-medium px-4 py-1 rounded"
+            >
+              {isLastStep ? 'Finish' : 'Next'}
+            </button>
           </div>
         </div>
-      )
-      : undefined
+        
+        <div className="flex items-center justify-center mt-3 space-x-1">
+          {activeSteps.map((_, i) => (
+            <div 
+              key={i} 
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                i === index ? 'bg-[#E7C65F]' : 'bg-white/30'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    ) 
   };
 
   // Debug panel
