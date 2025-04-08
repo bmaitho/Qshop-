@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { shopToasts } from '../utils/toastConfig';
 import { supabase } from './SupabaseClient';
 
-const ShopSettingsForm = ({ shopData, onUpdate }) => {
+const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const fileInputRef = useRef(null);
   
   const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm({
@@ -25,6 +26,16 @@ const ShopSettingsForm = ({ shopData, onUpdate }) => {
       offersDelivery: shopData?.offers_delivery || false
     }
   });
+
+  // Check for mobile screen on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Use effect to set banner image preview if it exists
   useEffect(() => {
@@ -180,110 +191,132 @@ const ShopSettingsForm = ({ shopData, onUpdate }) => {
   };
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto p-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="shopName">Shop Name</Label>
-          <Input
-            id="shopName"
-            {...register("shopName", { required: "Shop name is required" })}
-            placeholder="Enter your shop name"
-          />
-          {errors.shopName && (
-            <p className="text-sm text-red-500">{errors.shopName.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label>Shop Banner</Label>
-          <div
-            className={`border-2 ${isDragging ? 'border-orange-500 bg-orange-50' : previewUrl ? 'border-orange-300' : 'border-dashed border-gray-300'} rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            {previewUrl ? (
-              <div className="relative">
-                <img 
-                  src={previewUrl} 
-                  alt="Shop banner preview" 
-                  className="w-full h-40 object-cover rounded"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
-                >
-                  <X className="h-5 w-5 text-red-500" />
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <ImagePlus className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-600">
-                  Drag and drop a banner image, or click to browse
-                </p>
-                <Button 
-                  type="button"
-                  variant="outline" 
-                  size="sm"
-                  onClick={openFileBrowser}
-                  className="mt-4"
-                >
-                  Browse Files
-                </Button>
-              </div>
+    <div className="h-full flex flex-col">
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-4">
+        <form id="shop-settings-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="shopName">Shop Name</Label>
+            <Input
+              id="shopName"
+              {...register("shopName", { required: "Shop name is required" })}
+              placeholder="Enter your shop name"
+            />
+            {errors.shopName && (
+              <p className="text-sm text-red-500">{errors.shopName.message}</p>
             )}
-            
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
+          </div>
+
+          <div className="space-y-2">
+            <Label>Shop Banner</Label>
+            <div
+              className={`border-2 ${isDragging ? 'border-orange-500 bg-orange-50' : previewUrl ? 'border-orange-300' : 'border-dashed border-gray-300'} rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {previewUrl ? (
+                <div className="relative">
+                  <img 
+                    src={previewUrl} 
+                    alt="Shop banner preview" 
+                    className="w-full h-40 object-cover rounded"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
+                  >
+                    <X className="h-5 w-5 text-red-500" />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <ImagePlus className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-600">
+                    Drag and drop a banner image, or click to browse
+                  </p>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    size="sm"
+                    onClick={openFileBrowser}
+                    className="mt-4"
+                  >
+                    Browse Files
+                  </Button>
+                </div>
+              )}
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Shop Description</Label>
+            <Textarea
+              id="description"
+              {...register("description")}
+              placeholder="Describe your shop"
+              className="min-h-[100px]"
             />
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">Shop Description</Label>
-          <Textarea
-            id="description"
-            {...register("description")}
-            placeholder="Describe your shop"
-            className="min-h-[100px]"
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="policies">Shop Policies</Label>
+            <Textarea
+              id="policies"
+              {...register("policies")}
+              placeholder="Return policy, delivery information, etc."
+              className="min-h-[80px]"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="policies">Shop Policies</Label>
-          <Textarea
-            id="policies"
-            {...register("policies")}
-            placeholder="Return policy, delivery information, etc."
-            className="min-h-[80px]"
-          />
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="offersDelivery" 
+              {...register("offersDelivery")}
+              defaultChecked={shopData?.offers_delivery}
+            />
+            <Label htmlFor="offersDelivery">Offers Delivery</Label>
+          </div>
+          
+          {/* Extra space to ensure scrolling content doesn't get hidden behind fixed buttons */}
+          <div className="h-4"></div>
+        </form>
+      </div>
+      
+      {/* Fixed footer with buttons always visible at bottom */}
+      <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4 mt-auto">
+        <div className="flex gap-3">
+          {onCancel && (
+            <Button 
+              type="button" 
+              variant="outline"
+              onClick={onCancel}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          )}
+          <Button 
+            form="shop-settings-form"
+            type="submit" 
+            className="flex-1"
+            disabled={loading}
+          >
+            {loading ? "Updating..." : shopData ? "Update Shop" : "Create Shop"}
+          </Button>
         </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="offersDelivery" 
-            {...register("offersDelivery")}
-            defaultChecked={shopData?.offers_delivery}
-          />
-          <Label htmlFor="offersDelivery">Offers Delivery</Label>
-        </div>
-
-        <Button 
-          type="submit" 
-          className="w-full"
-          disabled={loading}
-        >
-          {loading ? "Updating Shop..." : shopData ? "Update Shop" : "Create Shop"}
-        </Button>
-      </form>
+      </div>
     </div>
   );
 };
