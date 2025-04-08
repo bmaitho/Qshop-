@@ -16,7 +16,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const fileInputRef = useRef(null);
-  
+
   const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
       shopName: shopData?.shop_name || '',
@@ -32,7 +32,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -81,7 +81,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     const files = e.dataTransfer.files;
     if (files?.length) {
       const file = files[0];
@@ -135,12 +135,12 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         shopToasts.updateError();
         return;
       }
-      
+
       // Upload banner image if provided
       let bannerUrl = shopData?.banner_url;
       if (imageFile) {
@@ -192,8 +192,8 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto pb-24 px-4 pt-4">
+      {/* Scrollable content area with padding bottom to account for fixed footer */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32"> {/* Increased pb-32 for mobile safety */}
         <form id="shop-settings-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="shopName">Shop Name</Label>
@@ -248,7 +248,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
                   </Button>
                 </div>
               )}
-              
+
               {/* Hidden file input */}
               <input
                 ref={fileInputRef}
@@ -288,15 +288,12 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
             />
             <Label htmlFor="offersDelivery">Offers Delivery</Label>
           </div>
-          
-          {/* Extra space to ensure scrolling content doesn't get hidden behind fixed buttons */}
-          <div className="h-4"></div>
         </form>
       </div>
-      
-      {/* Fixed footer with buttons always visible at bottom */}
-      <div className="sticky bottom-0 left-0 right-0 border-t bg-background p-4 mt-auto">
-        <div className="flex gap-3">
+
+      {/* Fixed footer with buttons - now properly visible on mobile */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-md">
+        <div className="flex gap-3 max-w-screen-md mx-auto">
           {onCancel && (
             <Button 
               type="button" 
