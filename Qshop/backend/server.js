@@ -8,7 +8,7 @@ dotenv.config();
 const app = express();
 
 // Environment variable for allowed origins (comma-separated)
-const allowedOriginsString = process.env.ALLOWED_ORIGINS || 'https://UniHive.shop,https://unihive.store,http://localhost:5173';
+const allowedOriginsString = process.env.ALLOWED_ORIGINS || 'https://unihive.shop,https://unihive.store,http://localhost:5173';
 const allowedOrigins = allowedOriginsString.split(',').map(origin => origin.trim());
 
 // Normalize the origins within the cors options.
