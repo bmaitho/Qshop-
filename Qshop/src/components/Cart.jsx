@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { Minus, Plus, Trash2, ArrowLeft, CreditCard } from 'lucide-react';
+import { Minus, Plus, Trash2, ArrowLeft, CreditCard, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Navbar from './Navbar';
 import {
   AlertDialog,
@@ -24,18 +25,18 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { initiateMpesaPayment } from '../Services/mpesaService';
-import { toastSuccess, toastError, cartToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
+import { toast } from 'react-toastify';
 
-const DELIVERY_FEE = 1; // 1 shilling for testing
+const DELIVERY_FEE = 0; // Set to 0 for now, can be changed later
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total, clearCart, loading } = useCart();
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -44,81 +45,90 @@ const Cart = () => {
     };
     
     window.addEventListener('resize', handleResize);
+    fetchUserProfile();
+    
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  const handleMpesaPayment = async (e) => {
-    e.preventDefault();
-    setIsProcessing(true);
-  
+  const fetchUserProfile = async () => {
     try {
-      if (!phoneNumber.trim()) {
-        toastError("Please enter a valid phone number");
-        return;
-      }
-  
-      const response = await initiateMpesaPayment(
-        phoneNumber,
-        parseInt(total + DELIVERY_FEE) // Using 1 shilling delivery fee
-      );
-  
-      if (response.success) {
-        // Create the order
-        await createOrder('pending');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      setCurrentUser(user);
+      
+      // Get user profile for phone number if available
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
         
-        toastSuccess(response.message || "Please check your phone for the M-Pesa prompt");
-        setIsPaymentDialogOpen(false);
-        setPhoneNumber('');
-      } else {
-        throw new Error(response.error);
+      if (profile?.phone) {
+        setPhoneNumber(profile.phone);
       }
     } catch (error) {
-      toastError(error.message || "Failed to initiate payment. Please try again.");
-    } finally {
-      setIsProcessing(false);
+      console.error('Error fetching user profile:', error);
     }
   };
 
-  const createOrder = async (paymentStatus = 'pending') => {
+  const createOrder = async () => {
+    if (!currentUser) {
+      toast.error("Please log in to complete your order");
+      return null;
+    }
+    
+    if (cart.length === 0) {
+      toast.error("Your cart is empty");
+      return null;
+    }
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      setIsCreatingOrder(true);
       
-      if (!user) {
-        toastError("Please log in to complete your order");
-        return;
-      }
+      // Group cart items by seller
+      const itemsBySeller = {};
       
-      // Generate a test receipt number if we're doing a test checkout
-      const mpesaReceipt = paymentStatus === 'completed' 
-        ? `TEST${Math.floor(Math.random() * 1000000)}`
-        : null;
+      cart.forEach(item => {
+        const sellerId = item.products.seller_id;
+        if (!itemsBySeller[sellerId]) {
+          itemsBySeller[sellerId] = [];
+        }
+        itemsBySeller[sellerId].push(item);
+      });
       
-      // 1. Create the order
+      // Calculate total amount
+      const orderAmount = total + DELIVERY_FEE;
+      
+      // Create the order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          user_id: user.id,
-          amount: total + DELIVERY_FEE,
-          payment_status: paymentStatus,
-          phone_number: phoneNumber || '254712345678', // Use entered phone or default test number
-          order_status: paymentStatus === 'completed' ? 'processing' : 'pending_payment',
-          mpesa_receipt: mpesaReceipt
+          user_id: currentUser.id,
+          amount: orderAmount,
+          payment_status: 'pending',
+          order_status: 'pending_payment',
+          phone_number: phoneNumber
         }])
         .select()
         .single();
       
       if (orderError) throw orderError;
       
-      // 2. Create order items
-      const orderItems = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        seller_id: item.products.seller_id,
-        quantity: item.quantity,
-        price_per_unit: item.products.price,
-        subtotal: item.products.price * item.quantity,
-        status: paymentStatus === 'completed' ? 'processing' : 'pending_payment'
-      }));
+      // Create order items for each cart item
+      const orderItems = [];
+      
+      cart.forEach(item => {
+        orderItems.push({
+          order_id: order.id,
+          product_id: item.product_id,
+          seller_id: item.products.seller_id,
+          quantity: item.quantity,
+          price_per_unit: item.products.price,
+          subtotal: item.products.price * item.quantity,
+          status: 'pending_payment'
+        });
+      });
       
       const { error: itemsError } = await supabase
         .from('order_items')
@@ -126,57 +136,39 @@ const Cart = () => {
       
       if (itemsError) throw itemsError;
       
-      // 3. Clear cart
+      // Clear cart
       await clearCart();
       
-      // 4. Redirect based on payment status
-      if (paymentStatus === 'completed') {
-        // Navigate to order confirmation for completed test orders
-        navigate(`/order-confirmation/${order.id}`);
-      } else {
-        // Navigate to checkout page to complete payment
-        navigate(`/checkout/${order.id}`);
-      }
-      
+      // Return the created order
       return order;
     } catch (error) {
       console.error('Error creating order:', error);
-      toastError('Failed to create order');
-      throw error;
+      toast.error('Failed to create order');
+      return null;
+    } finally {
+      setIsCreatingOrder(false);
     }
   };
 
-  const createTestOrder = async () => {
-    try {
-      setIsProcessing(true);
-      
-      // Create order with simulated successful payment
-      await createOrder('completed');
-      
-      toastSuccess("Test order created successfully!");
-      setIsPaymentDialogOpen(false);
-    } catch (error) {
-      toastError("Failed to create test order: " + error.message);
-    } finally {
-      setIsProcessing(false);
+  const handleCheckout = async () => {
+    const order = await createOrder();
+    
+    if (order) {
+      // Redirect to checkout page with the order ID
+      navigate(`/checkout/${order.id}`);
     }
   };
 
   const handleRemoveFromCart = (productId, productName) => {
-    console.log(`Removing product: ${productId}, name: ${productName}`);
     removeFromCart(productId, productName);
-    // Toast is now handled in the context
   };
 
   const handleUpdateQuantity = (productId, newQuantity) => {
-    console.log(`Updating quantity for product: ${productId} to ${newQuantity}`);
     updateQuantity(productId, newQuantity);
-    // Toast is now handled in the context
   };
 
   const handleClearCart = () => {
     clearCart();
-    // Toast is now handled in the context
   };
 
   if (loading) {
@@ -203,7 +195,10 @@ const Cart = () => {
             <h2 className="text-2xl font-serif font-bold mb-4 text-primary dark:text-gray-100">Your Cart is Empty</h2>
             <p className="text-primary/70 dark:text-gray-300 mb-8">Browse our products and add some items to your cart</p>
             <Link to="/studentmarketplace">
-            <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-[#ebc75c]">Continue Shopping</Button>            </Link>
+              <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-[#ebc75c]">
+                Continue Shopping
+              </Button>
+            </Link>
           </div>
         </div>
       </>
@@ -369,68 +364,32 @@ const Cart = () => {
                 </div>
               </div>
 
-              {/* Payment Options */}
-              <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white">Proceed to Checkout </Button>
-                </DialogTrigger>
-                <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
-                  <DialogHeader>
-                    <DialogTitle className="text-primary dark:text-gray-100">Complete Your Order</DialogTitle>
-                    <DialogDescription className="text-primary/70 dark:text-gray-300">
-                      Choose your payment method
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleMpesaPayment} className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-primary dark:text-gray-300">Phone Number for M-Pesa</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="e.g., 0712345678"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        required
-                        pattern="^(254|\+254|0)([7][0-9]{8})$"
-                        className="w-full border-primary/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                      />
-                      <p className="text-sm text-primary/60 dark:text-gray-400">
-                        Format: 0712345678 or 254712345678
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="font-medium text-primary dark:text-gray-300">Amount to Pay</div>
-                      <div className="text-2xl font-bold text-secondary dark:text-green-400">
-                        KES {(total + DELIVERY_FEE).toFixed(2)}
-                      </div>
-                    </div>
-                    
-                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-                      
-                    <Button 
-                    type="submit" 
-                    className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white"disabled // Simply adding this prop disables the button
->
-  {isProcessing ? "Processing..." : "Pay with M-Pesa (Beta)"} 
-</Button>
-                      {/* Test Checkout Button - only shown in development */}
-                     (
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          className="w-full border-secondary text-secondary dark:border-green-500 dark:text-green-500"
-                          disabled={isProcessing}
-                          onClick={createTestOrder}
-                        >
-                          <CreditCard className="mr-2 h-4 w-4" />
-                          Test Checkout (No Payment)
-                        </Button>
-                      )
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {/* Checkout Button */}
+              <Button 
+                className="w-full mb-2 bg-secondary text-primary hover:bg-secondary/90 dark:text-white"
+                onClick={handleCheckout}
+                disabled={isCreatingOrder}
+              >
+                {isCreatingOrder ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Proceed to Checkout'
+                )}
+              </Button>
+
+              {/* Alert if user is not logged in */}
+              {!currentUser && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Not logged in</AlertTitle>
+                  <AlertDescription>
+                    Please log in to complete your purchase.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Hide clear cart button on mobile as it's already in the header */}
               {!isMobile && (

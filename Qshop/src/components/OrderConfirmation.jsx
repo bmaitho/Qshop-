@@ -1,17 +1,25 @@
-// src/components/OrderConfirmation.jsx
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Check, Download, ArrowLeft } from 'lucide-react';
+import { Check, Download, ArrowLeft, Copy, CheckCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
+import { toast } from 'react-toastify';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -19,6 +27,8 @@ const OrderConfirmation = () => {
 
   const fetchOrderDetails = async () => {
     try {
+      setLoading(true);
+      
       // Fetch order details
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -42,6 +52,7 @@ const OrderConfirmation = () => {
       setOrderItems(itemsData || []);
     } catch (error) {
       console.error('Error fetching order details:', error);
+      toast.error('Failed to load order information');
     } finally {
       setLoading(false);
     }
@@ -49,6 +60,38 @@ const OrderConfirmation = () => {
 
   const printOrder = () => {
     window.print();
+  };
+
+  const copyReceiptNumber = () => {
+    if (order?.mpesa_receipt) {
+      navigator.clipboard.writeText(order.mpesa_receipt).then(() => {
+        setIsCopied(true);
+        toast.success('Receipt number copied to clipboard');
+        
+        // Reset copied state after 3 seconds
+        setTimeout(() => {
+          setIsCopied(false);
+        }, 3000);
+      });
+    }
+  };
+
+  // Format date for better display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   if (loading) {
@@ -151,17 +194,80 @@ const OrderConfirmation = () => {
               </div>
               <div>
                 <p className="text-gray-600">Payment Status</p>
-                <p className="capitalize">{order.payment_status}</p>
+                <Badge variant="outline" className={
+                  order.payment_status === 'completed' 
+                    ? 'bg-green-100 text-green-800 border-green-200' 
+                    : order.payment_status === 'pending'
+                    ? 'bg-orange-100 text-orange-800 border-orange-200'
+                    : 'bg-red-100 text-red-800 border-red-200'
+                }>
+                  {order.payment_status === 'completed' ? 'Paid' : 
+                   order.payment_status === 'pending' ? 'Pending' : 
+                   'Failed'}
+                </Badge>
               </div>
-              <div>
-                <p className="text-gray-600">Transaction ID</p>
-                <p>{order.mpesa_receipt || 'Pending'}</p>
-              </div>
+              
+              {order.mpesa_receipt && (
+                <div className="col-span-2 mt-2">
+                  <p className="text-gray-600">Transaction ID / Receipt</p>
+                  <div className="flex items-center mt-1">
+                    <p className="font-mono">{order.mpesa_receipt}</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            onClick={copyReceiptNumber}
+                            className="ml-2 text-gray-500 hover:text-gray-700"
+                          >
+                            {isCopied ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{isCopied ? 'Copied!' : 'Copy receipt number'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              )}
+              
               <div>
                 <p className="text-gray-600">Date</p>
-                <p>{new Date(order.created_at).toLocaleDateString()}</p>
+                <p>{formatDate(order.payment_date || order.created_at)}</p>
+              </div>
+              
+              <div>
+                <p className="text-gray-600">Phone Number</p>
+                <p>{order.phone_number || 'Not available'}</p>
               </div>
             </div>
+            
+            {order.payment_status === 'pending' && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
+                <p className="text-yellow-800">
+                  Your payment is still being processed. We will update the status once confirmed.
+                </p>
+              </div>
+            )}
+            
+            {order.payment_status === 'failed' && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm">
+                <p className="text-red-800">
+                  Payment failed: {order.payment_error || 'An error occurred during payment processing'}
+                </p>
+                <p className="mt-2">
+                  <Link to={`/checkout/${orderId}`}>
+                    <Button size="sm" variant="outline">
+                      Try Payment Again
+                    </Button>
+                  </Link>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

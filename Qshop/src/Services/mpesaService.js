@@ -2,39 +2,73 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+/**
+ * Sanitize and format phone number to the required format for M-Pesa:
+ * - Remove non-digit characters
+ * - Ensure it starts with 254 (Kenya country code)
+ * - Convert to integer as required by M-Pesa API
+ * 
+ * @param {string|number} phoneNumber - Phone number to format
+ * @returns {number} Formatted phone number
+ */
 const sanitizePhoneNumber = (phoneNumber) => {
-  let cleaned = phoneNumber.replace(/\D/g, '');
+  // Convert to string and remove non-digit characters
+  let cleaned = phoneNumber.toString().replace(/\D/g, '');
   
+  // Handle Kenyan phone formats
   if (cleaned.startsWith('0')) {
+    // Convert format 07xx to 254xx
     cleaned = '254' + cleaned.slice(1);
-  }
-  if (!cleaned.startsWith('254')) {
+  } else if (cleaned.startsWith('7') || cleaned.startsWith('1')) {
+    // If it starts with 7 or 1 without country code
     cleaned = '254' + cleaned;
+  } else if (!cleaned.startsWith('254')) {
+    // For any other format, add country code
+    cleaned = '254' + cleaned;
+  }
+  
+  // Ensure it's a valid phone number (254 + 9 digits)
+  if (cleaned.length !== 12 || !cleaned.startsWith('254')) {
+    throw new Error('Invalid phone number format. Use format: 07XXXXXXXX or 254XXXXXXXXX');
   }
   
   return parseInt(cleaned);
 };
 
-export const initiateMpesaPayment = async (phoneNumber, amount, accountReference = 'StudentMarketplace') => {
+/**
+ * Initiate an M-Pesa payment for an order
+ * 
+ * @param {string|number} phoneNumber - Customer's phone number
+ * @param {number} amount - Amount to charge in KES (min 1)
+ * @param {string} orderId - Order ID to associate with payment
+ * @param {string} accountReference - Optional reference for the transaction
+ * @returns {Promise<Object>} Response with transaction details
+ */
+export const initiateMpesaPayment = async (phoneNumber, amount, orderId, accountReference = 'UniHive') => {
   try {
     if (!phoneNumber || !amount) {
       throw new Error('Phone number and amount are required');
     }
 
-    const sanitizedPhone = sanitizePhoneNumber(phoneNumber.toString());
-    const parsedAmount = parseInt(amount);
+    // Sanitize the phone number
+    const sanitizedPhone = sanitizePhoneNumber(phoneNumber);
     
+    // Ensure amount is a positive integer
+    const parsedAmount = parseInt(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      throw new Error('Invalid amount');
+      throw new Error('Invalid amount. Must be a positive number.');
     }
 
+    // Prepare payment data
     const paymentData = {
       phoneNumber: sanitizedPhone,
       amount: parsedAmount,
+      orderId,
       accountReference
     };
 
-    const response = await axios.post(`${API_BASE_URL}/api/mpesa/stkpush`, paymentData);
+    // Make the API request
+    const response = await axios.post(`${API_BASE_URL}/mpesa/stkpush`, paymentData);
 
     return {
       success: true,
@@ -44,9 +78,44 @@ export const initiateMpesaPayment = async (phoneNumber, amount, accountReference
   } catch (error) {
     console.error('M-Pesa payment error:', error);
     
+    // Extract meaningful error message
+    const errorMessage = error.response?.data?.error || 
+                         error.message || 
+                         'Payment initiation failed';
+    
     return {
       success: false,
-      error: error.response?.data?.error || 'Payment initiation failed'
+      error: errorMessage
+    };
+  }
+};
+
+/**
+ * Check the status of a payment transaction
+ * 
+ * @param {string} checkoutRequestId - The M-Pesa checkout request ID
+ * @returns {Promise<Object>} Payment status response
+ */
+export const checkPaymentStatus = async (checkoutRequestId) => {
+  try {
+    if (!checkoutRequestId) {
+      throw new Error('Checkout request ID is required');
+    }
+
+    // Make API request to check status
+    const response = await axios.get(`${API_BASE_URL}/mpesa/status/${checkoutRequestId}`);
+
+    return {
+      success: true,
+      data: response.data,
+      message: 'Payment status retrieved successfully'
+    };
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message || 'Failed to check payment status'
     };
   }
 };
