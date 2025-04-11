@@ -192,8 +192,8 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Scrollable content area with padding bottom to account for fixed footer */}
-      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32"> {/* Increased pb-32 for mobile safety */}
+      {/* Main content area with proper padding */}
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20"> 
         <form id="shop-settings-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="shopName">Shop Name</Label>
@@ -288,32 +288,56 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
             />
             <Label htmlFor="offersDelivery">Offers Delivery</Label>
           </div>
+          
+          {/* Form buttons visible on mobile */}
+          <div className="pt-8 pb-20 flex gap-3">
+            {onCancel && (
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={onCancel}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            )}
+            <Button 
+              form="shop-settings-form"
+              type="submit" 
+              className="flex-1"
+              disabled={loading}
+            >
+              {loading ? "Updating..." : shopData ? "Update Shop" : "Create Shop"}
+            </Button>
+          </div>
         </form>
       </div>
 
-      {/* Fixed footer with buttons - now properly visible on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-md">
-        <div className="flex gap-3 max-w-screen-md mx-auto">
-          {onCancel && (
+      {/* Fixed footer with buttons - only visible on desktop */}
+      {!isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-md hidden md:block">
+          <div className="flex gap-3 max-w-screen-md mx-auto">
+            {onCancel && (
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={onCancel}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            )}
             <Button 
-              type="button" 
-              variant="outline"
-              onClick={onCancel}
+              form="shop-settings-form"
+              type="submit" 
               className="flex-1"
+              disabled={loading}
             >
-              Cancel
+              {loading ? "Updating..." : shopData ? "Update Shop" : "Create Shop"}
             </Button>
-          )}
-          <Button 
-            form="shop-settings-form"
-            type="submit" 
-            className="flex-1"
-            disabled={loading}
-          >
-            {loading ? "Updating..." : shopData ? "Update Shop" : "Create Shop"}
-          </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
