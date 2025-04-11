@@ -3,41 +3,39 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mpesaRoutes from './routes/mpesa.js';
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 
-// CORS configuration - Allow multiple origins
-const allowedOrigins = [
-  'https://UniHive.shop',  // Production frontend
-'https://unihive.store',
-  'http://localhost:5173',   
-    // Local development frontend
-  process.env.FRONTEND_URL       // Environment variable if set
-].filter(Boolean); // Remove any undefined/null values
+// Environment variable for allowed origins (comma-separated)
+const allowedOriginsString = process.env.ALLOWED_ORIGINS || 'https://UniHive.shop,https://unihive.store,http://localhost:5173';
+const allowedOrigins = allowedOriginsString.split(',').map(origin => origin.trim());
 
-// Middleware
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
+// Normalize the origins within the cors options.
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin) {
+            return callback(null, true); // Allow requests with no origin (e.g., curl)
+        }
 
+        const normalizedOrigin = origin.replace(/\/$/, ''); // Remove trailing slash
+
+        if (allowedOrigins.includes(normalizedOrigin)) {
+            callback(null, true);
+        } else {
+            console.error(`CORS blocked origin: ${origin}`);
+            callback(new Error(`CORS policy violation. Origin: ${origin} is not allowed.`));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false // Only set to true if cookies are used.
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Welcome page
+// Welcome route
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -45,31 +43,7 @@ app.get('/', (req, res) => {
       <head>
         <title>Qshop API</title>
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f5f5f5;
-          }
-          .container {
-            text-align: center;
-            padding: 20px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          }
-          .status {
-            color: #4CAF50;
-            font-weight: bold;
-          }
-          .endpoints {
-            margin-top: 20px;
-            text-align: left;
-          }
+          // ... (your existing styles)
         </style>
       </head>
       <body>
@@ -92,21 +66,16 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Routes
 app.use('/api/mpesa', mpesaRoutes);
+app.options('/api/mpesa/*', cors(corsOptions)); // Apply cors options to preflight requests.
 
-// Add pre-flight CORS handling for the mpesa endpoints
-app.options('/api/mpesa/*', cors());
-
-// Basic route for testing
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
 const PORT = process.env.PORT || 5000;
