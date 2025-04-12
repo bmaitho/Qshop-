@@ -5,16 +5,21 @@ import { supabase } from '../supabaseClient.js';
 
 dotenv.config();
 
-// Determine API URL based on environment
+// Environment configuration
 const isProduction = process.env.MPESA_ENVIRONMENT === 'production';
 const MPESA_API_URL = isProduction
   ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
   : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
-// Get business short code from environment variables
-const BUSINESS_SHORT_CODE = process.env.MPESA_BUSINESS_SHORT_CODE || '174379'; // Default is test paybill
+// M-Pesa credentials from environment variables
+const BUSINESS_SHORT_CODE = process.env.MPESA_BUSINESS_SHORT_CODE;
 const PASSKEY = process.env.MPESA_PASSKEY;
-const CALLBACK_URL = process.env.MPESA_CALLBACK_URL || 'https://yourdomain.com/api/mpesa/callback';
+const CALLBACK_URL = process.env.VITE_MPESA_CALLBACK_URL;
+
+// Validate required configuration
+if (!BUSINESS_SHORT_CODE || !PASSKEY || !CALLBACK_URL) {
+  throw new Error('Missing required M-Pesa configuration in environment variables');
+}
 
 /**
  * Initiates an STK push payment request to the user's phone
@@ -30,11 +35,13 @@ export const initiateSTKPush = async (req, res) => {
     }
 
     // Validate phone number format (should be 254XXXXXXXXX)
-    const phoneRegex = /^(254|0)[17][0-9]{8}$/;
+    const phoneRegex = /^254[17][0-9]{8}$/;
     const cleanedPhone = phoneNumber.toString().replace(/[^0-9]/g, '');
     const formattedPhone = cleanedPhone.startsWith('0') 
       ? `254${cleanedPhone.substring(1)}` 
-      : cleanedPhone;
+      : cleanedPhone.startsWith('254') 
+        ? cleanedPhone 
+        : `254${cleanedPhone}`;
       
     if (!phoneRegex.test(formattedPhone)) {
       return res.status(400).json({
@@ -58,21 +65,22 @@ export const initiateSTKPush = async (req, res) => {
       BusinessShortCode: BUSINESS_SHORT_CODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
-      Amount: parseInt(amount),
+      TransactionType: isProduction ? "CustomerPayBillOnline" : "CustomerBuyGoodsOnline",
+      Amount: Math.ceil(amount), // Safaricom requires whole numbers
       PartyA: formattedPhone,
       PartyB: BUSINESS_SHORT_CODE,
       PhoneNumber: formattedPhone,
       CallBackURL: CALLBACK_URL,
-      AccountReference: accountReference || 'UniHive Marketplace',
+      AccountReference: accountReference || 'unihive marketplace',
       TransactionDesc: `Payment for order ${orderId || ''}`
     };
 
     console.log('Making STK push request with data:', {
       url: MPESA_API_URL,
-      data: requestData,
-      phoneNumber: formattedPhone,
-      amount
+      environment: isProduction ? 'production' : 'sandbox',
+      businessShortCode: BUSINESS_SHORT_CODE,
+      amount,
+      phoneNumber: formattedPhone
     });
 
     // Make the STK push request
@@ -92,7 +100,8 @@ export const initiateSTKPush = async (req, res) => {
           .from('orders')
           .update({ 
             checkout_request_id: response.data.CheckoutRequestID,
-            payment_status: 'pending'
+            payment_status: 'pending',
+            payment_method: 'mpesa'
           })
           .eq('id', orderId);
       } catch (dbError) {
@@ -130,11 +139,11 @@ export const handleCallback = async (req, res) => {
     console.log('M-Pesa callback received:', JSON.stringify(req.body));
     
     // Safaricom sends the result in the Body property
-    const callbackData = req.body.Body || req.body;
+    const callbackData = req.body.Body?.stkCallback || req.body;
     
     // Check if this is a successful transaction
-    if (callbackData.stkCallback) {
-      const { ResultCode, ResultDesc, CallbackMetadata, CheckoutRequestID } = callbackData.stkCallback;
+    if (callbackData.ResultCode !== undefined) {
+      const { ResultCode, ResultDesc, CallbackMetadata, CheckoutRequestID } = callbackData;
       
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
       
@@ -156,6 +165,7 @@ export const handleCallback = async (req, res) => {
           const mpesaReceiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber')?.Value;
           const transactionDate = items.find(item => item.Name === 'TransactionDate')?.Value;
           const phoneNumber = items.find(item => item.Name === 'PhoneNumber')?.Value;
+          const amount = items.find(item => item.Name === 'Amount')?.Value;
           
           // Update order with payment details
           const { error: updateError } = await supabase
@@ -165,7 +175,8 @@ export const handleCallback = async (req, res) => {
               order_status: 'processing',
               mpesa_receipt: mpesaReceiptNumber,
               payment_date: transactionDate ? formatMpesaDate(transactionDate) : new Date().toISOString(),
-              phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number
+              phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
+              amount_paid: amount || order.amount
             })
             .eq('id', order.id);
             
@@ -175,43 +186,28 @@ export const handleCallback = async (req, res) => {
             console.log(`Order ${order.id} marked as paid successfully`);
             
             // Also update order items status
-            const { error: itemsError } = await supabase
+            await supabase
               .from('order_items')
-              .update({
-                status: 'processing'
-              })
+              .update({ status: 'processing' })
               .eq('order_id', order.id);
-              
-            if (itemsError) {
-              console.error('Error updating order items status:', itemsError);
-            }
           }
         } else {
           // Payment failed
-          const { error: updateError } = await supabase
+          await supabase
             .from('orders')
             .update({
               payment_status: 'failed',
               payment_error: ResultDesc
             })
             .eq('id', order.id);
-            
-          if (updateError) {
-            console.error('Error updating order after failed payment:', updateError);
-          }
         }
-      } else {
-        console.error(`No order found for CheckoutRequestID: ${CheckoutRequestID}`);
       }
     }
 
-    // Always respond with success to M-Pesa (even if we had issues with our processing)
-    res.status(200).json({ ResultCode: 0, ResultDesc: "Callback received successfully" });
+    // Always respond with success to M-Pesa
+    res.status(200).json({ ResultCode: 0, ResultDesc: "Success" });
   } catch (error) {
     console.error('Error processing M-Pesa callback:', error);
-    
-    // Always respond with success to M-Pesa - we don't want them to retry
-    // as it could cause duplicate processing
     res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
   }
 };
