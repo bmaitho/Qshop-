@@ -32,6 +32,13 @@ import ShopSettingsForm from './ShopSettingsForm';
 import EditProductForm from './EditProductForm';
 import SellerOrders from './SellerOrders'; // Import the SellerOrders component
 
+// Function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const MyShop = () => {
   const [shopData, setShopData] = useState(null);
   const [products, setProducts] = useState([]);
@@ -51,19 +58,30 @@ const MyShop = () => {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showShopSettings, setShowShopSettings] = useState(false);
   const [showEditProduct, setShowEditProduct] = useState(false);
+  // Add state for categories mapping
+  const [categoriesMap, setCategoriesMap] = useState({});
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
+  // First, fetch categories on component mount
   useEffect(() => {
+    fetchCategories();
+    
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
     
     window.addEventListener('resize', handleResize);
-    fetchShopData();
-    fetchProducts();
-    fetchStatistics();
-    
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Then, fetch other data after categories are loaded
+  useEffect(() => {
+    if (categoriesLoaded) {
+      fetchShopData();
+      fetchProducts();
+      fetchStatistics();
+    }
+  }, [categoriesLoaded]);
 
   // Set the initial activeTab after determining seller status
   useEffect(() => {
@@ -72,6 +90,37 @@ const MyShop = () => {
       setActiveTab('listings');
     }
   }, [shopData]);
+
+  // Add this function to fetch categories and create a mapping
+  const fetchCategories = async () => {
+    try {
+      console.log("Fetching categories...");
+      // Fetch categories from the categories table
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('status', 'approved');
+
+      if (categoriesError) throw categoriesError;
+      
+      // Create a mapping of category IDs to names
+      const mapping = {};
+      if (categoriesData) {
+        categoriesData.forEach(cat => {
+          mapping[cat.id] = cat.name;
+        });
+        console.log("Categories mapping created:", mapping);
+        setCategoriesMap(mapping);
+      }
+      
+      // Mark categories as loaded to trigger other data fetching
+      setCategoriesLoaded(true);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      // Even if there's an error, mark as loaded to not block other data loading
+      setCategoriesLoaded(true);
+    }
+  };
 
   const fetchShopData = async () => {
     try {
@@ -93,6 +142,7 @@ const MyShop = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log("Fetching products with categoriesMap:", categoriesMap);
       const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from('products')
@@ -101,7 +151,39 @@ const MyShop = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Log sample of raw products
+      if (data && data.length > 0) {
+        console.log("Sample raw product:", data[0]);
+        console.log("Sample product category:", data[0].category);
+        console.log("Is UUID?", isUUID(data[0].category));
+      }
+      
+      // Process products to have display_category
+      const processedProducts = (data || []).map(product => {
+        let displayCategory = product.category;
+        
+        // Debug logging for each product
+        console.log(`Processing product ${product.id} with category ${product.category}`);
+        
+        // If the category is a UUID, try to get the display name from the map
+        if (isUUID(product.category) && categoriesMap[product.category]) {
+          console.log(`Found in map: ${categoriesMap[product.category]}`);
+          displayCategory = categoriesMap[product.category];
+        } else if (typeof product.category === 'string') {
+          // For string categories, capitalize the first letter
+          console.log("Using string capitalization");
+          displayCategory = product.category.charAt(0).toUpperCase() + product.category.slice(1);
+        }
+        
+        return {
+          ...product,
+          display_category: displayCategory
+        };
+      });
+      
+      console.log("Processed products:", processedProducts);
+      setProducts(processedProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
       shopToasts.loadError();
@@ -115,9 +197,7 @@ const MyShop = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      console.log("Fetching statistics for user:", user.id);
-      
-      // Get order statistics (replace with your order_items table)
+      // Get order statistics
       const { data: orderData, error: orderError } = await supabase
         .from('order_items')
         .select(`
@@ -132,8 +212,6 @@ const MyShop = () => {
         throw orderError;
       }
       
-      console.log("Order data fetched:", orderData);
-      
       // Get product statistics
       const { data: productStats, error: productError } = await supabase
         .from('products')
@@ -144,8 +222,6 @@ const MyShop = () => {
         console.error("Error fetching product stats:", productError);
         throw productError;
       }
-      
-      console.log("Product stats fetched:", productStats);
   
       // Calculate statistics from order_items
       const pendingOrders = orderData?.filter(order => order.status === 'processing').length || 0;
@@ -163,14 +239,6 @@ const MyShop = () => {
         activeListings,
         soldItems,
         averageRating: 4.5, // Placeholder until you implement ratings
-        pendingOrders
-      });
-      
-      console.log("Statistics calculated:", {
-        totalSales,
-        totalRevenue,
-        activeListings,
-        soldItems,
         pendingOrders
       });
     } catch (error) {
@@ -285,6 +353,25 @@ const MyShop = () => {
     return "My Shop";
   };
 
+  // Get a properly formatted category display name
+  const getCategoryDisplayName = (categoryValue) => {
+    // Log for debugging
+    console.log("Getting display name for:", categoryValue);
+    
+    // If it's a UUID, look up in the categoriesMap
+    if (isUUID(categoryValue)) {
+      const displayName = categoriesMap[categoryValue];
+      console.log("Found in map:", displayName);
+      return displayName || "Other";
+    }
+    // If it's a string name, capitalize first letter
+    if (typeof categoryValue === 'string') {
+      return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
+    }
+    // Default fallback
+    return "Other";
+  };
+
   return (
     <>
       <Navbar />
@@ -332,8 +419,8 @@ const MyShop = () => {
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="flex-1 mr-2 customize-shop-button">
-  <Settings className="w-4 h-4 mr-1" /> Edit Shop
-</Button>
+                    <Settings className="w-4 h-4 mr-1" /> Edit Shop
+                  </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
@@ -372,9 +459,9 @@ const MyShop = () => {
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
                   <Button variant="outline" className="customize-shop-button">
-  <Settings className="w-4 h-4 mr-2" />
-  Customize Shop
-</Button>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Customize Shop
+                  </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
@@ -500,16 +587,24 @@ const MyShop = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {products.length > 0 ? (
-                products.map(product => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product}
-                    isOwner={true}
-                    onStatusChange={handleStatusChange}
-                    onDelete={handleDeleteProduct}
-                    onEdit={() => handleEditProduct(product)}
-                  />
-                ))
+                products.map(product => {
+                  // Force the correct display_category
+                  const productWithCategory = {
+                    ...product,
+                    display_category: getCategoryDisplayName(product.category)
+                  };
+                  
+                  return (
+                    <ProductCard 
+                      key={product.id} 
+                      product={productWithCategory}
+                      isOwner={true}
+                      onStatusChange={handleStatusChange}
+                      onDelete={handleDeleteProduct}
+                      onEdit={() => handleEditProduct(product)}
+                    />
+                  );
+                })
               ) : (
                 <div className="col-span-full text-center py-8 text-gray-500">
                   <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -525,8 +620,6 @@ const MyShop = () => {
           
           {/* Orders Tab */}
           <TabsContent value="orders" className="mt-6">
-            
-            
             {/* Integrate the SellerOrders component */}
             <SellerOrders />
           </TabsContent>

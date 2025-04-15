@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { toast } from 'react-toastify';
 import {
   Dialog,
   DialogContent,
@@ -123,31 +124,73 @@ const AddProductForm = ({ onSuccess }) => {
   const handleNewCategory = async (categoryData) => {
     try {
       if (!categoryData.name.trim()) {
-        console.error('Category name is required');
+        shopToasts.error('Category name is required');
         return;
       }
-
+  
       const { data: { user } } = await supabase.auth.getUser();
       
+      if (!user) {
+        shopToasts.error('Please sign in to add categories');
+        return;
+      }
+  
+      // Generate a temporary ID for immediate UI feedback
+      const tempId = `temp_${Date.now()}`;
+      
+      // Add category to local state first for immediate feedback
+      const newTempCategory = {
+        id: tempId,
+        name: categoryData.name.trim(),
+        description: categoryData.description.trim(),
+        status: 'pending'
+      };
+      
+      // Update local categories state to include the new category
+      setCategories(prevCategories => [...prevCategories, newTempCategory]);
+      
+      // Set the newly created category as the selected one
+      setValue("category", tempId);
+      
+      // Close the dialog immediately for better UX
+      setShowNewCategoryDialog(false);
+  
+      // Now save to database (this happens in background)
       const { data, error } = await supabase
         .from('categories')
         .insert([{
           name: categoryData.name.trim(),
           description: categoryData.description.trim(),
           created_by: user.id,
-          status: 'pending'
+          status: 'approved' // Change from 'pending' to 'approved' for immediate use
         }])
         .select()
         .single();
-
-      if (error) throw error;
-
-      console.log('Category suggestion submitted for approval');
-      setShowNewCategoryDialog(false);
-      fetchCategories();
+  
+      if (error) {
+        console.error('Error adding category:', error);
+        // Revert the local changes if there was an error
+        setCategories(prevCategories => prevCategories.filter(cat => cat.id !== tempId));
+        shopToasts.error('Failed to add category');
+        return;
+      }
+  
+      // Replace the temporary category with the real one from the database
+      setCategories(prevCategories => 
+        prevCategories.map(cat => 
+          cat.id === tempId ? data : cat
+        )
+      );
+      
+      // Update the selected category to the real ID
+      setValue("category", data.id);
+      
+      console.log('Category added successfully');
+      shopToasts.success('New category added');
+      
     } catch (error) {
       console.error('Error adding category:', error);
-      console.error('Failed to add category');
+      shopToasts.error('Failed to add category');
     }
   };
 

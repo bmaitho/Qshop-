@@ -1,4 +1,4 @@
-// ProductGrid.jsx with category fixes
+// ProductGrid.jsx with improved category handling
 import React, { useState, useEffect } from 'react';
 import Masonry from 'react-masonry-css';
 import ProductCard from './ProductCard';
@@ -83,11 +83,9 @@ const ProductGrid = ({ category, searchQuery, categoriesMap = {} }) => {
 
       const { data, error } = await query;
 
-      console.log('Products response:', { data, error });
-
       if (error) throw error;
       
-      // Process products to have display_category
+      // Process products to always have display_category
       const processedProducts = (data || []).map(product => {
         let displayCategory = product.category;
         

@@ -22,6 +22,22 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 
+// Helper function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
+// Helper function to get display category name
+const getDisplayCategory = (category) => {
+  if (!category) return "Other";
+  if (typeof category === 'string') {
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  }
+  return "Other";
+};
+
 const ProductCard = ({ 
   product, 
   isOwner = false, 
@@ -186,8 +202,9 @@ const ProductCard = ({
     </>
   );
 
-  // Get the display category, either from the processed display_category or from the category field
-  const displayCategory = product.display_category || product.category || "Other";
+  // Get the display category, prioritizing processed display_category or properly formatted category
+  const displayCategory = product.display_category || 
+    (isUUID(product.category) ? "Other" : getDisplayCategory(product.category));
 
   return (
     <div 
