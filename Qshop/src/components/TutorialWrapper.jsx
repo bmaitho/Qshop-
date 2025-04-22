@@ -1,4 +1,4 @@
-// src/components/TutorialWrapper.jsx
+// src/components/TutorialWrapper.jsx - Modified to skip shop customization
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
@@ -11,7 +11,6 @@ import {
   getMarketplaceSteps,
   getProductSteps,
   getMyShopSteps,
-  getShopCustomizationSteps,
   getAddProductSteps,
   getOrdersSteps,
   getCartSteps,
@@ -32,10 +31,11 @@ const TutorialWrapper = ({ children }) => {
   const [fallbackMode, setFallbackMode] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   
-  // Track special tutorial modes for shop settings and add product
-  const [shopCustomizationMode, setShopCustomizationMode] = useState(false);
+  // Track special tutorial modes for adding product and orders
   const [addProductMode, setAddProductMode] = useState(false);
   const [ordersMode, setOrdersMode] = useState(false);
+  
+  // MODIFIED: Remove shopCustomizationMode state and related functions
   
   const targetCheckerRef = useRef(null);
   const location = useLocation();
@@ -46,15 +46,6 @@ const TutorialWrapper = ({ children }) => {
   
   // Check if mobile or touch experience for appropriate steps
   const isMobileExperience = isMobile || isTouchDevice;
-  
-  // Function to trigger clicking the customize shop button
-  const triggerCustomizeShopClick = () => {
-    const button = document.querySelector('.customize-shop-button, button:has(svg[data-lucide="settings"]), button:contains("Customize Shop"), button:contains("Edit Shop")');
-    if (button) {
-      console.log('Auto-clicking shop customize button');
-      button.click();
-    }
-  };
   
   // Handle responsive design and touch detection
   useEffect(() => {
@@ -100,7 +91,6 @@ const TutorialWrapper = ({ children }) => {
     setReady(false);
     
     // Reset special modes when changing routes
-    setShopCustomizationMode(false);
     setAddProductMode(false);
     setOrdersMode(false);
     
@@ -126,70 +116,11 @@ const TutorialWrapper = ({ children }) => {
     }
   }, []);
   
-  // Add improved detection for shop customization mode
-  useEffect(() => {
-    if (!ready || hasCompletedTutorial) return;
-    
-    const checkForShopCustomization = () => {
-      // Look for shop settings elements
-      const shopNameInput = document.querySelector('#shopName');
-      const sheetWithShopSettings = document.querySelector('[role="dialog"] h2, [role="dialog"] h3');
-      const isShopSettings = sheetWithShopSettings && 
-                            (sheetWithShopSettings.textContent.includes('Shop Settings') || 
-                             sheetWithShopSettings.textContent.includes('Shop Information'));
-      
-      if (shopNameInput || isShopSettings) {
-        // If shop customization detected but mode not set
-        if (!shopCustomizationMode) {
-          console.log('Shop settings form detected - starting customization tutorial');
-          setShopCustomizationMode(true);
-          setAddProductMode(false);
-          setOrdersMode(false);
-          setStepIndex(0);
-          setRunTutorial(true);
-        }
-        return true;
-      }
-      return false;
-    };
-    
-    // Check right away
-    checkForShopCustomization();
-    
-    // Set up a regular interval to check
-    const intervalId = setInterval(checkForShopCustomization, 500);
-    
-    // Also set up a MutationObserver to check when DOM changes
-    const observer = new MutationObserver(() => {
-      checkForShopCustomization();
-    });
-    
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-    
-    return () => {
-      clearInterval(intervalId);
-      observer.disconnect();
-    };
-  }, [ready, hasCompletedTutorial, shopCustomizationMode]);
-  
+  // MODIFIED: Remove shop customization detection
+
   // Detect if special sheets are open
   useEffect(() => {
     if (!ready || hasCompletedTutorial) return;
-    
-    // Check for shop customization dialog/sheet
-    const shopCustomizationCheck = () => {
-      const sheetHeader = document.querySelector('h2:contains("Shop Settings"), h3:contains("Shop Settings")');
-      const shopNameInput = document.getElementById('shopName');
-      const descriptionInput = document.getElementById('description');
-      
-      if (shopNameInput || descriptionInput || sheetHeader) {
-        return true;
-      }
-      return false;
-    };
     
     // Check for add product dialog/sheet
     const addProductCheck = () => {
@@ -216,25 +147,16 @@ const TutorialWrapper = ({ children }) => {
     // Set up interval to check for special sheets
     const checkInterval = setInterval(() => {
       if (location.pathname === '/myshop') {
-        const isShopCustomization = shopCustomizationCheck();
         const isAddProduct = addProductCheck();
         const isOrders = ordersCheck();
         
-        if (isShopCustomization && !shopCustomizationMode) {
-          setShopCustomizationMode(true);
-          setAddProductMode(false);
-          setOrdersMode(false);
-          setStepIndex(0);
-          setRunTutorial(true);
-        } else if (isAddProduct && !addProductMode) {
+        if (isAddProduct && !addProductMode) {
           setAddProductMode(true);
-          setShopCustomizationMode(false);
           setOrdersMode(false);
           setStepIndex(0);
           setRunTutorial(true);
         } else if (isOrders && !ordersMode) {
           setOrdersMode(true);
-          setShopCustomizationMode(false);
           setAddProductMode(false);
           setStepIndex(0);
           setRunTutorial(true);
@@ -251,9 +173,7 @@ const TutorialWrapper = ({ children }) => {
     
     // If we're in a special mode, use appropriate steps
     let steps = [];
-    if (shopCustomizationMode) {
-      steps = getShopCustomizationSteps();
-    } else if (addProductMode) {
+    if (addProductMode) {
       steps = getAddProductSteps();
     } else if (ordersMode) {
       steps = getOrdersSteps();
@@ -263,33 +183,8 @@ const TutorialWrapper = ({ children }) => {
       steps = getStepsForCurrentPage();
     }
     
-    // Check for auto-click on MyShop final step
-    if (location.pathname === '/myshop' && 
-        type === EVENTS.STEP_AFTER && 
-        index === steps.length - 1 && 
-        !shopCustomizationMode &&
-        !addProductMode &&
-        !ordersMode) {
-      // Auto-click the customize shop button after a short delay
-      setTimeout(triggerCustomizeShopClick, 300);
-      return; // Don't proceed with navigation
-    }
-    
-    // Special handling for cart page - when completing the cart tutorial, mark as done permanently
-    if (location.pathname === '/cart') {
-      if ((type === EVENTS.STEP_AFTER && index === (steps.length - 1)) || 
-          [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-        // Definitively end the tutorial - no more steps anywhere
-        localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
-        setRunTutorial(false);
-        setIsTutorialActive(false);
-        return;
-      }
-    }
-    
-    // Also exit special modes when finished/skipped
+    // Exit special modes when finished/skipped
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      setShopCustomizationMode(false);
       setAddProductMode(false);
       setOrdersMode(false);
       
@@ -304,6 +199,18 @@ const TutorialWrapper = ({ children }) => {
       return;
     }
     
+    // Special handling for cart page - when completing the cart tutorial, mark as done permanently
+    if (location.pathname === '/cart') {
+      if ((type === EVENTS.STEP_AFTER && index === (steps.length - 1)) || 
+          [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+        // Definitively end the tutorial - no more steps anywhere
+        localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
+        setRunTutorial(false);
+        setIsTutorialActive(false);
+        return;
+      }
+    }
+    
     // Handle step changes
     if (type === EVENTS.STEP_AFTER) {
       if (action === ACTIONS.NEXT) {
@@ -314,7 +221,7 @@ const TutorialWrapper = ({ children }) => {
           setRunTutorial(false);
           
           // Only navigate automatically if we're not in a special mode
-          if (!shopCustomizationMode && !addProductMode && !ordersMode) {
+          if (!addProductMode && !ordersMode) {
             // Navigate based on current page
             if (location.pathname === '/' || location.pathname === '/home') {
               navigate('/studentmarketplace');
@@ -331,10 +238,7 @@ const TutorialWrapper = ({ children }) => {
             } else if (location.pathname.includes('/product/')) {
               navigate('/myshop');
             } else if (location.pathname === '/myshop') {
-              // For MyShop, don't navigate away - we handle this separately
-              // Wait for the shop customization to be triggered
-            } else if (location.pathname === '/cart') {
-              // Cart is the final step, just complete the tutorial
+              navigate('/cart');
             }
           }
         } else {
@@ -356,11 +260,10 @@ const TutorialWrapper = ({ children }) => {
     // Delay a bit to make sure all elements are rendered
     targetCheckerRef.current = setTimeout(() => {
       // For special modes, always run tutorial
-      if (shopCustomizationMode || addProductMode || ordersMode) {
+      if (addProductMode || ordersMode) {
         setStepIndex(0);
         setRunTutorial(true);
         if (debugMode) {
-          if (shopCustomizationMode) console.log('Starting Shop Customization tutorial');
           if (addProductMode) console.log('Starting Add Product tutorial');
           if (ordersMode) console.log('Starting Orders tutorial');
         }
@@ -382,7 +285,7 @@ const TutorialWrapper = ({ children }) => {
     }, 800);
     
     return () => clearTimeout(targetCheckerRef.current);
-  }, [ready, location.pathname, isTutorialActive, hasCompletedTutorial, shopCustomizationMode, addProductMode, ordersMode]);
+  }, [ready, location.pathname, isTutorialActive, hasCompletedTutorial, addProductMode, ordersMode]);
 
   // Check if the current page has valid tutorial targets
   const checkCurrentPageHasTargets = () => {
@@ -441,9 +344,6 @@ const TutorialWrapper = ({ children }) => {
   // Get steps for the current page
   const getStepsForCurrentPage = () => {
     // Check for special modes first
-    if (shopCustomizationMode) {
-      return getShopCustomizationSteps();
-    }
     if (addProductMode) {
       return getAddProductSteps();
     }
@@ -469,9 +369,6 @@ const TutorialWrapper = ({ children }) => {
   
   // Get the appropriate steps
   const getActiveSteps = () => {
-    if (shopCustomizationMode) {
-      return getShopCustomizationSteps();
-    }
     if (addProductMode) {
       return getAddProductSteps();
     }
