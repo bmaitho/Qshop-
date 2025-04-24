@@ -89,16 +89,48 @@ const SellerOrderDetail = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // Get sender and recipient names for better UX
-      const senderName = user.user_metadata?.full_name || user.email || 'Seller';
-      const recipientName = buyer?.full_name || buyer?.email || 'Buyer';
+      // If buyer object is missing or incomplete, try to fetch it again
+      let buyerInfo = buyer;
+      if (!buyer || (!buyer.full_name && !buyer.email)) {
+        try {
+          const { data: freshBuyerData, error: buyerError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', order.user_id)
+            .maybeSingle();  // <-- Changed from single() to maybeSingle()
+            
+          if (freshBuyerData) {
+            buyerInfo = freshBuyerData;
+          } else if (buyerError) {
+            console.warn(`Error fetching buyer profile: ${buyerError.message}`);
+          } else {
+            console.warn(`No profile found for buyer ID ${order.user_id}`);
+          }
+        } catch (e) {
+          console.error('Error fetching buyer details:', e);
+        }
+      }
+      
+      // Get sender info from user metadata or fallback to user ID
+      const userMetadata = user.user_metadata || {};
+      
+      // Get sender and recipient names with better fallbacks
+      const senderName = userMetadata.full_name || user.email || 'Seller';
+      
+      // Build recipient name with strong fallbacks
+      const recipientName = buyerInfo?.full_name || 
+                            buyerInfo?.email || 
+                            order?.user_id || 
+                            'Buyer';
+      
+      console.log('Sending message to buyer with recipient name:', recipientName);
       
       // Create message record
       const { error } = await supabase
         .from('messages')
         .insert([{
           sender_id: user.id,
-          recipient_id: buyer.id,
+          recipient_id: buyerInfo?.id || order.user_id,
           product_id: orderItem.product_id,
           order_id: orderItem.order_id,
           order_item_id: orderItem.id,
@@ -106,14 +138,15 @@ const SellerOrderDetail = () => {
           sender_name: senderName,
           recipient_name: recipientName
         }]);
-
+  
       if (error) throw error;
       
       // Reset message field and show success message
       setMessage('');
-      alert("Message sent successfully");
+      toast.success("Message sent successfully");
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error("Failed to send message");
     }
   };
 

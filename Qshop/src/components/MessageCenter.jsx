@@ -156,16 +156,39 @@ const MessageCenter = () => {
     
     try {
       // Fetch the recipient profile to get their name
-      const { data: recipientProfile } = await supabase
+      // Use maybeSingle instead of single to avoid PGRST116 error
+      const { data: recipientProfile, error: profileError } = await supabase
         .from('profiles')
         .select('full_name, email')
         .eq('id', activeConversation.otherUserId)
-        .single();
-        
-      const senderName = currentUserProfile.full_name || currentUser.email || 'Unknown Sender';
-      const recipientName = recipientProfile?.full_name || recipientProfile?.email || 'Unknown Recipient';
+        .maybeSingle();  // <-- Changed from single() to maybeSingle()
       
-      const { error } = await supabase
+      // Initialize default recipient info if query fails    
+      let recipientInfo = {
+        full_name: null,
+        email: null
+      };
+      
+      if (recipientProfile) {
+        recipientInfo = recipientProfile;
+      } else if (profileError) {
+        console.warn(`Error fetching profile for recipient ID ${activeConversation.otherUserId}:`, profileError);
+      } else {
+        console.warn(`No profile found for recipient ID ${activeConversation.otherUserId}`);
+      }
+        
+      const senderName = currentUserProfile.full_name || currentUser.email || currentUser.id || 'Unknown Sender';
+      
+      // Build recipient name with strong fallbacks
+      const recipientName = recipientInfo.full_name || 
+                            recipientInfo.email || 
+                            activeConversation.otherUserName || 
+                            activeConversation.otherUserId || 
+                            'Unknown Recipient';
+  
+      console.log('Sending reply with recipient name:', recipientName);
+      
+      const { error: insertError } = await supabase
         .from('messages')
         .insert([
           {
@@ -178,8 +201,8 @@ const MessageCenter = () => {
             recipient_name: recipientName
           }
         ]);
-
-      if (error) throw error;
+  
+      if (insertError) throw insertError;
       
       // Clear input and refresh conversation
       setReplyText('');

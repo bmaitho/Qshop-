@@ -36,22 +36,38 @@ const MessageDialog = ({
       fetchRecipientDetails();
       fetchCurrentUserProfile();
     }
-  }, [isOpen]);
+  }, [isOpen, recipientId]);
 
   const fetchRecipientDetails = async () => {
     if (!recipientId) return;
     
     try {
+      // Use maybeSingle instead of single to avoid PGRST116 error
+      // when no rows are found (it returns null instead of error)
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email')
         .eq('id', recipientId)
-        .single();
+        .maybeSingle();  // <-- Change from single() to maybeSingle()
 
-      if (error) throw error;
-      setRecipientDetails(data);
+      if (error) {
+        console.error('Error fetching recipient details:', error);
+      }
+      
+      // Always set recipient details - either with data from DB or defaults
+      setRecipientDetails({
+        id: recipientId,
+        full_name: data?.full_name || null,
+        email: data?.email || null
+      });
     } catch (error) {
-      console.error('Error fetching recipient details:', error);
+      console.error('Error in fetchRecipientDetails:', error);
+      // Set default recipient details on exception
+      setRecipientDetails({
+        id: recipientId,
+        full_name: null, 
+        email: null
+      });
     }
   };
 
@@ -86,10 +102,30 @@ const MessageDialog = ({
         throw new Error('You must be logged in to send messages');
       }
 
-      // Get sender and recipient names
-      const senderName = currentUserProfile?.full_name || user.email || 'Unknown Sender';
-      const recipientName = recipientDetails?.full_name || recipientDetails?.email || 'Unknown Recipient';
+      // Ensure we have recipient details - if not, fetch them again
+      let recipient = recipientDetails;
+      if (!recipient) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', recipientId)
+            .single();
+            
+          if (!error) {
+            recipient = data;
+          }
+        } catch (e) {
+          console.error('Final attempt to fetch recipient failed:', e);
+        }
+      }
 
+      // Get sender and recipient names with better fallbacks
+      const senderName = currentUserProfile?.full_name || user.email || user.id || 'Unknown Sender';
+      const recipientName = recipient?.full_name || recipient?.email || (recipient ? recipient.id : recipientId) || 'Unknown Recipient';
+
+      console.log('Sending message with recipient name:', recipientName);
+      
       // Create message record with names
       const { error } = await supabase
         .from('messages')
