@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Plus, 
@@ -30,7 +30,9 @@ import Navbar from './Navbar';
 import AddProductForm from './AddProductForm';
 import ShopSettingsForm from './ShopSettingsForm';
 import EditProductForm from './EditProductForm';
-import SellerOrders from './SellerOrders'; // Import the SellerOrders component
+
+// Lazy load the SellerOrders component
+const SellerOrders = React.lazy(() => import('./SellerOrders'));
 
 // Function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -51,54 +53,54 @@ const MyShop = () => {
     pendingOrders: 0
   });
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [isSeller, setIsSeller] = useState(false);
-  const [activeTab, setActiveTab] = useState('');
+  const [activeTab, setActiveTab] = useState('listings');
   const [productToEdit, setProductToEdit] = useState(null);
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [showShopSettings, setShowShopSettings] = useState(false);
   const [showEditProduct, setShowEditProduct] = useState(false);
-  // Add state for categories mapping
   const [categoriesMap, setCategoriesMap] = useState({});
-  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // First, fetch categories on component mount
-  useEffect(() => {
-    fetchCategories();
-    
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Define all the callbacks first, then use them in useEffect
 
-  // Then, fetch other data after categories are loaded
-  useEffect(() => {
-    if (categoriesLoaded) {
-      fetchShopData();
-      fetchProducts();
-      fetchStatistics();
+  // Get a properly formatted category display name
+  const getCategoryDisplayName = useCallback((categoryValue) => {
+    // If it's a UUID, look up in the categoriesMap
+    if (isUUID(categoryValue)) {
+      return categoriesMap[categoryValue] || "Other";
     }
-  }, [categoriesLoaded]);
-
-  // Set the initial activeTab after determining seller status
-  useEffect(() => {
-    if (shopData) {
-      // Default to listings tab
-      setActiveTab('listings');
+    // If it's a string name, capitalize first letter
+    if (typeof categoryValue === 'string') {
+      return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
     }
-  }, [shopData]);
+    // Default fallback
+    return "Other";
+  }, [categoriesMap]);
 
-  // Add this function to fetch categories and create a mapping
-  const fetchCategories = async () => {
+  // Process products with categories
+  const processProducts = useCallback((productsData) => {
+    return (productsData || []).map(product => {
+      const displayCategory = getCategoryDisplayName(product.category);
+      
+      return {
+        ...product,
+        display_category: displayCategory
+      };
+    });
+  }, [getCategoryDisplayName]);
+
+  // Fetch categories - optimize and avoid redundant fetches
+  const fetchCategories = useCallback(async () => {
     try {
-      console.log("Fetching categories...");
-      // Fetch categories from the categories table
+      // Use caching to avoid repeated calls
+      if (Object.keys(categoriesMap).length > 0) return;
+      
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
-        .select('*')
+        .select('id,name')
         .eq('status', 'approved');
 
       if (categoriesError) throw categoriesError;
@@ -109,128 +111,109 @@ const MyShop = () => {
         categoriesData.forEach(cat => {
           mapping[cat.id] = cat.name;
         });
-        console.log("Categories mapping created:", mapping);
-        setCategoriesMap(mapping);
       }
-      
-      // Mark categories as loaded to trigger other data fetching
-      setCategoriesLoaded(true);
+      setCategoriesMap(mapping);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Even if there's an error, mark as loaded to not block other data loading
-      setCategoriesLoaded(true);
     }
-  };
+  }, [categoriesMap]);
 
-  const fetchShopData = async () => {
+  // Fetch shop data
+  const fetchShopData = useCallback(async (userId) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userId) return;
 
       const { data: shop, error } = await supabase
         .from('shops')
-        .select('*')
-        .eq('id', user.id)
+        .select('id,shop_name,description,banner_url,offers_delivery,business_hours,policies')
+        .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
       setShopData(shop);
     } catch (error) {
       console.error('Error fetching shop data:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchProducts = async () => {
+  // Fetch products
+  const fetchProducts = useCallback(async (userId) => {
     try {
-      console.log("Fetching products with categoriesMap:", categoriesMap);
-      const { data: { user } } = await supabase.auth.getUser();
+      if (!userId) return;
+      setProductsLoading(true);
+  
       const { data, error } = await supabase
         .from('products')
-        .select('*, product_ratings(*)')
-        .eq('seller_id', user.id)
+        .select(`
+          id,
+          name,
+          price,
+          original_price,
+          image_url,
+          condition,
+          category,
+          status,
+          description,
+          seller_id,
+          created_at,
+          location
+        `)
+        .eq('seller_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Log sample of raw products
-      if (data && data.length > 0) {
-        console.log("Sample raw product:", data[0]);
-        console.log("Sample product category:", data[0].category);
-        console.log("Is UUID?", isUUID(data[0].category));
-      }
-      
-      // Process products to have display_category
-      const processedProducts = (data || []).map(product => {
-        let displayCategory = product.category;
-        
-        // Debug logging for each product
-        console.log(`Processing product ${product.id} with category ${product.category}`);
-        
-        // If the category is a UUID, try to get the display name from the map
-        if (isUUID(product.category) && categoriesMap[product.category]) {
-          console.log(`Found in map: ${categoriesMap[product.category]}`);
-          displayCategory = categoriesMap[product.category];
-        } else if (typeof product.category === 'string') {
-          // For string categories, capitalize the first letter
-          console.log("Using string capitalization");
-          displayCategory = product.category.charAt(0).toUpperCase() + product.category.slice(1);
-        }
-        
-        return {
-          ...product,
-          display_category: displayCategory
-        };
-      });
-      
-      console.log("Processed products:", processedProducts);
+      const processedProducts = processProducts(data);
       setProducts(processedProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
       shopToasts.loadError();
     } finally {
-      setLoading(false);
+      setProductsLoading(false);
     }
-  };
+  }, [processProducts]);
 
-  const fetchStatistics = async () => {
+  // Fetch statistics
+  const fetchStatistics = useCallback(async (userId) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userId) return;
+      setStatsLoading(true);
       
-      // Get order statistics
-      const { data: orderData, error: orderError } = await supabase
-        .from('order_items')
-        .select(`
-          id,
-          subtotal,
-          status
-        `)
-        .eq('seller_id', user.id);
+      // Execute these queries in parallel for better performance
+      const [orderStats, productStats] = await Promise.all([
+        supabase
+          .from('order_items')
+          .select('id,subtotal,status')
+          .eq('seller_id', userId),
+          
+        supabase
+          .from('products')
+          .select('id,status')
+          .eq('seller_id', userId)
+      ]);
       
-      if (orderError) {
-        console.error("Error fetching order data:", orderError);
-        throw orderError;
+      if (orderStats.error) {
+        console.error("Error fetching order data:", orderStats.error);
+        throw orderStats.error;
       }
       
-      // Get product statistics
-      const { data: productStats, error: productError } = await supabase
-        .from('products')
-        .select('id, status')
-        .eq('seller_id', user.id);
-  
-      if (productError) {
-        console.error("Error fetching product stats:", productError);
-        throw productError;
+      if (productStats.error) {
+        console.error("Error fetching product stats:", productStats.error);
+        throw productStats.error;
       }
-  
+
       // Calculate statistics from order_items
-      const pendingOrders = orderData?.filter(order => order.status === 'processing').length || 0;
-      const totalSales = orderData?.length || 0;
-      const totalRevenue = orderData?.reduce((sum, order) => sum + (order.subtotal || 0), 0) || 0;
+      const pendingOrders = (orderStats.data || []).filter(order => order.status === 'processing').length;
+      const totalSales = (orderStats.data || []).length;
+      const totalRevenue = (orderStats.data || []).reduce(
+        (sum, order) => sum + (order.subtotal || 0), 0
+      );
       
       // Calculate product statistics
-      const activeListings = productStats?.filter(p => p.status === 'active').length || 0;
-      const soldItems = productStats?.filter(p => p.status === 'sold').length || 0;
+      const activeListings = (productStats.data || []).filter(p => p.status === 'active').length;
+      const soldItems = (productStats.data || []).filter(p => p.status === 'sold').length;
   
       // Update state with real statistics
       setStatistics({
@@ -238,7 +221,7 @@ const MyShop = () => {
         totalRevenue,
         activeListings,
         soldItems,
-        averageRating: 4.5, // Placeholder until you implement ratings
+        averageRating: 4.5, // Placeholder
         pendingOrders
       });
     } catch (error) {
@@ -252,11 +235,97 @@ const MyShop = () => {
         averageRating: 0,
         pendingOrders: 0
       });
+    } finally {
+      setStatsLoading(false);
     }
-  };
+  }, []);
 
+  // Initial data loading
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Call resize handler once to set initial state
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    
+    // Fetch current user only once
+    const fetchCurrentUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
+        return user;
+      } catch (error) {
+        console.error('Error fetching user:', error);
+        return null;
+      }
+    };
+    
+    fetchCurrentUser().then(user => {
+      if (user) {
+        // Load data in parallel for better performance
+        fetchShopData(user.id);
+        fetchCategories().then(() => fetchProducts(user.id));
+        fetchStatistics(user.id);
+      } else {
+        setLoading(false);
+        setProductsLoading(false);
+        setStatsLoading(false);
+      }
+    });
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fetchShopData, fetchCategories, fetchProducts, fetchStatistics]);
+
+  // Handle product status change
   const handleStatusChange = async (productId, newStatus) => {
     try {
+      // Get the current product to properly update stats
+      const currentProduct = products.find(p => p.id === productId);
+      if (!currentProduct) return;
+      
+      const currentStatus = currentProduct.status;
+      
+      // Optimistically update UI immediately for better UX
+      setProducts(prevProducts => 
+        prevProducts.map(product => 
+          product.id === productId 
+            ? { ...product, status: newStatus } 
+            : product
+        )
+      );
+      
+      // Update statistics without full refetch
+      if (currentStatus !== newStatus) {
+        if (newStatus === 'active') {
+          setStatistics(prev => ({
+            ...prev,
+            activeListings: prev.activeListings + 1,
+            soldItems: currentStatus === 'sold' ? prev.soldItems - 1 : prev.soldItems
+          }));
+        } else if (newStatus === 'sold') {
+          setStatistics(prev => ({
+            ...prev,
+            activeListings: currentStatus === 'active' ? prev.activeListings - 1 : prev.activeListings,
+            soldItems: prev.soldItems + 1
+          }));
+        } else if (currentStatus === 'active') {
+          // Product going from active to something other than sold
+          setStatistics(prev => ({
+            ...prev,
+            activeListings: prev.activeListings - 1
+          }));
+        } else if (currentStatus === 'sold') {
+          // Product going from sold to something other than active
+          setStatistics(prev => ({
+            ...prev,
+            soldItems: prev.soldItems - 1
+          }));
+        }
+      }
+      
+      // Then do the actual API call
       const { error } = await supabase
         .from('products')
         .update({ 
@@ -265,21 +334,38 @@ const MyShop = () => {
         })
         .eq('id', productId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
-      fetchProducts();
-      fetchStatistics();
       shopToasts.statusUpdateSuccess(newStatus);
+      
     } catch (error) {
       console.error('Error updating product status:', error);
       shopToasts.statusUpdateError();
+      
+      // Revert UI changes if API call fails
+      fetchProducts(currentUser?.id);
     }
   };
 
+  // Handle product deletion with optimistic UI update
   const handleDeleteProduct = async (productId) => {
     try {
+      // Get the product before removal to handle stats correctly
+      const deletedProduct = products.find(p => p.id === productId);
+      
       // Optimistically update UI first
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+      
+      // Update statistics optimistically
+      if (deletedProduct) {
+        setStatistics(prev => ({
+          ...prev,
+          activeListings: prev.activeListings - (deletedProduct.status === 'active' ? 1 : 0),
+          soldItems: prev.soldItems - (deletedProduct.status === 'sold' ? 1 : 0)
+        }));
+      }
       
       // Then perform the actual delete operation
       const { error } = await supabase
@@ -289,13 +375,12 @@ const MyShop = () => {
 
       if (error) {
         console.error('Supabase delete error:', error);
-        // If there's an error, revert the optimistic update by fetching products again
-        fetchProducts();
+        // If there's an error, revert the optimistic update
+        fetchProducts(currentUser?.id);
+        fetchStatistics(currentUser?.id);
         throw error;
       }
       
-      // Only fetch statistics as products are already updated optimistically
-      fetchStatistics();
       shopToasts.deleteProductSuccess();
     } catch (error) {
       console.error('Error in handleDeleteProduct:', error);
@@ -303,86 +388,109 @@ const MyShop = () => {
     }
   };
 
+  // Handle product edit
   const handleEditProduct = (product) => {
     setProductToEdit(product);
     setShowEditProduct(true);
   };
 
+  // Handle shop update
   const handleShopUpdate = () => {
-    fetchShopData();
+    fetchShopData(currentUser?.id);
     setShowShopSettings(false);
   };
 
+  // Handle product update
   const handleProductUpdate = () => {
-    fetchProducts();
-    fetchStatistics();
+    fetchProducts(currentUser?.id);
+    fetchStatistics(currentUser?.id);
     setShowEditProduct(false);
     setProductToEdit(null);
   };
 
+  // Handle add new product
   const handleAddNewProduct = () => {
-    fetchProducts();
-    fetchStatistics();
+    fetchProducts(currentUser?.id);
+    fetchStatistics(currentUser?.id);
     setShowAddProduct(false);
   };
   
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8 mt-12">
-          <div className="animate-pulse">
-            <div className="bg-gray-200 h-32 rounded-lg mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-64 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Get shop name - use profile email as fallback
-  const getShopName = () => {
+  // Get shop name
+  const getShopName = useMemo(() => {
     if (shopData?.shop_name) return shopData.shop_name;
     return "My Shop";
-  };
+  }, [shopData]);
 
-  // Get a properly formatted category display name
-  const getCategoryDisplayName = (categoryValue) => {
-    // Log for debugging
-    console.log("Getting display name for:", categoryValue);
+  // Statistics loading placeholder
+  const StatisticsPlaceholder = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i} className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+            <div className="h-5 bg-gray-200 dark:bg-gray-700 w-1/2 rounded"></div>
+            <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 w-1/4 rounded"></div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  // Memoize the product grid
+  const productGrid = useMemo(() => {
+    if (productsLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-gray-200 dark:bg-gray-700 h-64 rounded animate-pulse"></div>
+          ))}
+        </div>
+      );
+    }
     
-    // If it's a UUID, look up in the categoriesMap
-    if (isUUID(categoryValue)) {
-      const displayName = categoriesMap[categoryValue];
-      console.log("Found in map:", displayName);
-      return displayName || "Other";
+    if (products.length === 0) {
+      return (
+        <div className="col-span-full text-center py-8 text-gray-500">
+          <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+          <p className="mb-4">You haven't posted any listings yet</p>
+          <Button onClick={() => setShowAddProduct(true)} variant="outline">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Listing
+          </Button>
+        </div>
+      );
     }
-    // If it's a string name, capitalize first letter
-    if (typeof categoryValue === 'string') {
-      return categoryValue.charAt(0).toUpperCase() + categoryValue.slice(1);
-    }
-    // Default fallback
-    return "Other";
-  };
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {products.map(product => (
+          <ProductCard 
+            key={product.id} 
+            product={product}
+            isOwner={true}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDeleteProduct}
+            onEdit={() => handleEditProduct(product)}
+          />
+        ))}
+      </div>
+    );
+  }, [products, productsLoading]);
 
   return (
     <>
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 py-8 mt-12 mb-16">
-        {/* Shop Banner */}
+        {/* Shop Banner - only render if exists */}
         {shopData?.banner_url && (
           <div className="w-full h-32 md:h-48 lg:h-64 rounded-lg overflow-hidden mb-6">
             <img 
               src={shopData.banner_url} 
-              alt={`${getShopName()} banner`}
+              alt={`${getShopName} banner`}
               className="w-full h-full object-cover"
+              loading="lazy"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = "/api/placeholder/1200/400";
@@ -394,7 +502,7 @@ const MyShop = () => {
         {/* Shop Header - Mobile Responsive */}
         <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex justify-between items-center'} mb-4`}>
           <div>
-            <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{getShopName()}</h1>
+            <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{getShopName}</h1>
             <div className={`flex items-center gap-6 mb-4`}>
               <div className="text-center">
                 <div className="font-bold">{statistics.activeListings}</div>
@@ -499,64 +607,69 @@ const MyShop = () => {
           </div>
         </div>
 
-        {/* Statistics Cards - Mobile Responsive */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-         <Card className="shadow-sm">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-               Active Listings
-             </CardTitle>
-             <Package className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent className="p-3 pt-0">
-             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-               {statistics.activeListings || 0}
-             </div>
-           </CardContent>
-         </Card>
+        {/* Statistics Cards - Mobile Responsive with loading state */}
+        {statsLoading ? (
+          <StatisticsPlaceholder />
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+                <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+                  Active Listings
+                </CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+                  {statistics.activeListings || 0}
+                </div>
+              </CardContent>
+            </Card>
          
-         <Card className="shadow-sm">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-               Total Sales
-             </CardTitle>
-             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent className="p-3 pt-0">
-             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-               {statistics.totalSales || 0}
-             </div>
-           </CardContent>
-         </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+                <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+                  Total Sales
+                </CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+                  {statistics.totalSales || 0}
+                </div>
+              </CardContent>
+            </Card>
          
-         <Card className="shadow-sm">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-               Revenue
-             </CardTitle>
-             <DollarSign className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent className="p-3 pt-0">
-             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
-               KES {(statistics.totalRevenue || 0).toLocaleString()}
-             </div>
-           </CardContent>
-         </Card>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+                <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+                  Revenue
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold`}>
+                  KES {(statistics.totalRevenue || 0).toLocaleString()}
+                </div>
+              </CardContent>
+            </Card>
          
-         <Card className="shadow-sm">
-           <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
-             <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
-               Pending Orders
-             </CardTitle>
-             <Clock className="h-4 w-4 text-muted-foreground" />
-           </CardHeader>
-           <CardContent className="p-3 pt-0">
-             <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold ${(statistics.pendingOrders || 0) > 0 ? 'text-orange-600' : ''}`}>
-               {statistics.pendingOrders || 0}
-             </div>
-           </CardContent>
-         </Card>
-       </div>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+                <CardTitle className={`${isMobile ? 'text-xs' : 'text-sm'} font-medium`}>
+                  Pending Orders
+                </CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold ${(statistics.pendingOrders || 0) > 0 ? 'text-orange-600' : ''}`}>
+                  {statistics.pendingOrders || 0}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
         {/* Main Tabs */}
         <Tabs 
           value={activeTab}
@@ -579,67 +692,46 @@ const MyShop = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Listings Tab */}
+          {/* Listings Tab - Memoized content */}
           <TabsContent value="listings" className="mt-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">My Listings</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {products.length > 0 ? (
-                products.map(product => {
-                  // Force the correct display_category
-                  const productWithCategory = {
-                    ...product,
-                    display_category: getCategoryDisplayName(product.category)
-                  };
-                  
-                  return (
-                    <ProductCard 
-                      key={product.id} 
-                      product={productWithCategory}
-                      isOwner={true}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDeleteProduct}
-                      onEdit={() => handleEditProduct(product)}
-                    />
-                  );
-                })
-              ) : (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p className="mb-4">You haven't posted any listings yet</p>
-                  <Button onClick={() => setShowAddProduct(true)} variant="outline">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Listing
-                  </Button>
-                </div>
-              )}
-            </div>
+            {/* Use memoized product grid */}
+            {productGrid}
           </TabsContent>
           
-          {/* Orders Tab */}
+          {/* Orders Tab - Lazy loaded */}
           <TabsContent value="orders" className="mt-6">
-            {/* Integrate the SellerOrders component */}
-            <SellerOrders />
+            <Suspense fallback={
+              <div className="text-center py-10">
+                <div className="animate-spin w-8 h-8 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading orders...</p>
+              </div>
+            }>
+              {activeTab === 'orders' && <SellerOrders />}
+            </Suspense>
           </TabsContent>
         </Tabs>
         
         {/* Edit Product Sheet */}
-        <Sheet open={showEditProduct} onOpenChange={setShowEditProduct}>
-          <SheetContent>
-            {productToEdit && (
-              <EditProductForm 
-                product={productToEdit} 
-                onSuccess={handleProductUpdate}
-                onCancel={() => setShowEditProduct(false)}
-              />
-            )}
-          </SheetContent>
-        </Sheet>
+        {showEditProduct && (
+          <Sheet open={showEditProduct} onOpenChange={setShowEditProduct}>
+            <SheetContent>
+              {productToEdit && (
+                <EditProductForm 
+                  product={productToEdit} 
+                  onSuccess={handleProductUpdate}
+                  onCancel={() => setShowEditProduct(false)}
+                />
+              )}
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </>
   );
 };
 
-export default MyShop;
+export default React.memo(MyShop);
