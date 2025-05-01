@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Force production URL for auth (since you specified you're not in sandbox)
+
 const AUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 
 console.log(`M-Pesa Auth Configuration:
@@ -36,7 +36,7 @@ const generateAccessToken = async () => {
   console.log(`📝 Using credentials - Key: ${consumerKey.substring(0, 4)}... Secret: ${consumerSecret.substring(0, 4)}...`);
   
   try {
-    // Create the auth string - This matches the TypeScript implementation exactly
+    
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
     console.log(`🔐 Generated Base64 auth string: ${auth.substring(0, 10)}...`);
     
