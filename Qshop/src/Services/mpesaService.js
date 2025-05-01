@@ -91,7 +91,7 @@ export const checkPaymentStatus = async (checkoutRequestId) => {
       throw new Error('Checkout request ID is required');
     }
 
-    // Make API request to check status with the correct path
+    
     const response = await axios.get(`${API_BASE_URL}/api/mpesa/status/${checkoutRequestId}`);
 
     return {
