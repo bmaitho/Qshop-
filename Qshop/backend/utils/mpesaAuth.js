@@ -39,14 +39,13 @@ const generateAccessToken = async () => {
   console.log(`📝 Using credentials - Key: ${consumerKey.substring(0, 4)}... Secret: ${consumerSecret.substring(0, 4)}...`);
   
   try {
-    // Create the auth string
+    // Create the auth string - Updated to match TypeScript implementation
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
     console.log(`🔐 Generated Base64 auth string: ${auth.substring(0, 10)}...`);
     
     console.log(`🌐 Sending request to M-Pesa auth URL: ${AUTH_URL}`);
     
-    // Make the request to get access token
-    const response = await axios.get(AUTH_URL, {
+    const response = await axios(AUTH_URL, {
       headers: {
         Authorization: `Basic ${auth}`,
       },
