@@ -1,4 +1,4 @@
-// src/components/TutorialWrapper.jsx - Modified to skip shop customization
+// src/components/TutorialWrapper.jsx - Direct Orders Tutorial Solution
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
@@ -9,17 +9,17 @@ import { useTutorial } from './RestartTutorialButton';
 import {
   getHomeSteps,
   getMarketplaceSteps,
-  getProductSteps,
   getMyShopSteps,
-  getAddProductSteps,
   getOrdersSteps,
-  getCartSteps,
+  getAddProductSteps,
   getFallbackSteps
 } from '../utils/tutorialSteps';
 
 // Local storage keys for tutorial state
 const TUTORIAL_COMPLETED_KEY = 'unihive_tutorial_completed';
 const TUTORIAL_PROGRESS_KEY = 'unihive_tutorial_progress';
+const MYSHOP_TUTORIAL_COMPLETED_KEY = 'unihive_myshop_tutorial_completed';
+const ORDERS_TUTORIAL_PENDING_KEY = 'unihive_orders_tutorial_pending';
 
 const TutorialWrapper = ({ children }) => {
   const { isTutorialActive, setIsTutorialActive } = useTutorial();
@@ -31,13 +31,12 @@ const TutorialWrapper = ({ children }) => {
   const [fallbackMode, setFallbackMode] = useState(false);
   const [debugMode, setDebugMode] = useState(false);
   
-  // Track special tutorial modes for adding product and orders
+  // Special modes
   const [addProductMode, setAddProductMode] = useState(false);
   const [ordersMode, setOrdersMode] = useState(false);
   
-  // MODIFIED: Remove shopCustomizationMode state and related functions
-  
   const targetCheckerRef = useRef(null);
+  const ordersCheckInterval = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const [hasCompletedTutorial, setHasCompletedTutorial] = useState(
@@ -94,6 +93,11 @@ const TutorialWrapper = ({ children }) => {
     setAddProductMode(false);
     setOrdersMode(false);
     
+    // If leaving MyShop, clear the pending orders tutorial flag
+    if (location.pathname !== '/myshop') {
+      localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
+    }
+    
     // Wait for the page to load before checking for elements
     const timer = setTimeout(() => {
       setReady(true);
@@ -115,10 +119,75 @@ const TutorialWrapper = ({ children }) => {
       setIsTutorialActive(true);
     }
   }, []);
-  
-  // MODIFIED: Remove shop customization detection
 
-  // Detect if special sheets are open
+  // Clear intervals when component unmounts
+  useEffect(() => {
+    return () => {
+      if (ordersCheckInterval.current) {
+        clearInterval(ordersCheckInterval.current);
+      }
+    };
+  }, []);
+
+  // Check for Orders tab activation and trigger Orders tutorial
+  useEffect(() => {
+    // Only run this check if we're on the MyShop page, the tutorial is active,
+    // and the Orders tutorial is pending
+    const shouldCheckForOrdersTab = 
+      location.pathname === '/myshop' && 
+      isTutorialActive && 
+      !hasCompletedTutorial &&
+      localStorage.getItem(ORDERS_TUTORIAL_PENDING_KEY) === 'true';
+    
+    if (!shouldCheckForOrdersTab) {
+      // Clear any existing interval
+      if (ordersCheckInterval.current) {
+        clearInterval(ordersCheckInterval.current);
+        ordersCheckInterval.current = null;
+      }
+      return;
+    }
+    
+    // Function to check if Orders tab is active
+    const checkOrdersTabActive = () => {
+      try {
+        // Check for visual indicators that Orders tab is active
+        const ordersTabActive = document.querySelector('[value="orders"][aria-selected="true"]');
+        
+        if (ordersTabActive) {
+          if (debugMode) {
+            console.log('Orders tab is active - starting Orders tutorial');
+          }
+          
+          // Clear the interval since we found what we were looking for
+          clearInterval(ordersCheckInterval.current);
+          ordersCheckInterval.current = null;
+          
+          // Start the Orders tutorial
+          startOrdersTutorial();
+        }
+      } catch (error) {
+        console.error('Error checking for Orders tab:', error);
+      }
+    };
+    
+    // Set up interval to check for Orders tab activation
+    if (!ordersCheckInterval.current) {
+      ordersCheckInterval.current = setInterval(checkOrdersTabActive, 500);
+      
+      // Initial check
+      checkOrdersTabActive();
+    }
+    
+    return () => {
+      if (ordersCheckInterval.current) {
+        clearInterval(ordersCheckInterval.current);
+        ordersCheckInterval.current = null;
+      }
+    };
+  }, [location.pathname, isTutorialActive, hasCompletedTutorial]);
+
+  // Detect if add product dialog/sheet is open
   useEffect(() => {
     if (!ready || hasCompletedTutorial) return;
     
@@ -133,31 +202,13 @@ const TutorialWrapper = ({ children }) => {
       return false;
     };
     
-    // Check for orders tab
-    const ordersCheck = () => {
-      const ordersTab = document.querySelector('.orders-tab, [value="orders"]');
-      const ordersActive = document.querySelector('[value="orders"][aria-selected="true"]');
-      
-      if (ordersActive) {
-        return true;
-      }
-      return false;
-    };
-    
     // Set up interval to check for special sheets
     const checkInterval = setInterval(() => {
       if (location.pathname === '/myshop') {
         const isAddProduct = addProductCheck();
-        const isOrders = ordersCheck();
         
         if (isAddProduct && !addProductMode) {
           setAddProductMode(true);
-          setOrdersMode(false);
-          setStepIndex(0);
-          setRunTutorial(true);
-        } else if (isOrders && !ordersMode) {
-          setOrdersMode(true);
-          setAddProductMode(false);
           setStepIndex(0);
           setRunTutorial(true);
         }
@@ -166,6 +217,69 @@ const TutorialWrapper = ({ children }) => {
     
     return () => clearInterval(checkInterval);
   }, [ready, location.pathname, hasCompletedTutorial]);
+
+  // Function to explicitly start the Orders tutorial
+  const startOrdersTutorial = () => {
+    // Only start if we're not already in orders mode
+    if (!ordersMode) {
+      // Clear any existing tutorial
+      setRunTutorial(false);
+      
+      // Set up the Orders tutorial
+      setOrdersMode(true);
+      setAddProductMode(false);
+      setStepIndex(0);
+      
+      // Mark Orders tutorial as no longer pending
+      localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
+      
+      // Delay slightly to ensure UI is ready
+      setTimeout(() => {
+        setRunTutorial(true);
+      }, 300);
+    }
+  };
+  
+  // Function to mark the MyShop part as completed and set Orders as pending
+  const completeMyShopTutorial = () => {
+    localStorage.setItem(MYSHOP_TUTORIAL_COMPLETED_KEY, 'true');
+    localStorage.setItem(ORDERS_TUTORIAL_PENDING_KEY, 'true');
+    
+    // Stop the current tutorial
+    setRunTutorial(false);
+    
+    // Look for the Orders tab and try to click it
+    const ordersTab = document.querySelector('.orders-tab, [value="orders"]');
+    if (ordersTab) {
+      if (debugMode) {
+        console.log('MyShop tutorial completed - trying to click Orders tab');
+      }
+      
+      // Try to programmatically click the Orders tab
+      try {
+        ordersTab.click();
+      } catch (error) {
+        console.error('Failed to click Orders tab:', error);
+      }
+    } else {
+      if (debugMode) {
+        console.warn('Orders tab not found');
+      }
+    }
+  };
+  
+  // Function to mark the complete tutorial as done
+  const completeFullTutorial = () => {
+    localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
+    localStorage.removeItem(MYSHOP_TUTORIAL_COMPLETED_KEY);
+    localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
+    setRunTutorial(false);
+    setIsTutorialActive(false);
+    
+    if (debugMode) {
+      console.log('Full tutorial completed and marked as done');
+    }
+  };
   
   // Handle joyride callback
   const handleJoyrideCallback = (data) => {
@@ -183,35 +297,41 @@ const TutorialWrapper = ({ children }) => {
       steps = getStepsForCurrentPage();
     }
     
-    // Exit special modes when finished/skipped
+    // Handle tutorial completed or skipped
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-      setAddProductMode(false);
-      setOrdersMode(false);
+      // If we're in add product mode, just exit that mode and continue
+      if (addProductMode) {
+        setAddProductMode(false);
+        
+        // Wait a moment before continuing regular tutorial
+        setTimeout(() => {
+          if (location.pathname === '/myshop') {
+            setStepIndex(0);
+            setRunTutorial(true);
+          }
+        }, 500);
+        
+        return;
+      }
       
-      // Wait a moment before continuing regular tutorial
-      setTimeout(() => {
-        if (location.pathname === '/myshop') {
-          setStepIndex(0);
-          setRunTutorial(true);
-        }
-      }, 500);
+      // If we're in orders mode, mark the full tutorial as complete
+      if (ordersMode) {
+        completeFullTutorial();
+        return;
+      }
       
+      // If we're on MyShop page and finished the steps, mark it as complete and set up Orders tutorial
+      if (location.pathname === '/myshop' && !ordersMode) {
+        completeMyShopTutorial();
+        return;
+      }
+      
+      // Default case - if user skipped, mark as complete
+      completeFullTutorial();
       return;
     }
     
-    // Special handling for cart page - when completing the cart tutorial, mark as done permanently
-    if (location.pathname === '/cart') {
-      if ((type === EVENTS.STEP_AFTER && index === (steps.length - 1)) || 
-          [STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
-        // Definitively end the tutorial - no more steps anywhere
-        localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
-        setRunTutorial(false);
-        setIsTutorialActive(false);
-        return;
-      }
-    }
-    
-    // Handle step changes
+    // Handle step after actions
     if (type === EVENTS.STEP_AFTER) {
       if (action === ACTIONS.NEXT) {
         const nextIndex = index + 1;
@@ -226,20 +346,14 @@ const TutorialWrapper = ({ children }) => {
             if (location.pathname === '/' || location.pathname === '/home') {
               navigate('/studentmarketplace');
             } else if (location.pathname === '/studentmarketplace' || location.pathname.includes('/search')) {
-              // Find a product to navigate to
-              const productElements = document.querySelectorAll('.product-card a');
-              if (productElements.length > 0) {
-                const href = productElements[0].getAttribute('href');
-                if (href) navigate(href);
-                else navigate('/myshop'); // Fallback
-              } else {
-                navigate('/myshop'); // Fallback if no products found
-              }
-            } else if (location.pathname.includes('/product/')) {
               navigate('/myshop');
             } else if (location.pathname === '/myshop') {
-              navigate('/cart');
+              // Completed MyShop tutorial, mark it as done and set up Orders tutorial
+              completeMyShopTutorial();
             }
+          } else if (ordersMode) {
+            // If we've completed all orders steps, mark the full tutorial as done
+            completeFullTutorial();
           }
         } else {
           setStepIndex(nextIndex);
@@ -257,15 +371,38 @@ const TutorialWrapper = ({ children }) => {
     
     clearTimeout(targetCheckerRef.current);
     
+    // Check if MyShop tutorial is already completed
+    const myShopCompleted = localStorage.getItem(MYSHOP_TUTORIAL_COMPLETED_KEY) === 'true';
+    
+    // If Orders tutorial is pending, don't start a new tutorial automatically
+    const ordersPending = localStorage.getItem(ORDERS_TUTORIAL_PENDING_KEY) === 'true';
+    
     // Delay a bit to make sure all elements are rendered
     targetCheckerRef.current = setTimeout(() => {
       // For special modes, always run tutorial
-      if (addProductMode || ordersMode) {
+      if (addProductMode) {
         setStepIndex(0);
         setRunTutorial(true);
         if (debugMode) {
-          if (addProductMode) console.log('Starting Add Product tutorial');
-          if (ordersMode) console.log('Starting Orders tutorial');
+          console.log('Starting Add Product tutorial');
+        }
+        return;
+      }
+      
+      if (ordersMode) {
+        setStepIndex(0);
+        setRunTutorial(true);
+        if (debugMode) {
+          console.log('Starting Orders tutorial');
+        }
+        return;
+      }
+      
+      // If we're on MyShop page and MyShop tutorial is completed and Orders is pending,
+      // don't start a new tutorial - wait for Orders tab to be active
+      if (location.pathname === '/myshop' && myShopCompleted && ordersPending) {
+        if (debugMode) {
+          console.log('MyShop tutorial completed, waiting for Orders tab activation');
         }
         return;
       }
@@ -301,9 +438,7 @@ const TutorialWrapper = ({ children }) => {
         currentPath === '/home' ||
         currentPath === '/studentmarketplace' || 
         currentPath.includes('/search') ||
-        currentPath.includes('/product/') ||
-        currentPath === '/myshop' ||
-        currentPath === '/cart';
+        currentPath === '/myshop';
         
       // If we're on a page without specific steps, don't show any tutorial
       if (!hasSpecificTutorial) {
@@ -356,12 +491,8 @@ const TutorialWrapper = ({ children }) => {
       return getHomeSteps(isMobileExperience);
     } else if (location.pathname === '/studentmarketplace' || location.pathname.includes('/search')) {
       return getMarketplaceSteps(isMobileExperience);
-    } else if (location.pathname.includes('/product/')) {
-      return getProductSteps(isMobileExperience);
     } else if (location.pathname === '/myshop') {
       return getMyShopSteps(isMobileExperience);
-    } else if (location.pathname === '/cart') {
-      return getCartSteps(isMobileExperience);
     }
     
     return [];
@@ -387,6 +518,29 @@ const TutorialWrapper = ({ children }) => {
   // Only run tutorial if steps exist
   const shouldRun = runTutorial && activeSteps.length > 0;
 
+  // Prepare target step indices that need spotlightClicks enabled
+  const needsSpotlightClicks = (index) => {
+    if (!activeSteps || index >= activeSteps.length) return false;
+    
+    // Get the current step
+    const step = activeSteps[index];
+    
+    // If the step explicitly sets spotlightClicks, respect that
+    if (step.spotlightClicks === true) {
+      return true;
+    }
+    
+    // Enable spotlight clicks by default for orders tab in MyShop
+    if (location.pathname === '/myshop' && !ordersMode && !addProductMode) {
+      // If the target contains "orders-tab", enable spotlight clicks
+      if (step.target && step.target.includes('.orders-tab')) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   // Joyride configuration
   const joyrideProps = {
     callback: handleJoyrideCallback,
@@ -399,14 +553,14 @@ const TutorialWrapper = ({ children }) => {
     showSkipButton: true,
     disableCloseOnEsc: false,
     disableOverlayClose: true,
-    spotlightClicks: fallbackMode ? true : false,
+    spotlightClicks: needsSpotlightClicks(stepIndex) || fallbackMode,
     spotlightPadding: isMobileExperience ? 40 : 15,
     hideBackButton: stepIndex === 0,
     disableOverlay: false,
     floaterProps: {
-      disableAnimation: isMobileExperience, // Disable animations which can cause rendering issues
-      hideArrow: isMobileExperience, // Hide arrows on mobile which can position incorrectly
-      offset: isMobileExperience ? 40 : 15, // Increase offset on mobile to improve visibility
+      disableAnimation: isMobileExperience,
+      hideArrow: isMobileExperience,
+      offset: isMobileExperience ? 40 : 15,
     },
     styles: {
       options: {
@@ -518,8 +672,11 @@ const TutorialWrapper = ({ children }) => {
       <div>Mobile: {isMobileExperience ? 'Yes' : 'No'}</div>
       <div>Tutorial: {shouldRun ? 'Running' : 'Stopped'}</div>
       <div>Step: {stepIndex + 1}/{activeSteps.length}</div>
-      <div>Fallback: {fallbackMode ? 'Yes' : 'No'}</div>
-      <div>Ready: {ready ? 'Yes' : 'No'}</div>
+      <div>Add Product: {addProductMode ? 'Yes' : 'No'}</div>
+      <div>Orders Mode: {ordersMode ? 'Yes' : 'No'}</div>
+      <div>MyShop Done: {localStorage.getItem(MYSHOP_TUTORIAL_COMPLETED_KEY) === 'true' ? 'Yes' : 'No'}</div>
+      <div>Orders Pending: {localStorage.getItem(ORDERS_TUTORIAL_PENDING_KEY) === 'true' ? 'Yes' : 'No'}</div>
+      <div>SpotlightClicks: {needsSpotlightClicks(stepIndex) ? 'Yes' : 'No'}</div>
       <div>Path: {location.pathname.substring(0, 15)}</div>
       <div className="flex gap-1 mt-1">
         <button 
@@ -529,10 +686,13 @@ const TutorialWrapper = ({ children }) => {
           {runTutorial ? 'Stop' : 'Start'}
         </button>
         <button 
-          onClick={() => setFallbackMode(!fallbackMode)} 
-          className="bg-orange-500 px-2 py-1 rounded"
+          onClick={() => {
+            setOrdersMode(!ordersMode);
+            setAddProductMode(false);
+          }} 
+          className="bg-purple-500 px-2 py-1 rounded"
         >
-          {fallbackMode ? 'Normal' : 'Fallback'}
+          {ordersMode ? 'Exit Orders' : 'Orders'}
         </button>
       </div>
       <div className="flex gap-1 mt-1">
@@ -553,9 +713,12 @@ const TutorialWrapper = ({ children }) => {
         <button 
           onClick={() => {
             localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
-            localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
+            localStorage.removeItem(MYSHOP_TUTORIAL_COMPLETED_KEY);
+            localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
             setIsTutorialActive(true);
             setFallbackMode(false);
+            setAddProductMode(false);
+            setOrdersMode(false);
             setStepIndex(0);
             setRunTutorial(true);
           }} 

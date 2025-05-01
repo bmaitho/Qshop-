@@ -1,5 +1,5 @@
 // src/utils/tutorialSteps.js
-// Updated version that skips the shop customization section
+// Updated with integrated MyShop + Orders approach
 
 // Home page steps
 export const getHomeSteps = (isMobile = false) => [
@@ -60,90 +60,109 @@ export const getMarketplaceSteps = (isMobile = false) => [
   },
   {
     target: 'body',
-    title: 'Let\'s View a Product',
-    content: 'Now let\'s check out a product in detail. Click "Next" to continue.',
+    title: 'Let\'s Check Your Shop',
+    content: 'Now let\'s see how you can sell your own products. We\'ll head to your shop page.',
     placement: 'center',
     disableOverlay: true,
   }
 ];
 
-// Product page steps
-export const getProductSteps = (isMobile = false) => [
-  {
-    target: '.product-image',
-    title: 'Product Image',
-    content: 'See high-quality images of the product.',
-    placement: 'right'
-  },
-  {
-    target: 'button:contains("Add to Cart")',
-    title: 'Add to Cart',
-    content: 'Easily add products to your cart with one click.',
-    placement: 'top'
-  },
-  {
-    target: 'body',
-    title: 'Next Step: Your Shop',
-    content: 'Now let\'s see how you can sell your own products. We\'ll check out the My Shop page.',
-    placement: 'center',
-    disableOverlay: true
-  }
-];
-
-// My Shop steps - MODIFIED to skip shop customization
 export const getMyShopSteps = (isMobile = false) => [
   {
     target: 'body',
-    title: 'Your Shop',
+    title: 'Your Shop Dashboard',
     content: 'Welcome to your shop! Here you can manage your products and orders.',
     placement: 'center',
     disableBeacon: true
   },
   {
+    target: '.customize-shop-button',
+    title: 'Shop Customization',
+    content: 'Click here to set up your shop name, banner, and policies.',
+    placement: isMobile ? 'top' : 'right',
+    spotlightClicks: true
+  },
+  {
     target: '.add-product-button',
     title: 'Add Products',
-    content: 'Click here to add new products to your shop.',
-    placement: 'left'
+    content: 'Start selling by creating new product listings here.',
+    placement: isMobile ? 'top' : 'right',
+    spotlightClicks: true
   },
-  // Skip the customize shop step entirely
   {
     target: '.orders-tab',
-    title: 'Manage Orders',
-    content: 'View and manage customer orders.',
-    placement: 'bottom'
+    title: 'Order Management',
+    content: 'Click here to view and manage your customer orders.',
+    placement: 'bottom',
+    spotlightClicks: true
   },
   {
-    target: 'body',
-    title: 'Let\'s Explore Your Cart',
-    content: 'We\'ll now check out your shopping cart. Click "Next" to continue.',
-    placement: 'center',
-    disableOverlay: true
+    target: '.grid-cols-2.md\\:grid-cols-4',
+    title: 'Sales Overview',
+    content: 'Track your key metrics: active listings, sales, and revenue.',
+    placement: 'bottom'
   }
 ];
 
-// Cart steps
-export const getCartSteps = (isMobile = false) => [
+export const getOrdersSteps = (isMobile = false) => [
   {
-    target: 'body',
-    title: 'Shopping Cart',
-    content: 'This is your shopping cart where you can review items before checkout.',
-    placement: 'center',
-    disableBeacon: true
+    target: '[value="new"]',
+    title: 'New Orders',
+    content: 'View pending orders that need your attention here.',
+    placement: 'bottom',
+    spotlightClicks: true
   },
   {
-    target: '.cart-icon',
-    title: 'Cart Access',
-    content: 'You can always access your cart from here.',
+    target: 'input[placeholder*="Search"]',
+    title: 'Order Search',
+    content: 'Find orders by ID using this search field.',
+    placement: 'left'
+  },
+  {
+    target: '.bg-orange-100',
+    title: 'Order Status',
+    content: 'Processing orders are highlighted in orange. Update status as you fulfill them.',
+    placement: 'right'
+  },
+  {
+    target: 'button:has(.mr-1)', // Mark as In Transit button
+    title: 'Update Status',
+    content: 'Click here when you ship items to update order status.',
+    placement: 'left',
+    spotlightClicks: true
+  },
+  {
+    target: 'button:has(.h-4.w-4)', // Contact Buyer button
+    title: 'Customer Communication',
+    content: 'Message buyers directly about their orders.',
+    placement: 'top'
+  },
+  {
+    target: 'button:contains("Details")',
+    title: 'Order Details',
+    content: 'View full order information including delivery details.',
+    placement: 'right'
+  },
+  {
+    target: '.bg-blue-100', // In Transit status
+    title: 'Shipping Tracking',
+    content: 'Orders in transit are marked blue. Update when delivered.',
     placement: 'bottom'
-  },
-  {
-    target: 'body',
-    title: 'Tutorial Complete!',
-    content: 'You\'ve completed the UniHive tutorial! You can now buy and sell products with ease. Happy trading!',
-    placement: 'center',
-    disableOverlay: true
   }
 ];
+
+// Unified shop tutorial handler
+export const getShopTutorialSteps = (activeTab, isMobile) => {
+  const baseSteps = getMyShopSteps(isMobile);
+  
+  if (activeTab === 'orders') {
+    return [
+      ...baseSteps.filter(step => step.target !== '.orders-tab'),
+      ...getOrdersSteps(isMobile)
+    ];
+  }
+  return baseSteps;
+};
 
 // Add Product steps
 export const getAddProductSteps = () => [
@@ -182,36 +201,6 @@ export const getAddProductSteps = () => [
     title: 'Submit',
     content: 'Click here to add your product once all information is complete.',
     placement: 'top'
-  }
-];
-
-// Orders steps
-export const getOrdersSteps = () => [
-  {
-    target: 'body',
-    title: 'Order Management',
-    content: 'Here you can manage all your orders.',
-    placement: 'center',
-    disableBeacon: true
-  },
-  {
-    target: '[value="new"]',
-    title: 'New Orders',
-    content: 'See new orders that require your attention.',
-    placement: 'bottom'
-  },
-  {
-    target: '[value="shipped"]',
-    title: 'Shipped Orders',
-    content: 'Track orders that are already on their way.',
-    placement: 'bottom'
-  },
-  {
-    target: 'body',
-    title: 'Manage Your Business',
-    content: 'Keep track of all your sales and ensure timely delivery to maintain great customer satisfaction.',
-    placement: 'center',
-    disableOverlay: true
   }
 ];
 
