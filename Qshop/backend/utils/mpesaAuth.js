@@ -42,7 +42,7 @@ const generateAccessToken = async () => {
     
     console.log(`🌐 Sending request to M-Pesa auth URL: ${AUTH_URL}`);
     
-    // Using the axios direct call method to match TypeScript implementation
+    
     const response = await axios(AUTH_URL, {
       headers: {
         Authorization: `Basic ${auth}`,
