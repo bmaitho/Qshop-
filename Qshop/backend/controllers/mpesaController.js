@@ -6,10 +6,8 @@ import { supabase } from '../supabaseClient.js';
 dotenv.config();
 
 // Environment configuration
-const isProduction = process.env.MPESA_ENVIRONMENT === 'production';
-const MPESA_API_URL = isProduction
-  ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
-  : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+const isProduction = true; // Force production mode
+const MPESA_API_URL = 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
 // M-Pesa credentials from environment variables
 const BUSINESS_SHORT_CODE = process.env.MPESA_BUSINESS_SHORT_CODE;
@@ -49,8 +47,15 @@ export const initiateSTKPush = async (req, res) => {
       });
     }
 
-    // Generate new access token
+    // Generate new access token - Must be fresh for each request
+    console.log('Generating fresh access token for STK Push...');
     const accessToken = await generateAccessToken();
+    console.log('Generated token:', accessToken ? `${accessToken.substring(0, 10)}...` : 'FAILED TO GENERATE TOKEN');
+
+    // Check token validity - must not be null or undefined
+    if (!accessToken) {
+      throw new Error('Failed to generate a valid access token');
+    }
 
     // Generate timestamp and password
     const timestamp = generateTimestamp();
@@ -65,7 +70,7 @@ export const initiateSTKPush = async (req, res) => {
       BusinessShortCode: BUSINESS_SHORT_CODE,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: isProduction ? "CustomerPayBillOnline" : "CustomerBuyGoodsOnline",
+      TransactionType: "CustomerPayBillOnline", // Required for PayBill numbers in production
       Amount: Math.ceil(amount), // Safaricom requires whole numbers
       PartyA: formattedPhone,
       PartyB: BUSINESS_SHORT_CODE,
@@ -83,10 +88,16 @@ export const initiateSTKPush = async (req, res) => {
       phoneNumber: formattedPhone
     });
 
-    // Make the STK push request
-    const response = await axios.post(MPESA_API_URL, requestData, {
+    // Make the STK push request with proper Bearer token format
+    console.log(`🔐 Using token: ${accessToken ? accessToken.substring(0, 15) + '...' : 'MISSING'}`);
+    console.log(`📊 Full request data:`, JSON.stringify(requestData, null, 2));
+    
+    const response = await axios({
+      method: 'POST',
+      url: MPESA_API_URL,
+      data: requestData,
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
