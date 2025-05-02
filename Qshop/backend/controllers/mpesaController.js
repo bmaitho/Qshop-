@@ -107,17 +107,28 @@ export const initiateSTKPush = async (req, res) => {
     // Update the order with CheckoutRequestID for tracking
     if (orderId && response.data.CheckoutRequestID) {
       try {
-        await supabase
+        console.log(`Updating order ${orderId} with CheckoutRequestID: ${response.data.CheckoutRequestID}`);
+        
+        const { data: updateData, error: updateError } = await supabase
           .from('orders')
           .update({ 
             checkout_request_id: response.data.CheckoutRequestID,
             payment_status: 'pending',
             payment_method: 'mpesa'
           })
-          .eq('id', orderId);
+          .eq('id', orderId)
+          .select();
+        
+        if (updateError) {
+          console.error('Error updating order with CheckoutRequestID:', updateError);
+        } else {
+          console.log(`Successfully updated order with CheckoutRequestID:`, updateData);
+        }
       } catch (dbError) {
         console.error('Error updating order with CheckoutRequestID:', dbError);
       }
+    } else {
+      console.warn(`Cannot update order - OrderId: ${orderId}, CheckoutRequestID: ${response.data.CheckoutRequestID}`);
     }
 
     res.json({
@@ -157,6 +168,7 @@ export const handleCallback = async (req, res) => {
       const { ResultCode, ResultDesc, CallbackMetadata, CheckoutRequestID } = callbackData;
       
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
+      console.log(`Looking for order with CheckoutRequestID: ${CheckoutRequestID}`);
       
       // Find the order by the CheckoutRequestID
       const { data: orders, error: orderError } = await supabase
@@ -168,6 +180,7 @@ export const handleCallback = async (req, res) => {
         console.error('Error finding order by checkout request ID:', orderError);
       } else if (orders && orders.length > 0) {
         const order = orders[0];
+        console.log(`Found order with ID: ${order.id} for CheckoutRequestID: ${CheckoutRequestID}`);
         
         // Update order based on the result code (0 means success)
         if (ResultCode === 0 && CallbackMetadata) {
@@ -178,8 +191,15 @@ export const handleCallback = async (req, res) => {
           const phoneNumber = items.find(item => item.Name === 'PhoneNumber')?.Value;
           const amount = items.find(item => item.Name === 'Amount')?.Value;
           
+          console.log(`Updating order ${order.id} with payment details:`, {
+            receipt: mpesaReceiptNumber,
+            date: transactionDate,
+            phone: phoneNumber,
+            amount: amount
+          });
+          
           // Update order with payment details
-          const { error: updateError } = await supabase
+          const { data: updateData, error: updateError } = await supabase
             .from('orders')
             .update({
               payment_status: 'completed',
@@ -189,29 +209,43 @@ export const handleCallback = async (req, res) => {
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
               amount_paid: amount || order.amount
             })
-            .eq('id', order.id);
+            .eq('id', order.id)
+            .select();
             
           if (updateError) {
             console.error('Error updating order after successful payment:', updateError);
           } else {
-            console.log(`Order ${order.id} marked as paid successfully`);
+            console.log(`Order ${order.id} marked as paid successfully:`, updateData);
             
             // Also update order items status
-            await supabase
+            const { error: itemsError } = await supabase
               .from('order_items')
               .update({ status: 'processing' })
               .eq('order_id', order.id);
+              
+            if (itemsError) {
+              console.error('Error updating order items:', itemsError);
+            } else {
+              console.log(`Updated order items for order ${order.id}`);
+            }
           }
         } else {
           // Payment failed
-          await supabase
+          console.log(`Payment failed for order ${order.id}: ${ResultDesc}`);
+          const { error: failedError } = await supabase
             .from('orders')
             .update({
               payment_status: 'failed',
               payment_error: ResultDesc
             })
             .eq('id', order.id);
+            
+          if (failedError) {
+            console.error('Error updating order payment failure:', failedError);
+          }
         }
+      } else {
+        console.error(`No order found with CheckoutRequestID: ${CheckoutRequestID}`);
       }
     }
 
@@ -230,6 +264,8 @@ export const checkTransactionStatus = async (req, res) => {
   try {
     const { checkoutRequestId } = req.params;
     
+    console.log(`Checking payment status for CheckoutRequestID: ${checkoutRequestId}`);
+    
     if (!checkoutRequestId) {
       return res.status(400).json({
         success: false,
@@ -244,10 +280,12 @@ export const checkTransactionStatus = async (req, res) => {
       .eq('checkout_request_id', checkoutRequestId);
       
     if (orderError) {
+      console.error('Error finding order:', orderError);
       throw orderError;
     }
     
     if (!orders || orders.length === 0) {
+      console.error(`No order found with CheckoutRequestID: ${checkoutRequestId}`);
       return res.status(404).json({
         success: false,
         error: 'Order not found'
@@ -255,6 +293,7 @@ export const checkTransactionStatus = async (req, res) => {
     }
     
     const order = orders[0];
+    console.log(`Found order ${order.id} with payment status: ${order.payment_status}`);
     
     // Return the current payment status
     return res.json({
