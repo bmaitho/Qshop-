@@ -109,26 +109,59 @@ export const initiateSTKPush = async (req, res) => {
       try {
         console.log(`Updating order ${orderId} with CheckoutRequestID: ${response.data.CheckoutRequestID}`);
         
-        const { data: updateData, error: updateError } = await supabase
+        // Get the current order to check if it exists
+        const { data: existingOrder, error: checkError } = await supabase
           .from('orders')
-          .update({ 
-            checkout_request_id: response.data.CheckoutRequestID,
-            payment_status: 'pending',
-            payment_method: 'mpesa'
-          })
+          .select('id')
           .eq('id', orderId)
-          .select();
-        
-        if (updateError) {
-          console.error('Error updating order with CheckoutRequestID:', updateError);
+          .single();
+          
+        if (checkError) {
+          console.error('Order not found or database error:', checkError);
+          
+          // Create the order if it doesn't exist
+          console.log(`Creating new order with ID: ${orderId}`);
+          const { data: newOrder, error: createError } = await supabase
+            .from('orders')
+            .insert([
+              { 
+                id: orderId,
+                checkout_request_id: response.data.CheckoutRequestID,
+                payment_status: 'pending',
+                payment_method: 'mpesa',
+                amount: amount,
+                phone_number: formattedPhone,
+                created_at: new Date().toISOString()
+              }
+            ])
+            .select();
+            
+          if (createError) {
+            console.error('Error creating new order:', createError);
+          } else {
+            console.log('Successfully created new order:', newOrder);
+          }
         } else {
-          console.log(`Successfully updated order with CheckoutRequestID:`, updateData);
+          // Update the existing order
+          const { data, error } = await supabase
+            .from('orders')
+            .update({ 
+              checkout_request_id: response.data.CheckoutRequestID,
+              payment_status: 'pending',
+              payment_method: 'mpesa'
+            })
+            .eq('id', orderId)
+            .select();
+            
+          if (error) {
+            console.error('Error updating order with CheckoutRequestID:', error);
+          } else {
+            console.log('Successfully updated order with CheckoutRequestID:', data);
+          }
         }
       } catch (dbError) {
-        console.error('Error updating order with CheckoutRequestID:', dbError);
+        console.error('Database error:', dbError);
       }
-    } else {
-      console.warn(`Cannot update order - OrderId: ${orderId}, CheckoutRequestID: ${response.data.CheckoutRequestID}`);
     }
 
     res.json({
@@ -178,9 +211,10 @@ export const handleCallback = async (req, res) => {
       
       if (orderError) {
         console.error('Error finding order by checkout request ID:', orderError);
-      } else if (orders && orders.length > 0) {
+      } else if (!orders || orders.length === 0) {
+        console.error(`No order found with CheckoutRequestID: ${CheckoutRequestID}`);
+      } else {
         const order = orders[0];
-        console.log(`Found order with ID: ${order.id} for CheckoutRequestID: ${CheckoutRequestID}`);
         
         // Update order based on the result code (0 means success)
         if (ResultCode === 0 && CallbackMetadata) {
@@ -191,15 +225,8 @@ export const handleCallback = async (req, res) => {
           const phoneNumber = items.find(item => item.Name === 'PhoneNumber')?.Value;
           const amount = items.find(item => item.Name === 'Amount')?.Value;
           
-          console.log(`Updating order ${order.id} with payment details:`, {
-            receipt: mpesaReceiptNumber,
-            date: transactionDate,
-            phone: phoneNumber,
-            amount: amount
-          });
-          
           // Update order with payment details
-          const { data: updateData, error: updateError } = await supabase
+          const { error: updateError } = await supabase
             .from('orders')
             .update({
               payment_status: 'completed',
@@ -209,43 +236,29 @@ export const handleCallback = async (req, res) => {
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
               amount_paid: amount || order.amount
             })
-            .eq('id', order.id)
-            .select();
+            .eq('id', order.id);
             
           if (updateError) {
             console.error('Error updating order after successful payment:', updateError);
           } else {
-            console.log(`Order ${order.id} marked as paid successfully:`, updateData);
+            console.log(`Order ${order.id} marked as paid successfully`);
             
             // Also update order items status
-            const { error: itemsError } = await supabase
+            await supabase
               .from('order_items')
               .update({ status: 'processing' })
               .eq('order_id', order.id);
-              
-            if (itemsError) {
-              console.error('Error updating order items:', itemsError);
-            } else {
-              console.log(`Updated order items for order ${order.id}`);
-            }
           }
         } else {
           // Payment failed
-          console.log(`Payment failed for order ${order.id}: ${ResultDesc}`);
-          const { error: failedError } = await supabase
+          await supabase
             .from('orders')
             .update({
               payment_status: 'failed',
               payment_error: ResultDesc
             })
             .eq('id', order.id);
-            
-          if (failedError) {
-            console.error('Error updating order payment failure:', failedError);
-          }
         }
-      } else {
-        console.error(`No order found with CheckoutRequestID: ${CheckoutRequestID}`);
       }
     }
 
@@ -264,14 +277,14 @@ export const checkTransactionStatus = async (req, res) => {
   try {
     const { checkoutRequestId } = req.params;
     
-    console.log(`Checking payment status for CheckoutRequestID: ${checkoutRequestId}`);
-    
     if (!checkoutRequestId) {
       return res.status(400).json({
         success: false,
         error: 'Checkout request ID is required'
       });
     }
+    
+    console.log(`Checking payment status for CheckoutRequestID: ${checkoutRequestId}`);
     
     // Find the order by checkout request ID
     const { data: orders, error: orderError } = await supabase
@@ -280,12 +293,11 @@ export const checkTransactionStatus = async (req, res) => {
       .eq('checkout_request_id', checkoutRequestId);
       
     if (orderError) {
-      console.error('Error finding order:', orderError);
       throw orderError;
     }
     
     if (!orders || orders.length === 0) {
-      console.error(`No order found with CheckoutRequestID: ${checkoutRequestId}`);
+      console.log(`No order found with CheckoutRequestID: ${checkoutRequestId}`);
       return res.status(404).json({
         success: false,
         error: 'Order not found'
@@ -293,7 +305,6 @@ export const checkTransactionStatus = async (req, res) => {
     }
     
     const order = orders[0];
-    console.log(`Found order ${order.id} with payment status: ${order.payment_status}`);
     
     // Return the current payment status
     return res.json({
@@ -318,17 +329,25 @@ export const checkTransactionStatus = async (req, res) => {
  * Helper function to format M-Pesa date (format: YYYYMMDDHHmmss) to ISO format
  */
 const formatMpesaDate = (dateString) => {
-  if (!dateString || dateString.length !== 14) {
+  if (!dateString || typeof dateString !== 'string' && typeof dateString !== 'number') {
+    return new Date().toISOString();
+  }
+  
+  // Convert to string if it's a number
+  const strDate = dateString.toString();
+  
+  if (strDate.length !== 14) {
+    console.warn(`Invalid M-Pesa date format: ${strDate}, expected 14 digits`);
     return new Date().toISOString();
   }
   
   try {
-    const year = dateString.substring(0, 4);
-    const month = dateString.substring(4, 6);
-    const day = dateString.substring(6, 8);
-    const hour = dateString.substring(8, 10);
-    const minute = dateString.substring(10, 12);
-    const second = dateString.substring(12, 14);
+    const year = strDate.substring(0, 4);
+    const month = strDate.substring(4, 6);
+    const day = strDate.substring(6, 8);
+    const hour = strDate.substring(8, 10);
+    const minute = strDate.substring(10, 12);
+    const second = strDate.substring(12, 14);
     
     return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`).toISOString();
   } catch (error) {
