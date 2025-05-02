@@ -234,7 +234,7 @@ export const handleCallback = async (req, res) => {
               mpesa_receipt: mpesaReceiptNumber,
               payment_date: transactionDate ? formatMpesaDate(transactionDate) : new Date().toISOString(),
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
-              amount_paid: amount || order.amount
+              
             })
             .eq('id', order.id);
             
