@@ -232,7 +232,6 @@ export const handleCallback = async (req, res) => {
               payment_status: 'completed',
               order_status: 'processing',
               mpesa_receipt: mpesaReceiptNumber,
-              payment_date: transactionDate ? formatMpesaDate(transactionDate) : new Date().toISOString(),
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
               
             })
