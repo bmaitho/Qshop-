@@ -4,7 +4,8 @@ import { supabase, getSupabaseKeys } from '../SupabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from 'react-toastify';
-import { Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, AlertTriangle, AlertCircle } from 'lucide-react';
+import { emailApiService } from '../../Services/emailApiService';
 
 const Login = ({ setToken }) => {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ const Login = ({ setToken }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -34,11 +37,36 @@ const Login = ({ setToken }) => {
     }
   };
 
+  const handleResendEmail = async (email) => {
+    if (!email) {
+      toast.error('Please enter your email address first');
+      return;
+    }
+    
+    try {
+      setResendingEmail(true);
+      
+      const result = await emailApiService.resendConfirmationEmail(email);
+      
+      if (result.success) {
+        toast.success('Confirmation email has been resent. Please check your inbox.');
+      } else {
+        toast.error(result.error || 'Failed to resend confirmation email');
+      }
+    } catch (error) {
+      console.error('Error resending confirmation email:', error);
+      toast.error('An error occurred while resending the email');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setNetworkError(false);
     setAuthError('');
+    setEmailNotConfirmed(false); // Reset email confirmation state
 
     try {
       // First try standard Supabase method
@@ -48,7 +76,35 @@ const Login = ({ setToken }) => {
           password: formData.password,
         });
 
-        if (error) throw error;
+        if (error) {
+          // Check specifically for email confirmation errors
+          if (error.message && (
+              error.message.includes('Email not confirmed') || 
+              error.message.includes('Email confirmation') ||
+              error.message.includes('not confirmed')
+            )) {
+            setAuthError('Please confirm your email before logging in. Check your inbox for the confirmation link.');
+            setEmailNotConfirmed(true);
+            // Show toast with more details and offer to resend
+            toast.info(
+              <div>
+                Email not verified. Check your inbox or 
+                <Button 
+                  variant="link" 
+                  className="p-0 mx-1 text-white underline" 
+                  onClick={() => handleResendEmail(formData.email)}
+                >
+                  Resend Confirmation
+                </Button>
+              </div>, 
+              { position: "top-right", autoClose: 8000 }
+            );
+            setLoading(false);
+            return;
+          }
+          
+          throw error;
+        }
         
         // Store token in sessionStorage
         sessionStorage.setItem('token', JSON.stringify(data));
@@ -62,6 +118,18 @@ const Login = ({ setToken }) => {
         navigate('/home');
         return; // Exit early if successful
       } catch (standardError) {
+        // Check if this is an email confirmation error before trying other methods
+        if (standardError.message && (
+            standardError.message.includes('Email not confirmed') ||
+            standardError.message.includes('Email confirmation') ||
+            standardError.message.includes('not confirmed')
+          )) {
+          setAuthError('Please confirm your email before logging in. Check your inbox for the confirmation link.');
+          setEmailNotConfirmed(true);
+          setLoading(false);
+          return;
+        }
+
         // If standard method failed, try direct API method
         console.log("Standard login failed, trying direct API method:", standardError);
         
@@ -131,16 +199,21 @@ const Login = ({ setToken }) => {
     } catch (error) {
       console.error('Login error:', error);
       
-      // Check error type to determine appropriate message
-      if (error.message && (error.message.includes('Invalid') || error.message.includes('password') || error.message.includes('not found'))) {
-        // Authentication error (incorrect email/password)
+      // Check for email confirmation error in the general catch block too
+      if (error.message && (
+          error.message.includes('Email not confirmed') ||
+          error.message.includes('Email confirmation') ||
+          error.message.includes('not confirmed')
+        )) {
+        setAuthError('Please confirm your email before logging in. Check your inbox for the confirmation link.');
+        setEmailNotConfirmed(true);
+      } else if (error.message && (error.message.includes('Invalid') || error.message.includes('password') || error.message.includes('not found'))) {
         setAuthError('Invalid email or password');
         toast.error('Invalid email or password', {
           position: "top-right",
           autoClose: 3000,
         });
       } else {
-        // Network or server error
         setNetworkError(true);
         toast.error('Please check your internet connection and try again', {
           position: "top-right",
@@ -221,6 +294,26 @@ const Login = ({ setToken }) => {
                 <p className="text-sm">{authError}</p>
               </div>
             </div>
+          </div>
+        )}
+        
+        {emailNotConfirmed && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+            <div className="flex items-center text-blue-700 dark:text-blue-400 mb-2">
+              <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Email verification required</p>
+                <p className="text-sm">Please check your inbox for the confirmation link.</p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => handleResendEmail(formData.email)}
+              disabled={resendingEmail}
+              variant="outline"
+              className="w-full mt-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30"
+            >
+              {resendingEmail ? 'Sending...' : 'Resend Confirmation Email'}
+            </Button>
           </div>
         )}
         

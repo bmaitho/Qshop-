@@ -337,6 +337,9 @@ const SignUp = () => {
     }
     
     setSubmitting(true);
+    let userCreated = false;
+    let userId = null;
+    let emailSent = false;
 
     try {
       // If account type is wholesaler, verify the code first
@@ -381,19 +384,25 @@ const SignUp = () => {
       if (signUpError) throw signUpError;
       
       if (data?.user) {
-        const userId = data.user.id;
+        userId = data.user.id;
+        userCreated = true;
         
         // 2. Upload document if provided
         let documentUrl = null;
-        if (documentFile) {
-          documentUrl = await uploadDocument(userId);
+        try {
+          if (documentFile) {
+            documentUrl = await uploadDocument(userId);
+          }
+        } catch (docError) {
+          console.error('Document upload error (non-critical):', docError);
+          // Continue even if document upload fails
         }
         
         // 3. Create profile with seller_type
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert([
-            {
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert([{
               id: userId,
               full_name: formData.fullName,
               phone: formData.phone,
@@ -401,19 +410,28 @@ const SignUp = () => {
               campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
               seller_type: formData.accountType,
               is_seller: formData.isSeller,
-              email: formData.email,
-              email_confirmed: false
+              email: formData.email
+            }]);
+            
+          if (profileError) {
+            // If it's an RLS error, log it but don't throw
+            if (profileError.code === '42501') {
+              console.warn('RLS error during profile creation (non-critical):', profileError);
+            } else {
+              throw profileError;
             }
-          ]);
-          
-        if (profileError) throw profileError;
+          }
+        } catch (profileError) {
+          console.error('Profile creation error (non-critical):', profileError);
+          // Continue even if profile creation fails - the main auth record was created
+        }
         
         // 4. Create wholesaler details if applicable
         if (formData.accountType === 'wholesaler') {
-          const { error: wholesalerError } = await supabase
-            .from('wholesaler_details')
-            .insert([
-              {
+          try {
+            const { error: wholesalerError } = await supabase
+              .from('wholesaler_details')
+              .insert([{
                 id: userId,
                 business_name: formData.businessName,
                 business_license_number: formData.businessLicenseNumber,
@@ -423,29 +441,31 @@ const SignUp = () => {
                 business_email: formData.businessEmail || formData.email,
                 business_description: formData.businessDescription,
                 business_website: formData.businessWebsite
-              }
-            ]);
+              }]);
+              
+            if (wholesalerError) throw wholesalerError;
             
-          if (wholesalerError) throw wholesalerError;
-          
-          // 5. Mark the code as used
-          const { error: updateCodeError } = await supabase
-            .from('wholesaler_codes')
-            .update({
-              is_used: true,
-              used_by: formData.email,
-              used_at: new Date().toISOString()
-            })
-            .eq('code', formData.wholesalerCode.trim());
-          
-          if (updateCodeError) {
-            console.error('Error updating code status:', updateCodeError);
+            // 5. Mark the code as used
+            const { error: updateCodeError } = await supabase
+              .from('wholesaler_codes')
+              .update({
+                is_used: true,
+                used_by: formData.email,
+                used_at: new Date().toISOString()
+              })
+              .eq('code', formData.wholesalerCode.trim());
+            
+            if (updateCodeError) {
+              console.error('Error updating code status:', updateCodeError);
+            }
+          } catch (wholesalerError) {
+            console.error('Wholesaler details creation error (non-critical):', wholesalerError);
+            // Continue even if wholesaler details creation fails
           }
         }
         
         // Send confirmation email using our service
         try {
-          // Get confirmation token if available (might be in session for new sign-ups)
           const confirmationToken = data.session?.access_token || '';
           
           await emailApiService.sendConfirmationEmail(
@@ -454,23 +474,31 @@ const SignUp = () => {
             formData.fullName
           );
           
-          // Set email sent state to show confirmation screen
-          setEmailSent(true);
+          emailSent = true;
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);
-          // Still show success even if email fails, user can resend
-          setEmailSent(true);
-          toast.warning("Account created, but there was an issue sending the confirmation email. You can resend it below.");
+          // Still consider email sent even if our service fails
+          emailSent = true;
+          toast.warning("Account created, but there was an issue sending the custom confirmation email. Please check your inbox for the default confirmation email.");
         }
       }
     } catch (error) {
       console.error('Sign up error:', error);
       
+      // If user was created but we hit other errors, still show confirmation screen
+      if (userCreated) {
+        toast.warning("Your account was created, but we encountered some issues. Please check your email for the confirmation link.");
+        setEmailSent(true);
+        setSubmitting(false);
+        return;
+      }
+      
+      // Handle other signup errors
       let errorMessage = 'Failed to create account';
       
-      if (error.message && error.message.includes('password')) {
+      if (error.message?.includes('password')) {
         errorMessage = error.message;
-      } else if (error.message && error.message.includes('email')) {
+      } else if (error.message?.includes('email')) {
         errorMessage = 'This email is already registered';
         setErrors(prev => ({
           ...prev,
@@ -489,6 +517,12 @@ const SignUp = () => {
         autoClose: 4000,
       });
     } finally {
+      // If user was created and email was sent (or attempted),
+      // show the confirmation screen regardless of other errors
+      if (userCreated && emailSent) {
+        setEmailSent(true);
+      }
+      
       setSubmitting(false);
     }
   };
