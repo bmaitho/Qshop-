@@ -1,4 +1,3 @@
-// src/components/auth/SignUp.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
@@ -19,8 +18,12 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, Upload, X } from 'lucide-react';
+import { ImagePlus, Upload, X, Mail, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+
+// Email service for confirmation emails
+import { emailApiService } from '../../services/emailApiService';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -29,6 +32,8 @@ const SignUp = () => {
   const [loadingCampuses, setLoadingCampuses] = useState(true);
   const [activeTab, setActiveTab] = useState('student');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [emailSent, setEmailSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   
   // File upload state
   const [documentFile, setDocumentFile] = useState(null);
@@ -250,6 +255,7 @@ const SignUp = () => {
       }
     }
   }; 
+  
   const openFileBrowser = () => {
     fileInputRef.current?.click();
   };
@@ -303,6 +309,25 @@ const SignUp = () => {
     }
   };
 
+  const handleResendEmail = async () => {
+    try {
+      setSubmitting(true);
+      
+      const result = await emailApiService.resendConfirmationEmail(formData.email);
+      
+      if (result.success) {
+        toast.success("Confirmation email has been resent. Please check your inbox.");
+      } else {
+        toast.error(result.error || "Failed to resend confirmation email");
+      }
+    } catch (error) {
+      console.error('Error resending email:', error);
+      toast.error("An error occurred while resending the email");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -311,7 +336,7 @@ const SignUp = () => {
       return;
     }
     
-    setLoading(true);
+    setSubmitting(true);
 
     try {
       // If account type is wholesaler, verify the code first
@@ -328,29 +353,34 @@ const SignUp = () => {
             ...prev,
             wholesalerCode: "Invalid or already used access code"
           }));
-          setLoading(false);
+          setSubmitting(false);
           return;
         }
       }
+
+      // Prepare metadata for Supabase
+      const metadata = {
+        full_name: formData.fullName,
+        phone: formData.phone,
+        campus_location: formData.campusLocation,
+        campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
+        seller_type: formData.accountType,
+        is_seller: formData.isSeller
+      };
 
       // 1. Sign up with Supabase Auth
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          data: {
-            full_name: formData.fullName,
-            phone: formData.phone,
-            campus_location: formData.campusLocation,
-            campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-            seller_type: formData.accountType
-          }
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
         }
       });
 
       if (signUpError) throw signUpError;
       
-      if (data.user) {
+      if (data?.user) {
         const userId = data.user.id;
         
         // 2. Upload document if provided
@@ -370,7 +400,9 @@ const SignUp = () => {
               campus_location: formData.campusLocation,
               campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
               seller_type: formData.accountType,
-              email: formData.email
+              is_seller: formData.isSeller,
+              email: formData.email,
+              email_confirmed: false
             }
           ]);
           
@@ -411,13 +443,25 @@ const SignUp = () => {
           }
         }
         
-        toast.success("Account created! Please Log in.", {
-          position: "top-right",
-          autoClose: 5000,
-        });
-        
-        // Redirect to login page
-        navigate('/auth');
+        // Send confirmation email using our service
+        try {
+          // Get confirmation token if available (might be in session for new sign-ups)
+          const confirmationToken = data.session?.access_token || '';
+          
+          await emailApiService.sendConfirmationEmail(
+            formData.email,
+            confirmationToken,
+            formData.fullName
+          );
+          
+          // Set email sent state to show confirmation screen
+          setEmailSent(true);
+        } catch (emailError) {
+          console.error('Error sending confirmation email:', emailError);
+          // Still show success even if email fails, user can resend
+          setEmailSent(true);
+          toast.warning("Account created, but there was an issue sending the confirmation email. You can resend it below.");
+        }
       }
     } catch (error) {
       console.error('Sign up error:', error);
@@ -428,6 +472,10 @@ const SignUp = () => {
         errorMessage = error.message;
       } else if (error.message && error.message.includes('email')) {
         errorMessage = 'This email is already registered';
+        setErrors(prev => ({
+          ...prev,
+          email: "This email is already registered"
+        }));
       } else if (error.status === 422) {
         errorMessage = 'Invalid email or password format';
       } else if (error.status === 429) {
@@ -441,9 +489,54 @@ const SignUp = () => {
         autoClose: 4000,
       });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  // If email sent, show confirmation message
+  if (emailSent) {
+    return (
+      <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+        <div className="text-center">
+          <Mail className="mx-auto h-12 w-12 text-primary dark:text-primary mb-4" />
+          <h2 className="text-2xl font-bold mb-4 text-foreground dark:text-foreground">
+            Verify Your Email
+          </h2>
+          
+          <Alert className="mb-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertTitle>Check your inbox</AlertTitle>
+            <AlertDescription>
+              We've sent a confirmation email to <strong>{formData.email}</strong>.
+              Please click the link in the email to verify your account.
+            </AlertDescription>
+          </Alert>
+          
+          <p className="mb-6 text-primary/70 dark:text-foreground/70">
+            Once verified, you'll be able to sign in to your account.
+          </p>
+
+          <Button 
+            variant="outline"
+            onClick={handleResendEmail}
+            disabled={submitting}
+            className="w-full mb-4"
+          >
+            {submitting ? 'Sending...' : 'Resend Confirmation Email'}
+          </Button>
+          
+          <Link to="/auth" className="block w-full">
+            <Button 
+              variant="default"
+              className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90"
+            >
+              Go to Login
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border styled-scrollbar">
@@ -654,6 +747,23 @@ const SignUp = () => {
                 />
               </div>
             </div>
+            
+            <div className="flex items-center space-x-2 pt-2">
+              <input
+                type="checkbox"
+                id="isSeller"
+                name="isSeller"
+                checked={formData.isSeller}
+                onChange={handleChange}
+                className="rounded border-input dark:border-input bg-background dark:bg-muted checked:bg-accent dark:checked:bg-primary"
+              />
+              <label 
+                htmlFor="isSeller" 
+                className="text-sm font-medium text-foreground/80 dark:text-foreground/80"
+              >
+                Register as a Seller
+              </label>
+            </div>
           </div>
         )}
 
@@ -849,9 +959,9 @@ const SignUp = () => {
         <Button 
           type="submit" 
           className="w-full mt-4 bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
-          disabled={loading}
+          disabled={submitting}
         >
-          {loading ? 'Creating Account...' : 'Sign Up'}
+          {submitting ? 'Creating Account...' : 'Sign Up'}
         </Button>
       </form>
       
