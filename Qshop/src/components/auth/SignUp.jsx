@@ -23,7 +23,7 @@ import { toast } from 'react-toastify';
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 // Email service for confirmation emails
-import { emailApiService } from '../../services/emailApiService';
+import { emailApiService } from '../../Services/emailApiService';
 
 const SignUp = () => {
   const navigate = useNavigate();
