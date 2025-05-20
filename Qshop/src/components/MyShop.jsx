@@ -1,3 +1,4 @@
+// src/components/MyShop.jsx
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -9,7 +10,8 @@ import {
   ShoppingBag, 
   Edit, 
   Pencil,
-  Clock
+  Clock,
+  Book // Added for ToS icon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,8 @@ import Navbar from './Navbar';
 import AddProductForm from './AddProductForm';
 import ShopSettingsForm from './ShopSettingsForm';
 import EditProductForm from './EditProductForm';
+import TosModal from './TosModal'; // Import the TosModal component
+import TosBanner from './TosBanner'; // Import the TosBanner component
 
 // Lazy load the SellerOrders component
 const SellerOrders = React.lazy(() => import('./SellerOrders'));
@@ -63,6 +67,12 @@ const MyShop = () => {
   const [showEditProduct, setShowEditProduct] = useState(false);
   const [categoriesMap, setCategoriesMap] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // Add state for ToS modal
+  const [tosModalOpen, setTosModalOpen] = useState(false);
+  
+  // Path to your ToS image - update this with your actual image path
+  const tosImageUrl = "/src/assets/tos-image.jpg";
 
   // Define all the callbacks first, then use them in useEffect
 
@@ -421,6 +431,22 @@ const MyShop = () => {
     return "My Shop";
   }, [shopData]);
 
+  // Optional: Auto-show ToS for first-time sellers
+  useEffect(() => {
+    // Check if this is the first time the user is visiting the shop page
+    const hasSeenToS = localStorage.getItem('hasSeenToS') === 'true';
+    
+    if (!hasSeenToS && !loading && shopData) {
+      // Wait a short delay to avoid showing modal immediately on page load
+      const timer = setTimeout(() => {
+        setTosModalOpen(true);
+        localStorage.setItem('hasSeenToS', 'true');
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [shopData, loading]);
+
   // Statistics loading placeholder
   const StatisticsPlaceholder = () => (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -483,6 +509,9 @@ const MyShop = () => {
     <>
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 py-8 mt-12 mb-16">
+        {/* ToS Banner - notification for first-time sellers */}
+        <TosBanner onViewToS={() => setTosModalOpen(true)} />
+        
         {/* Shop Banner - only render if exists */}
         {shopData?.banner_url && (
           <div className="w-full h-32 md:h-48 lg:h-64 rounded-lg overflow-hidden mb-6">
@@ -526,9 +555,9 @@ const MyShop = () => {
               <>
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex-1 mr-2 customize-shop-button">
-                    <Settings className="w-4 h-4 mr-1" /> Edit Shop
-                  </Button>
+                    <Button variant="outline" size="sm" className="flex-1 mr-2 customize-shop-button">
+                      <Settings className="w-4 h-4 mr-1" /> Edit Shop
+                    </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
@@ -546,7 +575,7 @@ const MyShop = () => {
                 
                 <Sheet open={showAddProduct} onOpenChange={setShowAddProduct}>
                   <SheetTrigger asChild>
-                    <Button size="sm" className="flex-1 add-product-button">
+                    <Button size="sm" className="flex-1 add-product-button mr-2">
                       <Plus className="w-4 h-4 mr-1" />
                       New Listing
                     </Button>
@@ -561,15 +590,26 @@ const MyShop = () => {
                     <AddProductForm onSuccess={handleAddNewProduct} />
                   </SheetContent>
                 </Sheet>
+                
+                {/* ToS Button for Mobile */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setTosModalOpen(true)}
+                  className="tos-button"
+                >
+                  <Book className="w-4 h-4 mr-1" />
+                  ToS
+                </Button>
               </>
             ) : (
               <>
                 <Sheet open={showShopSettings} onOpenChange={setShowShopSettings}>
                   <SheetTrigger asChild>
-                  <Button variant="outline" className="customize-shop-button">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Customize Shop
-                  </Button>
+                    <Button variant="outline" className="customize-shop-button">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Customize Shop
+                    </Button>
                   </SheetTrigger>
                   <SheetContent>
                     <SheetHeader>
@@ -602,6 +642,16 @@ const MyShop = () => {
                     <AddProductForm onSuccess={handleAddNewProduct} />
                   </SheetContent>
                 </Sheet>
+                
+                {/* ToS Button for Desktop */}
+                <Button 
+                  variant="outline" 
+                  onClick={() => setTosModalOpen(true)}
+                  className="tos-button"
+                >
+                  <Book className="w-4 h-4 mr-2" />
+                  Terms of Service
+                </Button>
               </>
             )}
           </div>
@@ -729,6 +779,13 @@ const MyShop = () => {
             </SheetContent>
           </Sheet>
         )}
+        
+        {/* ToS Modal */}
+        <TosModal 
+          isOpen={tosModalOpen} 
+          onClose={() => setTosModalOpen(false)} 
+          tosImageUrl={tosImageUrl}
+        />
       </div>
     </>
   );
