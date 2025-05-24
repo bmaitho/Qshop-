@@ -784,7 +784,6 @@ const MyShop = () => {
         <TosModal 
           isOpen={tosModalOpen} 
           onClose={() => setTosModalOpen(false)} 
-          tosImageUrl={tosImageUrl}
         />
       </div>
     </>

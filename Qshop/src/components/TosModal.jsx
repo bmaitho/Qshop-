@@ -2,8 +2,9 @@
 import React, { useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
+import tosImage from '../assets/tos-image.jpg';
 
-const TosModal = ({ isOpen, onClose, tosImageUrl }) => {
+const TosModal = ({ isOpen, onClose }) => {
   // Close modal on escape key press
   useEffect(() => {
     const handleEscapeKey = (e) => {
@@ -52,23 +53,17 @@ const TosModal = ({ isOpen, onClose, tosImageUrl }) => {
           </Button>
         </div>
         <div className="overflow-y-auto p-4 max-h-[70vh]">
-          {tosImageUrl ? (
-            <img 
-              src={tosImageUrl} 
-              alt="Terms of Service" 
-              className="w-full h-auto"
-              loading="lazy"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "/api/placeholder/800/600";
-                console.error("Failed to load ToS image");
-              }}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-64 bg-gray-100 dark:bg-gray-700 rounded-lg">
-              <p className="text-gray-500 dark:text-gray-400">Terms of Service image not available</p>
-            </div>
-          )}
+          <img 
+            src={tosImage} 
+            alt="Terms of Service" 
+            className="w-full h-auto"
+            loading="lazy"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = "/api/placeholder/800/600";
+              console.error("Failed to load ToS image");
+            }}
+          />
         </div>
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
           <Button 
