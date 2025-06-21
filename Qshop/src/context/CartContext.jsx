@@ -201,22 +201,26 @@ export const CartProvider = ({ children }) => {
       });
       
       // Then update database
+   
       const { error } = await supabase
-        .from('cart')
-        .update({ quantity })
-        .eq('user_id', user.id)
-        .eq('product_id', productId);
+      .from('cart')
+      .update({ quantity })
+      .eq('user_id', user.id)
+      .eq('product_id', productId);
 
-      if (error) {
-        // If there was an error, refresh the entire cart
-        fetchCart();
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-      cartToasts.error("Failed to update quantity");
+    if (error) {
+      // Refresh the entire cart if there's an error
+      fetchCart();
+      throw error;
     }
-  };
+  } catch (error) {
+    console.error('Error updating quantity:', error);
+    // Clear any cached error state
+    // Re-fetch to ensure consistency
+    fetchCart();
+  }
+};
+    
 
   const removeFromCart = async (productId, productName) => {
     try {

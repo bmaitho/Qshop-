@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun, LogOut } from 'lucide-react';
+import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun, MessageCircle, Settings } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from './ThemeContext';
 import { toast } from 'react-toastify';
 import { supabase } from './SupabaseClient';
+import { getUnreadMessageCount, subscribeToMessages } from '../utils/messagingUtils';
 
 const MobileNavbar = () => {
   const { cart } = useCart();
   const { wishlist } = useWishlist();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   const cartItemCount = cart?.length || 0;
   const wishlistItemCount = wishlist?.length || 0;
@@ -23,32 +25,33 @@ const MobileNavbar = () => {
   const goldTextStyle = { color: '#ebc75c' };
   const goldIconStyle = { color: '#ebc75c' };
 
-  const handleLogout = async () => {
-    try {
-      // Clear session storage BEFORE signing out from Supabase
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('sb-vycftqpspmxdohfbkqjb-auth-token');
-      
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      // Show success message
-      toast.success('Logged out successfully');
-      
-      // Force a complete page reload to clear all state
-      window.location.href = '/auth';
-    } catch (error) {
-      console.error('Error logging out:', error);
-      toast.error('Failed to log out');
-      // Even on error, try to redirect
-      window.location.href = '/auth';
-    }
-  };
-  
+  // Handle message notifications
+  useEffect(() => {
+    let subscription = null;
+    
+    (async () => {
+      try {
+        const count = await getUnreadMessageCount();
+        setUnreadMessages(count);
+        
+        subscription = await subscribeToMessages((newMessage) => {
+          setUnreadMessages(prevCount => prevCount + 1);
+        });
+      } catch (error) {
+        console.error("Error setting up message notifications:", error);
+      }
+    })();
+    
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  }, []);
+
   return (
     <>
-      {/* Top header - added class for tutorial targeting */}
+      {/* Top header - Logout moved to settings */}
       <div className="fixed top-1 left-0 w-full z-50 px-3 mobile-navbar-top">
         <div className="flex items-center justify-between">
           <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full px-3 py-1 shadow-lg border border-border/50 dark:border-border/50">
@@ -81,25 +84,28 @@ const MobileNavbar = () => {
               </a>
             </div>
             
-            <button 
-              onClick={handleLogout}
-              className="logout-button bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
-              aria-label="Log out"
-            >
-              <LogOut size={18} style={goldIconStyle} />
-            </button>
+            <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
+              <a href="/profile?tab=messages" className="relative message-icon" aria-label="Messages">
+                <MessageCircle size={18} style={goldIconStyle} />
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {unreadMessages}
+                  </span>
+                )}
+              </a>
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Bottom navigation - added class for tutorial targeting */}
+      {/* Bottom navigation */}
       <div className="fixed bottom-2 left-0 w-full z-[100] p-2 mobile-navbar">
         <div className="mobile-navbar-content bg-card/95 dark:bg-card/95 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-1.5">
           <NavItem 
             href="/home"
             icon={Home}
             label="Home"
-            id="nav-home"  // Added ID for tutorial targeting
+            id="nav-home"
             isActive={pathname === '/home'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -109,7 +115,7 @@ const MobileNavbar = () => {
             href="/studentmarketplace"
             icon={Search}
             label="Shop"
-            id="nav-shop"  // Added ID for tutorial targeting
+            id="nav-shop"
             isActive={pathname === '/studentmarketplace'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -119,7 +125,7 @@ const MobileNavbar = () => {
             href="/myshop"
             icon={Store}
             label="My Shop"
-            id="nav-myshop"  // Added ID for tutorial targeting
+            id="nav-myshop"
             isActive={pathname === '/myshop'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -129,7 +135,7 @@ const MobileNavbar = () => {
             href="/wishlist"
             icon={Heart}
             label="Wishlist"
-            id="nav-wishlist"  // Added ID for tutorial targeting
+            id="nav-wishlist"
             isActive={pathname === '/wishlist'}
             badge={wishlistItemCount}
             goldStyle={goldIconStyle}
@@ -140,7 +146,7 @@ const MobileNavbar = () => {
             href="/profile"
             icon={User}
             label="Account"
-            id="nav-profile"  // Added ID for tutorial targeting
+            id="nav-profile"
             isActive={pathname === '/profile'}
             goldStyle={goldIconStyle}
             textStyle={goldTextStyle}
@@ -164,7 +170,7 @@ const NavItem = ({
 }) => (
   <a 
     href={href} 
-    id={id} // Added ID for tutorial targeting
+    id={id}
     className={`nav-item flex flex-col items-center px-2 py-1 rounded-full ${
       isActive ? 'bg-background/80 dark:bg-background/80' : ''
     }`}

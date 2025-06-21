@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, CreditCard } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, CreditCard, Heart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from './Navbar';
@@ -19,9 +20,11 @@ import {
 
 const Cart = () => {
   const { cart, removeFromCart, updateQuantity, total } = useCart();
+  const { addToWishlist, isInWishlist } = useWishlist();
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [imageErrors, setImageErrors] = useState({});
+  const [movingToWishlist, setMovingToWishlist] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -103,6 +106,49 @@ const Cart = () => {
     }
   };
 
+  // Enhanced quantity update with better UX
+  const handleQuantityUpdate = (productId, newQuantity) => {
+    // Prevent going below 1
+    if (newQuantity < 1) return;
+    
+    // Optional: Add maximum quantity limit
+    if (newQuantity > 99) {
+      toast.warning('Maximum quantity is 99');
+      return;
+    }
+    
+    updateQuantity(productId, newQuantity);
+  };
+
+  // Move item from cart to wishlist
+  const handleMoveToWishlist = async (item) => {
+    try {
+      setMovingToWishlist(prev => ({ ...prev, [item.products.id]: true }));
+      
+      // Check if already in wishlist
+      if (isInWishlist(item.products.id)) {
+        toast.info(`${item.products.name} is already in your wishlist`);
+        // Still remove from cart
+        removeFromCart(item.products.id, item.products.name);
+        return;
+      }
+      
+      // Add to wishlist
+      await addToWishlist(item.products);
+      
+      // Remove from cart
+      removeFromCart(item.products.id, item.products.name);
+      
+      toast.success(`${item.products.name} moved to wishlist`);
+      
+    } catch (error) {
+      console.error('Error moving to wishlist:', error);
+      toast.error('Failed to move item to wishlist');
+    } finally {
+      setMovingToWishlist(prev => ({ ...prev, [item.products.id]: false }));
+    }
+  };
+
   if (cart.length === 0) {
     return (
       <>
@@ -140,11 +186,12 @@ const Cart = () => {
             {cart.map((item) => {
               if (!item?.products) return null;
               const productId = item.products.id;
+              const isMoving = movingToWishlist[productId];
               
               return (
                 <div 
                   key={item.id}
-                  className={`flex ${isMobile ? 'flex-col' : 'items-center space-x-4'} bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 p-4 border border-primary/10 dark:border-gray-700`}
+                  className={`flex ${isMobile ? 'flex-col' : 'items-center space-x-4'} bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 p-4 border border-primary/10 dark:border-gray-700 ${isMoving ? 'opacity-50' : ''}`}
                 >
                   <div className={`${isMobile ? 'w-full flex mb-3' : ''}`}>
                     <div className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} overflow-hidden rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0`}>
@@ -205,35 +252,64 @@ const Cart = () => {
                   {isMobile && (
                     <div className="w-full">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600">
+                        {/* Enhanced quantity controls */}
+                        <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                            onClick={() => updateQuantity(productId, Math.max(1, item.quantity - 1))}
+                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600 disabled:opacity-50"
+                            onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-8 text-center text-sm text-primary dark:text-gray-300">
-                            {item.quantity}
-                          </span>
+                          <div className="w-12 text-center">
+                            <span className="text-sm font-medium text-primary dark:text-gray-300">
+                              {item.quantity}
+                            </span>
+                          </div>
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                            onClick={() => updateQuantity(productId, item.quantity + 1)}
+                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600"
+                            onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
                           >
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                          onClick={() => removeFromCart(productId, item.products.name)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
-                        </Button>
+                        
+                        <div className="flex items-center space-x-2">
+                          {/* Move to wishlist button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                            onClick={() => handleMoveToWishlist(item)}
+                            disabled={isMoving}
+                            title="Move to wishlist"
+                          >
+                            <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                          </Button>
+                          
+                          {/* Remove button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                            onClick={() => removeFromCart(productId, item.products.name)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {item.quantity} × KES {item.products.price?.toLocaleString()}
+                        </p>
+                        <p className="font-bold text-primary dark:text-gray-100">
+                          KES {(item.products.price * item.quantity).toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -241,29 +317,55 @@ const Cart = () => {
                   {/* Desktop view controls */}
                   {!isMobile && (
                     <div className="flex flex-col items-end space-y-3">
-                      <div className="flex items-center space-x-2">
+                      {/* Enhanced quantity controls */}
+                      <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
                         <Button 
-                          variant="outline" 
-                          size="icon"
-                          className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                          onClick={() => updateQuantity(productId, Math.max(1, item.quantity - 1))}
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600 disabled:opacity-50"
+                          onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <span className="w-12 text-center font-medium text-primary dark:text-gray-300">
-                          {item.quantity}
-                        </span>
+                        <div className="w-16 text-center">
+                          <span className="font-medium text-primary dark:text-gray-300">
+                            {item.quantity}
+                          </span>
+                        </div>
                         <Button 
-                          variant="outline" 
-                          size="icon"
-                          className="border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                          onClick={() => updateQuantity(productId, item.quantity + 1)}
+                          variant="ghost" 
+                          size="sm"
+                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600"
+                          onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
 
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {item.quantity} × KES {item.products.price?.toLocaleString()}
+                        </p>
+                        <p className="font-bold text-lg text-primary dark:text-gray-100">
+                          KES {(item.products.price * item.quantity).toLocaleString()}
+                        </p>
+                      </div>
+
                       <div className="flex space-x-2">
+                        {/* Move to wishlist button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                          onClick={() => handleMoveToWishlist(item)}
+                          disabled={isMoving}
+                          title="Move to wishlist"
+                        >
+                          <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                        </Button>
+                        
+                        {/* Remove button */}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -287,7 +389,7 @@ const Cart = () => {
               
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-primary dark:text-gray-300">
-                  <span>Subtotal</span>
+                  <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
                   <span>KES {total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-primary dark:text-gray-300">
@@ -305,7 +407,7 @@ const Cart = () => {
               <Button 
                 className="w-full mb-3 bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
                 onClick={handleCheckout}
-                disabled={loading}
+                disabled={loading || cart.length === 0}
               >
                 {loading ? "Processing..." : (
                   <>
@@ -321,6 +423,18 @@ const Cart = () => {
                   Continue Shopping
                 </Button>
               </Link>
+              
+              {/* Quick stats */}
+              <div className="mt-4 pt-4 border-t border-primary/10 dark:border-gray-700">
+                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                  <span>Items in cart:</span>
+                  <span>{cart.length}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                  <span>Total quantity:</span>
+                  <span>{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

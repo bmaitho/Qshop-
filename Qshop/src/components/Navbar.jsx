@@ -10,7 +10,8 @@ import {
   ChevronDown,
   Search,
   MessageCircle,
-  HelpCircle
+  HelpCircle,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -186,7 +187,13 @@ const Navbar = () => {
         <DropdownMenuItem asChild>
           <Link to="/profile" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
             <Package className="mr-2 h-4 w-4" style={goldIconStyle} />
-            <span style={goldTextStyle}>My Listings</span>
+            <span style={goldTextStyle}>My Orders</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/profile?tab=settings" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
+            <Settings className="mr-2 h-4 w-4" style={goldIconStyle} />
+            <span style={goldTextStyle}>Settings</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-border dark:bg-border" />
