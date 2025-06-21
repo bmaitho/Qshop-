@@ -10,10 +10,12 @@ import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
 import { toast } from 'react-toastify';
+import { useCart } from '../context/CartContext';
 
 const Checkout = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
+  const { clearCart } = useCart();
   const [order, setOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,8 @@ const Checkout = () => {
         }
         // If payment completed or failed, redirect accordingly
         else if (orderData.payment_status === 'completed') {
+          // Clear cart only when payment is completed
+          clearCart();
           navigate(`/order-confirmation/${orderId}`);
         }
       }
@@ -138,6 +142,9 @@ const Checkout = () => {
           if (newStatus === 'completed') {
             setPaymentMessage(`Payment successful! M-Pesa receipt: ${receipt}`);
             toast.success('Payment completed successfully!');
+            
+            // Clear cart only when payment is completed
+            clearCart();
             
             // Navigate to confirmation after a short delay
             setTimeout(() => {
@@ -217,13 +224,13 @@ const Checkout = () => {
   const getStatusColorClass = () => {
     switch (paymentStatus) {
       case 'processing':
-        return 'border-orange-200 bg-orange-50 text-orange-800';
+        return 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-200';
       case 'completed':
-        return 'border-green-200 bg-green-50 text-green-800';
+        return 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200';
       case 'failed':
-        return 'border-red-200 bg-red-50 text-red-800';
+        return 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200';
       default:
-        return 'border-blue-200 bg-blue-50 text-blue-800';
+        return 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200';
     }
   };
 
@@ -233,9 +240,9 @@ const Checkout = () => {
         <Navbar />
         <div className="max-w-3xl mx-auto p-4 mt-12">
           <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
-            <div className="h-48 bg-gray-200 rounded mb-4"></div>
-            <div className="h-32 bg-gray-200 rounded"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
+            <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
           </div>
         </div>
       </>
@@ -247,15 +254,15 @@ const Checkout = () => {
       <>
         <Navbar />
         <div className="max-w-3xl mx-auto p-4 mt-12">
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="dark:border-red-800 dark:bg-red-900/20">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
+            <AlertTitle className="dark:text-red-200">Error</AlertTitle>
+            <AlertDescription className="dark:text-red-300">
               Order not found. Please return to your cart and try again.
             </AlertDescription>
           </Alert>
           <div className="mt-4">
-            <Button onClick={() => navigate('/cart')}>
+            <Button onClick={() => navigate('/cart')} className="dark:bg-primary dark:text-white">
               Return to Cart
             </Button>
           </div>
@@ -268,15 +275,15 @@ const Checkout = () => {
     <>
       <Navbar />
       <div className="max-w-3xl mx-auto p-4 mt-12">
-        <h1 className="text-2xl font-bold mb-6">Complete Your Payment</h1>
+        <h1 className="text-2xl font-bold mb-6 text-primary dark:text-gray-100">Complete Your Payment</h1>
 
-        <Card className="mb-6">
+        <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h2>
             <div className="space-y-4">
               {orderItems.map((item) => (
                 <div key={item.id} className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0">
                     {item.products?.image_url && (
                       <img 
                         src={item.products.image_url} 
@@ -286,28 +293,31 @@ const Checkout = () => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium">{item.products?.name}</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="font-medium text-primary dark:text-gray-100">{item.products?.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       Quantity: {item.quantity}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Location: {item.products?.location || 'Not specified'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">KES {item.subtotal?.toFixed(2)}</p>
+                    <p className="font-medium text-primary dark:text-gray-100">KES {item.subtotal?.toFixed(2)}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="border-t mt-6 pt-4">
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Subtotal</span>
+            <div className="border-t border-gray-200 dark:border-gray-700 mt-6 pt-4">
+              <div className="flex justify-between mb-2 text-gray-600 dark:text-gray-300">
+                <span>Subtotal</span>
                 <span>KES {order.amount?.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Delivery</span>
+              <div className="flex justify-between mb-2 text-gray-600 dark:text-gray-300">
+                <span>Delivery</span>
                 <span>KES 0.00</span>
               </div>
-              <div className="flex justify-between font-bold">
+              <div className="flex justify-between font-bold text-primary dark:text-gray-100">
                 <span>Total</span>
                 <span>KES {order.amount?.toFixed(2)}</span>
               </div>
@@ -329,12 +339,14 @@ const Checkout = () => {
           </Alert>
         )}
 
-        <Card className="mb-6">
+        <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Payment Details</h2>
+            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Payment Details</h2>
             <form onSubmit={handleInitiatePayment}>
               <div className="mb-4">
-                <Label htmlFor="phone" className="mb-2 block">Phone Number (M-Pesa)</Label>
+                <Label htmlFor="phone" className="mb-2 block text-primary dark:text-gray-200">
+                  Phone Number (M-Pesa)
+                </Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -342,17 +354,17 @@ const Checkout = () => {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   required
-                  className="w-full"
+                  className="w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
                   disabled={processing || paymentStatus === 'processing' || paymentStatus === 'completed'}
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Enter the phone number registered with M-Pesa
                 </p>
               </div>
               
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
-                <p className="text-sm flex items-start">
-                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5 text-yellow-600" />
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4 mb-4">
+                <p className="text-sm flex items-start text-yellow-800 dark:text-yellow-200">
+                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5 text-yellow-600 dark:text-yellow-400" />
                   <span>
                     You will receive an M-Pesa payment prompt on your phone.
                     Please enter your PIN to complete the payment.
@@ -362,7 +374,7 @@ const Checkout = () => {
               
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
                 disabled={processing || paymentStatus === 'processing' || paymentStatus === 'completed'}
               >
                 {processing ? (
@@ -392,12 +404,15 @@ const Checkout = () => {
           <Button
             variant="outline"
             onClick={() => navigate('/studentmarketplace')}
+            className="dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             Continue Shopping
           </Button>
           <Button
             onClick={() => fetchOrderDetails()}
             disabled={processing}
+            variant="outline"
+            className="dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             Refresh Status
           </Button>
