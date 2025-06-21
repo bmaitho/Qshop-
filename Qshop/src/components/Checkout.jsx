@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle, XCircle, PhoneCall } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, XCircle, PhoneCall, MapPin, Truck, User } from 'lucide-react';
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
@@ -21,11 +23,17 @@ const Checkout = () => {
   const [loading, setLoading] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState('pending'); // pending, processing, completed, failed
+  const [paymentStatus, setPaymentStatus] = useState('pending');
   const [paymentMessage, setPaymentMessage] = useState('');
   const [checkoutRequestId, setCheckoutRequestId] = useState('');
   const [pollingActive, setPollingActive] = useState(false);
   const pollingInterval = useRef(null);
+
+  // NEW: Delivery options state
+  const [deliveryOption, setDeliveryOption] = useState('pickup'); // 'pickup' or 'delivery'
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryInstructions, setDeliveryInstructions] = useState('');
+  const [agreedToPickup, setAgreedToPickup] = useState(false);
 
   // Clean up interval on unmount
   useEffect(() => {
@@ -70,34 +78,29 @@ const Checkout = () => {
       if (orderError) throw orderError;
       setOrder(orderData);
       
-      // If the order already has a phone number, use it as default
       if (orderData.phone_number) {
         setPhoneNumber(orderData.phone_number);
       }
       
-      // If the order has a checkout request ID, set it and check status
       if (orderData.checkout_request_id) {
         setCheckoutRequestId(orderData.checkout_request_id);
         setPaymentStatus(orderData.payment_status || 'pending');
         
-        // If payment is still pending, start polling for status
         if (orderData.payment_status === 'pending') {
           setPollingActive(true);
-        }
-        // If payment completed or failed, redirect accordingly
-        else if (orderData.payment_status === 'completed') {
-          // Clear cart only when payment is completed
+        } else if (orderData.payment_status === 'completed') {
           clearCart();
           navigate(`/order-confirmation/${orderId}`);
         }
       }
 
-      // Fetch order items
+      // Fetch order items with product and seller information
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
           *,
-          products(*)
+          products(*),
+          profiles:seller_id(*)
         `)
         .eq('order_id', orderId);
 
@@ -112,18 +115,15 @@ const Checkout = () => {
   };
 
   const startStatusPolling = () => {
-    // Clear any existing interval
     if (pollingInterval.current) {
       clearInterval(pollingInterval.current);
     }
     
-    // Check immediately once
     checkPaymentStatusFromAPI();
     
-    // Then set up polling every 5 seconds
     pollingInterval.current = setInterval(() => {
       checkPaymentStatusFromAPI();
-    }, 5000); // Check every 5 seconds
+    }, 5000);
   };
 
   const checkPaymentStatusFromAPI = async () => {
@@ -135,7 +135,6 @@ const Checkout = () => {
         
         setPaymentStatus(newStatus);
         
-        // If payment completed or failed, stop polling
         if (newStatus === 'completed' || newStatus === 'failed') {
           setPollingActive(false);
           
@@ -143,10 +142,8 @@ const Checkout = () => {
             setPaymentMessage(`Payment successful! M-Pesa receipt: ${receipt}`);
             toast.success('Payment completed successfully!');
             
-            // Clear cart only when payment is completed
             clearCart();
             
-            // Navigate to confirmation after a short delay
             setTimeout(() => {
               navigate(`/order-confirmation/${orderId}`);
             }, 2000);
@@ -168,11 +165,36 @@ const Checkout = () => {
       toast.error('Please enter a phone number');
       return;
     }
+
+    if (deliveryOption === 'pickup' && !agreedToPickup) {
+      toast.error('Please confirm pickup arrangements');
+      return;
+    }
+
+    if (deliveryOption === 'delivery' && !deliveryAddress.trim()) {
+      toast.error('Please provide a delivery address');
+      return;
+    }
     
     setProcessing(true);
     setPaymentMessage('');
     
     try {
+      // Update order with delivery preferences
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({
+          delivery_option: deliveryOption,
+          delivery_address: deliveryOption === 'delivery' ? deliveryAddress : null,
+          delivery_instructions: deliveryInstructions || null,
+          phone_number: phoneNumber
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Error updating order with delivery info:', updateError);
+      }
+
       const response = await initiateMpesaPayment(
         phoneNumber,
         parseInt(order.amount),
@@ -181,7 +203,6 @@ const Checkout = () => {
       );
 
       if (response.success) {
-        // Extract checkout request ID
         const checkoutId = response.data?.data?.CheckoutRequestID;
         
         if (checkoutId) {
@@ -190,7 +211,6 @@ const Checkout = () => {
           setPaymentMessage('Payment request sent. Please check your phone for the M-Pesa prompt.');
           toast.info('Please check your phone for the M-Pesa prompt');
           
-          // Start polling for status updates
           setPollingActive(true);
         } else {
           throw new Error('No checkout request ID received');
@@ -277,32 +297,49 @@ const Checkout = () => {
       <div className="max-w-3xl mx-auto p-4 mt-12">
         <h1 className="text-2xl font-bold mb-6 text-primary dark:text-gray-100">Complete Your Payment</h1>
 
+        {/* ENHANCED: Order Summary with Location Info */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h2>
             <div className="space-y-4">
               {orderItems.map((item) => (
-                <div key={item.id} className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0">
-                    {item.products?.image_url && (
-                      <img 
-                        src={item.products.image_url} 
-                        alt={item.products.name}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-primary dark:text-gray-100">{item.products?.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Quantity: {item.quantity}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Location: {item.products?.location || 'Not specified'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-primary dark:text-gray-100">KES {item.subtotal?.toFixed(2)}</p>
+                <div key={item.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0">
+                      {item.products?.image_url && (
+                        <img 
+                          src={item.products.image_url} 
+                          alt={item.products.name}
+                          className="w-full h-full object-cover rounded"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-primary dark:text-gray-100">{item.products?.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Quantity: {item.quantity} × KES {item.price_per_unit?.toLocaleString()}
+                      </p>
+                      
+                      {/* NEW: Location Information */}
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                          <MapPin className="w-4 h-4 mr-1 text-gray-500" />
+                          <span>Product Location: {item.products?.location || 'Not specified'}</span>
+                        </div>
+                        {item.profiles && (
+                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                            <User className="w-4 h-4 mr-1 text-gray-500" />
+                            <span>Seller: {item.profiles.full_name || 'Anonymous'}</span>
+                            {item.profiles.campus_location && (
+                              <span className="ml-2">({item.profiles.campus_location})</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-primary dark:text-gray-100">KES {item.subtotal?.toFixed(2)}</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -325,6 +362,106 @@ const Checkout = () => {
           </CardContent>
         </Card>
 
+        {/* NEW: Delivery Options */}
+        <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Delivery Options</h2>
+            
+            <div className="space-y-4">
+              {/* Pickup Option */}
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="pickup"
+                    checked={deliveryOption === 'pickup'}
+                    onCheckedChange={() => setDeliveryOption('pickup')}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="pickup" className="text-base font-medium text-primary dark:text-gray-100">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 mr-2" />
+                        Pickup from Seller
+                      </div>
+                    </Label>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Arrange to collect the item(s) directly from the seller
+                    </p>
+                  </div>
+                </div>
+                
+                {deliveryOption === 'pickup' && (
+                  <div className="mt-4 pl-7">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="pickup-agreement"
+                        checked={agreedToPickup}
+                        onCheckedChange={setAgreedToPickup}
+                      />
+                      <Label htmlFor="pickup-agreement" className="text-sm text-primary dark:text-gray-200">
+                        I will contact the seller to arrange pickup details
+                      </Label>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Delivery Option */}
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="delivery"
+                    checked={deliveryOption === 'delivery'}
+                    onCheckedChange={() => setDeliveryOption('delivery')}
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="delivery" className="text-base font-medium text-primary dark:text-gray-100">
+                      <div className="flex items-center">
+                        <Truck className="w-4 h-4 mr-2" />
+                        Arrange Delivery
+                      </div>
+                    </Label>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Work with seller to arrange delivery (additional costs may apply)
+                    </p>
+                  </div>
+                </div>
+                
+                {deliveryOption === 'delivery' && (
+                  <div className="mt-4 pl-7 space-y-3">
+                    <div>
+                      <Label htmlFor="delivery-address" className="text-sm font-medium text-primary dark:text-gray-200">
+                        Delivery Address *
+                      </Label>
+                      <Textarea
+                        id="delivery-address"
+                        placeholder="Enter your full delivery address..."
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="delivery-instructions" className="text-sm font-medium text-primary dark:text-gray-200">
+                        Special Instructions (Optional)
+                      </Label>
+                      <Textarea
+                        id="delivery-instructions"
+                        placeholder="Any special delivery instructions..."
+                        value={deliveryInstructions}
+                        onChange={(e) => setDeliveryInstructions(e.target.value)}
+                        className="mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Payment Status Alert */}
         {paymentStatus !== 'pending' && paymentMessage && (
           <Alert className={`mb-6 ${getStatusColorClass()}`}>
@@ -339,6 +476,7 @@ const Checkout = () => {
           </Alert>
         )}
 
+        {/* Payment Details */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Payment Details</h2>
