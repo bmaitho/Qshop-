@@ -1,3 +1,4 @@
+// src/components/auth/AuthCallback.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, getSupabaseKeys } from '../SupabaseClient';
@@ -13,7 +14,7 @@ const AuthCallback = ({ setToken }) => {
 
   useEffect(() => {
     handleAuthCallback();
-  }, [retryCount]); // Retry when retryCount changes
+  }, [retryCount]);
 
   const handleAuthCallback = async () => {
     try {
@@ -29,11 +30,10 @@ const AuthCallback = ({ setToken }) => {
         
         if (!session) {
           // No session found, redirect to login
-          navigate('/login');
+          navigate('/auth');
           return;
         }
 
-        // For Google sign-in, we only want to support existing users
         // Check if user already exists in the profiles table
         const { data: existingProfile, error: profileError } = await supabase
           .from('profiles')
@@ -43,34 +43,74 @@ const AuthCallback = ({ setToken }) => {
 
         const userExists = existingProfile && !profileError;
         
-        // If this is a new user (no profile found), redirect to sign up page
+        // If this is a new user (no profile found), allow them to complete profile
         if (!userExists) {
-          // Sign them out first
-          await supabase.auth.signOut();
+          // Store their session first
+          const tokenData = { session };
+          sessionStorage.setItem('token', JSON.stringify(tokenData));
+          setToken(tokenData);
           
-          toast.info('Please sign up for an account first', {
+          // Mark as new user for tutorial and redirect to profile completion
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+          
+          toast.info('Please complete your profile to get started', {
             position: "top-right",
             autoClose: 3000,
           });
           
-          // Redirect to signup
-          navigate('/signup');
+          // Redirect to profile completion
+          navigate('/complete-profile');
           return;
         }
 
-        // This is an existing user - store their session and continue
+        // Check if existing user has complete profile
+        const isProfileComplete = existingProfile.full_name && 
+                                 existingProfile.campus_location && 
+                                 existingProfile.phone;
+
+        if (!isProfileComplete) {
+          // Store their session first
+          const tokenData = { session };
+          sessionStorage.setItem('token', JSON.stringify(tokenData));
+          setToken(tokenData);
+          
+          // Mark as needing profile completion
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+          
+          toast.info('Please complete your profile', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          
+          navigate('/complete-profile');
+          return;
+        }
+
+        // This is an existing user with complete profile
         const tokenData = { session };
         sessionStorage.setItem('token', JSON.stringify(tokenData));
         setToken(tokenData);
+        
+        // Check if they need tutorial (first time logging in)
+        const hasLoggedInBefore = localStorage.getItem('hasLoggedInBefore');
+        const tutorialCompleted = localStorage.getItem('unihive_tutorial_completed');
+        
+        if (!hasLoggedInBefore || !tutorialCompleted) {
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.setItem('hasLoggedInBefore', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+        }
         
         toast.success('Welcome back!', {
           position: "top-right",
           autoClose: 2000,
         });
         
-        // Redirect existing user to home page
+        // Redirect to home page
         navigate('/home');
-        return; // Exit if successful
+        return;
       } catch (standardError) {
         // If standard method failed and it's a CORS/network error, try direct API method
         console.log("Standard callback handling failed, attempting direct method:", standardError);
@@ -115,20 +155,6 @@ const AuthCallback = ({ setToken }) => {
 
         const userExists = existingProfile && !profileError;
         
-        if (!userExists) {
-          // Sign them out first
-          await supabase.auth.signOut();
-          
-          toast.info('Please sign up for an account first', {
-            position: "top-right",
-            autoClose: 3000,
-          });
-          
-          // Redirect to signup
-          navigate('/signup');
-          return;
-        }
-        
         // Create the token data
         const session = {
           access_token: accessToken,
@@ -140,12 +166,53 @@ const AuthCallback = ({ setToken }) => {
         sessionStorage.setItem('token', JSON.stringify(tokenData));
         setToken(tokenData);
         
+        if (!userExists) {
+          // New user - redirect to profile completion
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+          
+          toast.info('Please complete your profile to get started', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          
+          navigate('/complete-profile');
+          return;
+        }
+
+        // Check if existing user has complete profile
+        const isProfileComplete = existingProfile.full_name && 
+                                 existingProfile.campus_location && 
+                                 existingProfile.phone;
+
+        if (!isProfileComplete) {
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+          
+          toast.info('Please complete your profile', {
+            position: "top-right",
+            autoClose: 3000,
+          });
+          
+          navigate('/complete-profile');
+          return;
+        }
+        
+        // Existing user with complete profile
+        const hasLoggedInBefore = localStorage.getItem('hasLoggedInBefore');
+        const tutorialCompleted = localStorage.getItem('unihive_tutorial_completed');
+        
+        if (!hasLoggedInBefore || !tutorialCompleted) {
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.setItem('hasLoggedInBefore', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+        }
+        
         toast.success('Welcome back!', {
           position: "top-right",
           autoClose: 2000,
         });
         
-        // Redirect existing user to home page
         navigate('/home');
       } catch (directMethodError) {
         console.error("Direct method also failed:", directMethodError);
@@ -187,7 +254,7 @@ const AuthCallback = ({ setToken }) => {
         
         <div className="flex gap-4">
           <Button 
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/auth')}
             className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
           >
             Return to Login

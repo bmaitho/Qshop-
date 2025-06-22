@@ -1,3 +1,4 @@
+// src/components/auth/ProfileCompletion.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../SupabaseClient';
@@ -25,7 +26,7 @@ const ProfileCompletion = ({ token }) => {
         setLoading(true);
         
         if (!token) {
-          navigate('/login');
+          navigate('/auth');
           return;
         }
 
@@ -47,15 +48,15 @@ const ProfileCompletion = ({ token }) => {
         }
 
         // If profile exists and has campus_location, user can skip this step
-        if (profile && profile.campus_location) {
+        if (profile && profile.campus_location && profile.full_name) {
           // Profile is already complete, redirect to home
           navigate('/home');
           return;
         }
 
-        // Pre-fill form with any data we have
+        // Pre-fill form with any data we have - INCLUDING GOOGLE DATA
         setFormData({
-          fullName: user.user_metadata?.full_name || '',
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || profile?.full_name || '',
           phone: profile?.phone || '',
           campusLocation: profile?.campus_location || '',
           isSeller: profile?.is_seller || false
@@ -63,7 +64,7 @@ const ProfileCompletion = ({ token }) => {
       } catch (error) {
         console.error('Error fetching user data:', error);
         toast.error('Failed to load profile information');
-        navigate('/login');
+        navigate('/auth');
       } finally {
         setLoading(false);
       }
@@ -144,11 +145,21 @@ const ProfileCompletion = ({ token }) => {
             phone: formData.phone,
             campus_location: formData.campusLocation,
             is_seller: formData.isSeller,
-            email: user.email
+            email: user.email,
+            is_google_user: user.app_metadata?.provider === 'google',
+            onboarding_completed: true,
+            profile_completed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           }
         ]);
         
       if (profileError) throw profileError;
+      
+      // Set up tutorial for new users
+      localStorage.setItem('isNewUser', 'true');
+      localStorage.setItem('hasLoggedInBefore', 'true');
+      localStorage.removeItem('unihive_tutorial_completed');
       
       toast.success("Profile completed successfully!", {
         position: "top-right",

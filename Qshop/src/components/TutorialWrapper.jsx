@@ -1,4 +1,4 @@
-// src/components/TutorialWrapper.jsx - Direct Orders Tutorial Solution
+// src/components/TutorialWrapper.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Joyride, { STATUS, EVENTS, ACTIONS } from 'react-joyride';
@@ -81,6 +81,45 @@ const TutorialWrapper = ({ children }) => {
       console.log('Tutorial debug mode activated');
     }
   }, []);
+
+  // NEW: Check for new users and initialize tutorial
+  useEffect(() => {
+    // Only check if tutorial system is initialized and not already completed
+    if (!isTutorialActive || hasCompletedTutorial) return;
+    
+    const checkForNewUser = () => {
+      const isNewUser = localStorage.getItem('isNewUser') === 'true';
+      const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
+      
+      console.log('New user check:', { 
+        isNewUser, 
+        tutorialCompleted, 
+        isTutorialActive,
+        currentPath: location.pathname,
+        hasCompletedTutorial
+      });
+      
+      // Start tutorial for new users who haven't completed it
+      if (isNewUser && !tutorialCompleted && !hasCompletedTutorial) {
+        console.log('🎯 Starting tutorial for new user');
+        setIsTutorialActive(true);
+        setRunTutorial(true);
+        
+        // Clear the new user flag after starting tutorial
+        localStorage.removeItem('isNewUser');
+        
+        // Navigate to home if not already there to start tutorial
+        if (location.pathname !== '/home' && location.pathname !== '/complete-profile') {
+          console.log('📍 Navigating to home to start tutorial');
+          navigate('/home');
+        }
+      }
+    };
+
+    // Small delay to ensure everything is ready
+    const timer = setTimeout(checkForNewUser, 1000);
+    return () => clearTimeout(timer);
+  }, [isTutorialActive, setIsTutorialActive, location.pathname, navigate, hasCompletedTutorial]);
 
   // Handle route changes - pause tutorial and reset
   useEffect(() => {
@@ -273,12 +312,60 @@ const TutorialWrapper = ({ children }) => {
     localStorage.setItem(TUTORIAL_COMPLETED_KEY, 'true');
     localStorage.removeItem(MYSHOP_TUTORIAL_COMPLETED_KEY);
     localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
+    localStorage.removeItem('isNewUser'); // NEW: Clear new user flag
     setRunTutorial(false);
     setIsTutorialActive(false);
+    setHasCompletedTutorial(true); // NEW: Update state
     
     if (debugMode) {
       console.log('Full tutorial completed and marked as done');
     }
+  };
+  
+  // Get appropriate steps based on current state
+  const getStepsForCurrentPage = () => {
+    // Handle special modes first
+    if (addProductMode) {
+      return getAddProductSteps();
+    }
+    
+    if (ordersMode) {
+      return getOrdersSteps();
+    }
+    
+    if (fallbackMode) {
+      return getFallbackSteps();
+    }
+    
+    // Normal page-based steps
+    switch (location.pathname) {
+      case '/':
+      case '/home':
+        return getHomeSteps(isMobileExperience);
+      case '/studentmarketplace':
+        return getMarketplaceSteps(isMobileExperience);
+      case '/myshop':
+        return getMyShopSteps(isMobileExperience);
+      default:
+        return getFallbackSteps();
+    }
+  };
+  
+  // Check if current page has tutorial targets
+  const checkCurrentPageHasTargets = () => {
+    const steps = getStepsForCurrentPage();
+    
+    // Check if at least one target exists
+    for (const step of steps) {
+      if (step.target && step.target !== 'body') {
+        const element = document.querySelector(step.target);
+        if (element) {
+          return true;
+        }
+      }
+    }
+    
+    return steps.length > 0; // At least return true if we have steps with body targets
   };
   
   // Handle joyride callback
@@ -299,6 +386,9 @@ const TutorialWrapper = ({ children }) => {
     
     // Handle tutorial completed or skipped
     if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      // NEW: Enhanced completion handling
+      console.log('🎉 Tutorial completed via callback');
+      
       // If we're in add product mode, just exit that mode and continue
       if (addProductMode) {
         setAddProductMode(false);
@@ -411,272 +501,98 @@ const TutorialWrapper = ({ children }) => {
       if (checkCurrentPageHasTargets()) {
         setStepIndex(0);
         setRunTutorial(true);
-        if (debugMode) console.log('Starting tutorial for', location.pathname);
+        if (debugMode) {
+          console.log(`Starting tutorial for ${location.pathname}`);
+        }
       } else {
-        if (debugMode) console.log('No tutorial targets found for', location.pathname);
-        // If no elements found, try fallback mode
-        setFallbackMode(true);
-        setStepIndex(0);
-        setRunTutorial(true);
+        // If no targets found, try fallback mode
+        if (!fallbackMode) {
+          setFallbackMode(true);
+          setStepIndex(0);
+          setRunTutorial(true);
+          if (debugMode) {
+            console.log('No targets found, using fallback tutorial');
+          }
+        }
       }
-    }, 800);
+    }, 1500);
     
     return () => clearTimeout(targetCheckerRef.current);
   }, [ready, location.pathname, isTutorialActive, hasCompletedTutorial, addProductMode, ordersMode]);
 
-  // Check if the current page has valid tutorial targets
-  const checkCurrentPageHasTargets = () => {
-    // First check if the tutorial has been completed
-    const tutorialCompleted = localStorage.getItem(TUTORIAL_COMPLETED_KEY) === 'true';
-    
-    // If the tutorial is completed and we're on a page without specific steps (like wishlist),
-    // don't trigger the fallback steps
-    if (tutorialCompleted) {
-      const currentPath = location.pathname;
-      const hasSpecificTutorial = 
-        currentPath === '/' || 
-        currentPath === '/home' ||
-        currentPath === '/studentmarketplace' || 
-        currentPath.includes('/search') ||
-        currentPath === '/myshop';
-        
-      // If we're on a page without specific steps, don't show any tutorial
-      if (!hasSpecificTutorial) {
-        return false;
-      }
-    }
-    
-    // Regular check for specific tutorial steps
-    const steps = getStepsForCurrentPage();
-    if (!steps || steps.length === 0) return false;
-    
-    // Check if at least one step target exists
-    return steps.some((step) => {
-      // Skip checks for body targets
-      if (!step.target || step.target === 'body') return true;
-      return checkElementExists(step.target);
-    });
-  };
-  
-  // Check if an element exists for the given selector
-  const checkElementExists = (selector) => {
-    if (!selector) return false;
-    
-    // Handle multiple comma-separated selectors
-    const selectors = selector.split(',').map(s => s.trim());
-    
-    // Check if any of the selectors match an element
-    return selectors.some(s => {
-      try {
-        const element = document.querySelector(s);
-        return !!element;
-      } catch (e) {
-        return false;
-      }
-    });
-  };
-
-  // Get steps for the current page
-  const getStepsForCurrentPage = () => {
-    // Check for special modes first
-    if (addProductMode) {
-      return getAddProductSteps();
-    }
-    if (ordersMode) {
-      return getOrdersSteps();
-    }
-    
-    // Regular page flow
-    if (location.pathname === '/' || location.pathname === '/home') {
-      return getHomeSteps(isMobileExperience);
-    } else if (location.pathname === '/studentmarketplace' || location.pathname.includes('/search')) {
-      return getMarketplaceSteps(isMobileExperience);
-    } else if (location.pathname === '/myshop') {
-      return getMyShopSteps(isMobileExperience);
-    }
-    
-    return [];
-  };
-  
-  // Get the appropriate steps
-  const getActiveSteps = () => {
-    if (addProductMode) {
-      return getAddProductSteps();
-    }
-    if (ordersMode) {
-      return getOrdersSteps();
-    }
-    if (fallbackMode) {
-      return getFallbackSteps();
-    }
-    return getStepsForCurrentPage();
-  };
-
-  // Get the appropriate steps based on mode and current page
-  const activeSteps = getActiveSteps();
-
-  // Only run tutorial if steps exist
-  const shouldRun = runTutorial && activeSteps.length > 0;
-
-  // Prepare target step indices that need spotlightClicks enabled
-  const needsSpotlightClicks = (index) => {
-    if (!activeSteps || index >= activeSteps.length) return false;
-    
-    // Get the current step
-    const step = activeSteps[index];
-    
-    // If the step explicitly sets spotlightClicks, respect that
-    if (step.spotlightClicks === true) {
-      return true;
-    }
-    
-    // Enable spotlight clicks by default for orders tab in MyShop
-    if (location.pathname === '/myshop' && !ordersMode && !addProductMode) {
-      // If the target contains "orders-tab", enable spotlight clicks
-      if (step.target && step.target.includes('.orders-tab')) {
-        return true;
-      }
-    }
-    
-    return false;
-  };
+  // Get active steps for display
+  const activeSteps = getStepsForCurrentPage();
 
   // Joyride configuration
   const joyrideProps = {
-    callback: handleJoyrideCallback,
-    continuous: true,
-    stepIndex: stepIndex,
     steps: activeSteps,
-    run: shouldRun,
-    scrollToFirstStep: true,
+    stepIndex,
+    continuous: true,
     showProgress: true,
     showSkipButton: true,
-    disableCloseOnEsc: false,
-    disableOverlayClose: true,
-    spotlightClicks: needsSpotlightClicks(stepIndex) || fallbackMode,
-    spotlightPadding: isMobileExperience ? 40 : 15,
-    hideBackButton: stepIndex === 0,
-    disableOverlay: false,
-    floaterProps: {
-      disableAnimation: isMobileExperience,
-      hideArrow: isMobileExperience,
-      offset: isMobileExperience ? 40 : 15,
-    },
+    run: runTutorial && isTutorialActive && !hasCompletedTutorial,
+    callback: handleJoyrideCallback,
     styles: {
       options: {
-        zIndex: 10000,
-        primaryColor: '#E7C65F',
-        backgroundColor: '#113b1e',
-        textColor: '#fff',
-        arrowColor: '#113b1e',
-        overlayColor: 'rgba(0, 0, 0, 0.5)'
+        primaryColor: '#e7c65f',
+        backgroundColor: '#ffffff',
+        textColor: '#333333',
+        overlayColor: 'rgba(0, 0, 0, 0.4)',
+        zIndex: 1000,
       },
       buttonNext: {
-        backgroundColor: '#E7C65F',
-        color: '#113b1e',
-        fontSize: 14,
-        borderRadius: 4,
+        backgroundColor: '#e7c65f',
+        color: '#0e1a19',
+        border: 'none',
+        borderRadius: '4px',
         padding: '8px 16px',
+        fontSize: '14px',
+        fontWeight: '500',
       },
       buttonBack: {
-        color: '#E7C65F',
-        fontSize: 14,
-        marginRight: 10,
+        color: '#666',
+        marginRight: '10px',
       },
       buttonSkip: {
-        color: '#fff',
-        fontSize: 14,
+        color: '#999',
       },
       tooltip: {
-        borderRadius: 8,
-        fontSize: 15,
-        padding: isMobileExperience ? '12px 15px' : '15px 20px',
-        maxWidth: isMobileExperience ? '85vw' : '400px',
-      },
-      tooltipContent: {
-        padding: '10px 5px',
-        fontSize: isMobileExperience ? '14px' : '15px',
-        lineHeight: '1.5',
+        borderRadius: '8px',
+        fontSize: '14px',
       },
       tooltipTitle: {
-        fontSize: isMobileExperience ? '16px' : '18px',
-        fontWeight: 'bold',
-        marginBottom: '10px',
+        fontSize: '16px',
+        fontWeight: '600',
+        color: '#0e1a19',
       },
-      tooltipFooter: {
-        marginTop: '10px',
+      tooltipContent: {
+        color: '#333',
+        lineHeight: '1.5',
       },
     },
-    // Custom tooltip for mobile
-    tooltipComponent: ({ continuous, index, isLastStep, step, backProps, primaryProps, skipProps, tooltipProps }) => (
-      <div 
-        {...tooltipProps} 
-        className="bg-[#113b1e] text-white p-4 rounded-lg shadow-xl max-w-[300px] mx-auto relative"
-      >
-        <button 
-          className="absolute top-2 right-2 text-white/70 hover:text-white z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            skipProps.onClick(e);
-          }}
-          aria-label="Close tutorial"
-        >
-          <X size={16} />
-        </button>
-        
-        {step.title && (
-          <h3 className="text-[#E7C65F] font-bold text-lg mb-2">{step.title}</h3>
-        )}
-        
-        <div className="mb-4 mt-2">{step.content}</div>
-        
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-xs text-white/70">
-            {index + 1}/{activeSteps.length}
-          </div>
-          <div className="flex gap-2">
-            {index > 0 && (
-              <button 
-                {...backProps} 
-                className="text-[#E7C65F] text-sm px-3 py-1 border border-[#E7C65F] rounded"
-              >
-                Back
-              </button>
-            )}
-            <button 
-              {...primaryProps} 
-              className="bg-[#E7C65F] text-[#113b1e] text-sm font-medium px-4 py-1 rounded"
-            >
-              {isLastStep ? 'Finish' : 'Next'}
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex items-center justify-center mt-3 space-x-1">
-          {activeSteps.map((_, i) => (
-            <div 
-              key={i} 
-              className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                i === index ? 'bg-[#E7C65F]' : 'bg-white/30'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-    ) 
+    locale: {
+      back: 'Back',
+      close: 'Close',
+      last: 'Finish',
+      next: 'Next',
+      skip: 'Skip Tutorial',
+    },
   };
 
-  // Debug panel
+  // Debug panel component
   const DebugPanel = () => (
-    <div className="fixed top-0 right-0 bg-black/80 text-white p-2 text-xs z-[10001] max-w-[200px]">
-      <div>Mobile: {isMobileExperience ? 'Yes' : 'No'}</div>
-      <div>Tutorial: {shouldRun ? 'Running' : 'Stopped'}</div>
+    <div className="fixed bottom-4 right-4 bg-black text-white p-2 rounded text-xs z-[1001] max-w-xs">
+      <div className="flex justify-between items-center mb-2">
+        <span className="font-bold">Tutorial Debug</span>
+        <button onClick={() => setDebugMode(false)}>
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <div>Tutorial: {isTutorialActive ? 'Active' : 'Inactive'}</div>
+      <div>Running: {runTutorial ? 'Yes' : 'No'}</div>
       <div>Step: {stepIndex + 1}/{activeSteps.length}</div>
-      <div>Add Product: {addProductMode ? 'Yes' : 'No'}</div>
-      <div>Orders Mode: {ordersMode ? 'Yes' : 'No'}</div>
-      <div>MyShop Done: {localStorage.getItem(MYSHOP_TUTORIAL_COMPLETED_KEY) === 'true' ? 'Yes' : 'No'}</div>
-      <div>Orders Pending: {localStorage.getItem(ORDERS_TUTORIAL_PENDING_KEY) === 'true' ? 'Yes' : 'No'}</div>
-      <div>SpotlightClicks: {needsSpotlightClicks(stepIndex) ? 'Yes' : 'No'}</div>
+      <div>Mode: {addProductMode ? 'AddProduct' : ordersMode ? 'Orders' : 'Normal'}</div>
+      <div>Completed: {hasCompletedTutorial ? 'Yes' : 'No'}</div>
       <div>Path: {location.pathname.substring(0, 15)}</div>
       <div className="flex gap-1 mt-1">
         <button 
@@ -715,7 +631,9 @@ const TutorialWrapper = ({ children }) => {
             localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
             localStorage.removeItem(MYSHOP_TUTORIAL_COMPLETED_KEY);
             localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
+            localStorage.setItem('isNewUser', 'true'); // NEW: Reset new user flag
             setIsTutorialActive(true);
+            setHasCompletedTutorial(false);
             setFallbackMode(false);
             setAddProductMode(false);
             setOrdersMode(false);
