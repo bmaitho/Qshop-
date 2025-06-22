@@ -373,6 +373,7 @@ const Login = ({ setToken }) => {
         </form>
 
         <div className="mt-6">
+          {/* Google sign-in temporarily hidden
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border dark:border-border"></div>
@@ -394,6 +395,7 @@ const Login = ({ setToken }) => {
               {googleLoading ? 'Connecting...' : 'Continue with Google'}
             </Button>
           </div>
+          */}
         </div>
 
         <p className="mt-6 text-center text-sm text-foreground/60 dark:text-foreground/60">
