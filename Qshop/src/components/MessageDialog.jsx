@@ -16,11 +16,12 @@ import { MessageCircle } from 'lucide-react';
 import { createMessageWithFlow } from '../utils/buyerResponseHandler';
 import { getDisplayInfo } from '../utils/communicationUtils';
 
+
 const MessageDialog = ({ 
   recipientId, 
   productId = null, 
   orderId = null, 
-  orderItemId = null, // New prop for order item linking
+  orderItemId = null,
   buttonText = "Contact Seller",
   buttonVariant = "outline",
   buttonClassName = "flex-1",
@@ -34,6 +35,19 @@ const MessageDialog = ({
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Add debugging for recipient ID
+  useEffect(() => {
+    console.log('MessageDialog received recipientId:', recipientId);
+    if (!recipientId) {
+      console.error('MessageDialog: recipientId is missing!', {
+        recipientId,
+        orderId,
+        productId,
+        orderItemId
+      });
+    }
+  }, [recipientId, orderId, productId, orderItemId]);
+
   // Fetch recipient and current user details when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -43,9 +57,14 @@ const MessageDialog = ({
   }, [isOpen, recipientId]);
 
   const fetchRecipientDetails = async () => {
-    if (!recipientId) return;
+    if (!recipientId) {
+      console.error('Cannot fetch recipient details - recipientId is null/undefined');
+      return;
+    }
     
     try {
+      console.log('Fetching recipient details for ID:', recipientId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, campus_location')
@@ -56,6 +75,7 @@ const MessageDialog = ({
         console.error('Error fetching recipient details:', error);
       }
       
+      console.log('Recipient details fetched:', data);
       setRecipientDetails(data || { id: recipientId });
     } catch (error) {
       console.error('Error in fetchRecipientDetails:', error);
@@ -90,6 +110,18 @@ const MessageDialog = ({
       return;
     }
     
+    // CRITICAL VALIDATION: Check recipientId before proceeding
+    if (!recipientId) {
+      console.error('Cannot send message - recipientId is null/undefined', {
+        recipientId,
+        orderId,
+        productId,
+        orderItemId
+      });
+      toast.error('Cannot send message - recipient not found. Please try refreshing the page.');
+      return;
+    }
+    
     try {
       setSending(true);
       
@@ -101,17 +133,28 @@ const MessageDialog = ({
       const recipientInfo = getDisplayInfo(recipientDetails);
       const senderInfo = getDisplayInfo(currentUserProfile);
 
-      // Prepare message data
+      // Prepare message data with explicit validation
       const messageData = {
         sender_id: currentUser.id,
-        recipient_id: recipientId,
+        recipient_id: recipientId, // This should NOT be null
         product_id: productId,
         order_id: orderId,
-        order_item_id: orderItemId, // Link to specific order item if provided
+        order_item_id: orderItemId,
         message: message.trim(),
         sender_name: senderInfo.name,
         recipient_name: recipientInfo.name
       };
+
+      // Log the message data for debugging
+      console.log('Sending message with data:', {
+        ...messageData,
+        message: messageData.message.substring(0, 50) + '...'
+      });
+
+      // Additional validation before calling createMessageWithFlow
+      if (!messageData.recipient_id) {
+        throw new Error('Recipient ID is missing - cannot send message');
+      }
 
       // Use the enhanced message creation function
       const result = await createMessageWithFlow(messageData);
@@ -154,12 +197,11 @@ const MessageDialog = ({
     return `Message ${getRecipientName()}`;
   };
 
-  const getDialogDescription = () => {
-    if (orderItemId) {
-      return "Send a message about this order. The recipient will be notified.";
-    }
-    return "Send a message to this user. They will be notified of your message.";
-  };
+  // Don't render the dialog if recipientId is missing
+  if (!recipientId) {
+    console.warn('MessageDialog not rendering - recipientId is missing');
+    return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -180,7 +222,10 @@ const MessageDialog = ({
             {getDialogTitle()}
           </DialogTitle>
           <DialogDescription>
-            {getDialogDescription()}
+            {orderItemId ? 
+              "Send a message about this order. The recipient will be notified." :
+              "Send a message to this user. They will be notified of your message."
+            }
           </DialogDescription>
         </DialogHeader>
         
