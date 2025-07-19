@@ -5,8 +5,11 @@ import { supabase } from '../components/SupabaseClient';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
 import { updateOrderStatus } from '../utils/orderUtils';
+import { canMarkAsShipped, getCommunicationStatus, getDisplayInfo } from '../utils/communicationUtils';
+import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 
 const SellerOrderDetail = () => {
@@ -17,6 +20,7 @@ const SellerOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [updateInProgress, setUpdateInProgress] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     fetchOrderDetails();
@@ -29,7 +33,7 @@ const SellerOrderDetail = () => {
       
       if (!user) return;
       
-      // Fetch the order item with related data
+      // Fetch the order item with related data including communication fields
       const { data: itemData, error: itemError } = await supabase
         .from('order_items')
         .select(`
@@ -38,7 +42,7 @@ const SellerOrderDetail = () => {
           products(*)
         `)
         .eq('id', id)
-        .eq('seller_id', user.id) // Security check - only allow seller to see their own orders
+        .eq('seller_id', user.id)
         .single();
       
       if (itemError) throw itemError;
@@ -47,106 +51,121 @@ const SellerOrderDetail = () => {
       if (itemData?.orders) {
         setOrder(itemData.orders);
         
-        // Fetch buyer info
-        const { data: buyerData, error: buyerError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', itemData.orders.user_id)
-          .single();
-        
-        if (!buyerError) {
-          setBuyer(buyerData);
+        // Fetch buyer info with better error handling
+        try {
+          const { data: buyerData, error: buyerError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', itemData.orders.user_id)
+            .maybeSingle();
+            
+          if (buyerData) {
+            setBuyer(buyerData);
+          } else if (buyerError) {
+            console.warn(`Error fetching buyer profile: ${buyerError.message}`);
+          }
+        } catch (e) {
+          console.error('Error fetching buyer details:', e);
         }
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
+      toast.error('Failed to load order details');
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpdateOrderStatus = async (newStatus) => {
+    // Check communication requirements before shipping
+    if (newStatus === 'shipped' && !canMarkAsShipped(orderItem)) {
+      toast.error('You must contact the buyer and get their agreement before shipping');
+      return;
+    }
+
     setUpdateInProgress(true);
     
     try {
       const success = await updateOrderStatus(id, newStatus);
       if (success) {
-        // Refresh the data after successful update
-        fetchOrderDetails();
+        toast.success(`Order marked as ${newStatus}`);
+        fetchOrderDetails(); // Refresh data
       }
     } catch (error) {
       console.error("Error updating order status:", error);
+      toast.error('Failed to update order status');
     } finally {
       setUpdateInProgress(false);
     }
   };
 
-  const sendMessageToBuyer = async () => {
-    if (!message.trim()) return;
+  const handleContactBuyer = async () => {
+    if (!message.trim()) {
+      toast.error('Please enter a message');
+      return;
+    }
+
+    setSendingMessage(true);
     
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // If buyer object is missing or incomplete, try to fetch it again
-      let buyerInfo = buyer;
-      if (!buyer || (!buyer.full_name && !buyer.email)) {
-        try {
-          const { data: freshBuyerData, error: buyerError } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .eq('id', order.user_id)
-            .maybeSingle();  // <-- Changed from single() to maybeSingle()
-            
-          if (freshBuyerData) {
-            buyerInfo = freshBuyerData;
-          } else if (buyerError) {
-            console.warn(`Error fetching buyer profile: ${buyerError.message}`);
-          } else {
-            console.warn(`No profile found for buyer ID ${order.user_id}`);
-          }
-        } catch (e) {
-          console.error('Error fetching buyer details:', e);
-        }
-      }
+      const buyerInfo = getDisplayInfo(buyer);
+      const senderInfo = getDisplayInfo({ full_name: user.user_metadata?.full_name || user.email });
       
-      // Get sender info from user metadata or fallback to user ID
-      const userMetadata = user.user_metadata || {};
-      
-      // Get sender and recipient names with better fallbacks
-      const senderName = userMetadata.full_name || user.email || 'Seller';
-      
-      // Build recipient name with strong fallbacks
-      const recipientName = buyerInfo?.full_name || 
-                            buyerInfo?.email || 
-                            order?.user_id || 
-                            'Buyer';
-      
-      console.log('Sending message to buyer with recipient name:', recipientName);
-      
-      // Create message record
-      const { error } = await supabase
+      // Create message record with order_item_id link
+      const { error: messageError } = await supabase
         .from('messages')
         .insert([{
           sender_id: user.id,
-          recipient_id: buyerInfo?.id || order.user_id,
+          recipient_id: order.user_id,
           product_id: orderItem.product_id,
           order_id: orderItem.order_id,
-          order_item_id: orderItem.id,
+          order_item_id: orderItem.id, // Link to specific order item
           message: message.trim(),
-          sender_name: senderName,
-          recipient_name: recipientName
+          sender_name: senderInfo.name,
+          recipient_name: buyerInfo.name
         }]);
-  
-      if (error) throw error;
+
+      if (messageError) throw messageError;
+
+      // Update order item to mark buyer as contacted
+      const { error: updateError } = await supabase
+        .from('order_items')
+        .update({ 
+          buyer_contacted: true,
+          // Don't update buyer_agreed here - wait for buyer response
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
       
-      // Reset message field and show success message
       setMessage('');
-      toast.success("Message sent successfully");
+      toast.success("Message sent successfully! Waiting for buyer response.");
+      fetchOrderDetails(); // Refresh to show updated status
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error("Failed to send message");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Simulate buyer response for testing (remove in production)
+  const simulateBuyerResponse = async () => {
+    try {
+      const { error } = await supabase
+        .from('order_items')
+        .update({ buyer_agreed: true })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success("Buyer agreed! You can now ship the order.");
+      fetchOrderDetails();
+    } catch (error) {
+      console.error('Error simulating buyer response:', error);
     }
   };
 
@@ -174,10 +193,7 @@ const SellerOrderDetail = () => {
             <h2 className="text-2xl font-bold mb-4">Order Not Found</h2>
             <p className="mb-4">The order you're looking for doesn't exist or you don't have permission to view it.</p>
             <Link to="/myshop">
-              <Button>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Orders
-              </Button>
+              <Button>Back to My Shop</Button>
             </Link>
           </div>
         </div>
@@ -185,53 +201,63 @@ const SellerOrderDetail = () => {
     );
   }
 
+  const commStatus = getCommunicationStatus(orderItem);
+  const buyerInfo = getDisplayInfo(buyer);
+
   return (
     <>
       <Navbar />
       <div className="max-w-4xl mx-auto p-4 my-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Link to="/myshop">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Orders
-            </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Link to="/myshop" className="flex items-center text-primary hover:text-primary/80">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Orders
           </Link>
-          <h1 className="text-2xl font-bold">Order #{order?.id.substring(0, 8)}</h1>
+          
+          {/* Communication Status Badge */}
+          <Badge variant="outline" className={`
+            ${commStatus.color === 'red' ? 'border-red-500 text-red-700 bg-red-50' : ''}
+            ${commStatus.color === 'yellow' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' : ''}
+            ${commStatus.color === 'green' ? 'border-green-500 text-green-700 bg-green-50' : ''}
+          `}>
+            {commStatus.emoji} {commStatus.label}
+          </Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Order Summary - Left Column */}
-          <div className="md:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Order Information - Left Column */}
+          <div className="space-y-6">
+            {/* Product & Order Details */}
             <Card>
               <CardContent className="p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">Order Details</h2>
-                  <StatusBadge status={orderItem.status} />
-                </div>
+                <h2 className="text-lg font-semibold mb-4">Order Details</h2>
                 
-                <div className="flex items-start gap-4 border-b pb-4 mb-4">
-                  <div className="w-24 h-24 bg-gray-100 rounded flex-shrink-0">
-                    <img
-                      src={orderItem.products?.image_url || "/api/placeholder/96/96"}
-                      alt={orderItem.products?.name}
-                      className="w-full h-full object-cover rounded"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">{orderItem.products?.name}</h3>
-                    <p className="text-sm text-gray-500">Product ID: {orderItem.product_id}</p>
-                    <div className="flex justify-between mt-2">
-                      <p className="text-sm text-gray-600">
-                        Quantity: {orderItem.quantity} × KES {orderItem.price_per_unit?.toLocaleString()}
-                      </p>
-                      <p className="font-bold">
-                        KES {orderItem.subtotal?.toLocaleString()}
-                      </p>
+                {orderItem.products && (
+                  <div className="flex gap-4 mb-4">
+                    {orderItem.products.image_url && (
+                      <img 
+                        src={orderItem.products.image_url} 
+                        alt={orderItem.products.name}
+                        className="w-16 h-16 object-cover rounded"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-medium">{orderItem.products.name}</h3>
+                      <p className="text-sm text-gray-600">{orderItem.products.description}</p>
                     </div>
                   </div>
+                )}
+                
+                <div className="flex justify-between mt-2">
+                  <p className="text-sm text-gray-600">
+                    Quantity: {orderItem.quantity} × KES {orderItem.price_per_unit?.toLocaleString()}
+                  </p>
+                  <p className="font-bold">
+                    KES {orderItem.subtotal?.toLocaleString()}
+                  </p>
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-2 mt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Order Date:</span>
                     <span>{new Date(order?.created_at).toLocaleString()}</span>
@@ -241,29 +267,87 @@ const SellerOrderDetail = () => {
                     <span className="capitalize">{order?.payment_status}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Payment Method:</span>
-                    <span>M-Pesa</span>
+                    <span className="text-gray-600">Order Status:</span>
+                    <span className="capitalize">{orderItem.status}</span>
                   </div>
-                  {order?.mpesa_receipt && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Receipt Number:</span>
-                      <span>{order.mpesa_receipt}</span>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
 
+            {/* Communication & Actions */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Action Required</h2>
+                <h2 className="text-lg font-semibold mb-4">Communication & Actions</h2>
                 
-                {orderItem.status === 'processing' && (
+                {/* Status-based Action Section */}
+                {commStatus.status === 'need_contact' && (
                   <div className="space-y-4">
-                    <p className="text-sm">This order is ready for shipment. Please update the status when you have shipped the item.</p>
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <p className="text-red-700 font-medium">Contact Required</p>
+                      </div>
+                      <p className="text-red-600 text-sm">
+                        You must contact the buyer about shipping arrangements before you can mark this order as shipped.
+                      </p>
+                    </div>
+                    
+                    <Textarea
+                      placeholder="Message the buyer about shipping arrangements..."
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                    
+                    <Button 
+                      onClick={handleContactBuyer} 
+                      className="w-full"
+                      disabled={!message.trim() || sendingMessage}
+                    >
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      {sendingMessage ? "Sending..." : "Contact Buyer"}
+                    </Button>
+                  </div>
+                )}
+                
+                {commStatus.status === 'waiting_response' && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <p className="text-yellow-700 font-medium">Waiting for Buyer Response</p>
+                      </div>
+                      <p className="text-yellow-600 text-sm">
+                        You've contacted the buyer. Waiting for them to confirm shipping arrangements.
+                      </p>
+                    </div>
+                    
+                    {/* Temporary button for testing - remove in production */}
+                    <Button 
+                      onClick={simulateBuyerResponse}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Simulate Buyer Agreement (Test Only)
+                    </Button>
+                  </div>
+                )}
+                
+                {commStatus.status === 'ready_to_ship' && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <p className="text-green-700 font-medium">Ready to Ship</p>
+                      </div>
+                      <p className="text-green-600 text-sm">
+                        The buyer has agreed to the shipping arrangements. You can now mark this order as shipped.
+                      </p>
+                    </div>
+                    
                     <Button 
                       onClick={() => handleUpdateOrderStatus('shipped')}
-                      className="w-full"
+                      className="w-full bg-green-600 hover:bg-green-700"
                       disabled={updateInProgress}
                     >
                       <Truck className="mr-2 h-4 w-4" />
@@ -273,45 +357,16 @@ const SellerOrderDetail = () => {
                 )}
                 
                 {orderItem.status === 'shipped' && (
-                  <div className="space-y-4">
-                    <p className="text-sm">This order has been shipped. Once the buyer has received it, you can mark it as delivered.</p>
-                    <Button 
-                      onClick={() => handleUpdateOrderStatus('delivered')}
-                      className="w-full"
-                      disabled={updateInProgress}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {updateInProgress ? "Updating..." : "Mark as Delivered"}
-                    </Button>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Truck className="h-4 w-4 text-blue-600" />
+                      <p className="text-blue-700 font-medium">Order Shipped</p>
+                    </div>
+                    <p className="text-blue-600 text-sm">
+                      This order has been shipped and is on its way to the buyer.
+                    </p>
                   </div>
                 )}
-                
-                {orderItem.status === 'delivered' && (
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-green-700 text-sm">This order has been successfully delivered and is now complete.</p>
-                  </div>
-                )}
-                
-                {orderItem.status === 'cancelled' && (
-                  <div className="p-4 bg-red-50 rounded-lg">
-                    <p className="text-red-700 text-sm">This order has been cancelled.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Message Buyer</h2>
-                <Textarea
-                  placeholder="Write a message to the buyer..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="min-h-[100px] mb-3"
-                />
-                <Button onClick={sendMessageToBuyer} className="w-full" disabled={!message.trim()}>
-                  Send Message
-                </Button>
               </CardContent>
             </Card>
           </div>
@@ -321,124 +376,79 @@ const SellerOrderDetail = () => {
             <Card>
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-4">Buyer Information</h2>
-                {buyer ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium">
-                          {buyer.full_name ? buyer.full_name[0].toUpperCase() : 'U'}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium">{buyer.full_name || 'Anonymous'}</p>
-                        <p className="text-xs text-gray-500">Customer</p>
-                      </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium">{buyerInfo.initials}</span>
                     </div>
-                    
-                    {buyer.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <span>{buyer.phone}</span>
-                      </div>
-                    )}
-                    
-                    {buyer.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-4 w-4 text-gray-500" />
-                        <span>{buyer.email}</span>
-                      </div>
-                    )}
-                    
-                    {buyer.campus_location && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span>{buyer.campus_location}</span>
-                      </div>
-                    )}
+                    <div>
+                      <p className="font-medium">{buyerInfo.name}</p>
+                      <p className="text-xs text-gray-500">Customer</p>
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-500">Buyer information not available</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Status Timeline</h2>
-                <div className="space-y-4">
-                  <TimelineItem 
-                    title="Order Placed" 
-                    date={order?.created_at}
-                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
-                    completed={true}
-                  />
-                  <TimelineItem 
-                    title="Payment Received" 
-                    date={order?.updated_at}
-                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
-                    completed={order?.payment_status === 'completed'}
-                  />
-                  <TimelineItem 
-                    title="Processing" 
-                    date={null}
-                    icon={<div className="w-4 h-4 bg-orange-500 rounded-full" />}
-                    completed={['processing', 'shipped', 'delivered'].includes(orderItem.status)}
-                  />
-                  <TimelineItem 
-                    title="Shipped"
-                    date={null}
-                    icon={<div className="w-4 h-4 bg-blue-500 rounded-full" />}
-                    completed={['shipped', 'delivered'].includes(orderItem.status)}
-                  />
-                  <TimelineItem 
-                    title="Delivered" 
-                    date={null}
-                    icon={<div className="w-4 h-4 bg-green-500 rounded-full" />}
-                    completed={orderItem.status === 'delivered'}
-                  />
+                  
+                  {buyerInfo.phone && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <span>{buyerInfo.phone}</span>
+                    </div>
+                  )}
+                  
+                  {buyerInfo.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span>{buyerInfo.email}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-gray-500" />
+                    <span>{buyerInfo.location}</span>
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-gray-50 rounded">
+                    <p className="text-xs text-gray-600 mb-1">Preferred Contact:</p>
+                    <p className="text-sm">{buyerInfo.contact}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Delivery Information */}
+            {order?.delivery_option && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-lg font-semibold mb-4">Delivery Information</h2>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Delivery Method:</span>
+                      <span className="capitalize">{order.delivery_option}</span>
+                    </div>
+                    
+                    {order.delivery_address && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Address:</span>
+                        <span>{order.delivery_address}</span>
+                      </div>
+                    )}
+                    
+                    {order.delivery_instructions && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Instructions:</span>
+                        <span>{order.delivery_instructions}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
     </>
   );
 };
-
-// Helper component for status badges
-const StatusBadge = ({ status }) => {
-  switch (status) {
-    case 'pending_payment':
-      return <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded text-xs font-medium">Awaiting Payment</div>;
-    case 'processing':
-      return <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded text-xs font-medium">Processing</div>;
-    case 'shipped':
-      return <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-xs font-medium">Shipped</div>;
-    case 'delivered':
-      return <div className="bg-green-100 text-green-800 px-3 py-1 rounded text-xs font-medium">Delivered</div>;
-    case 'cancelled':
-      return <div className="bg-red-100 text-red-800 px-3 py-1 rounded text-xs font-medium">Cancelled</div>;
-    default:
-      return <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded text-xs font-medium">{status}</div>;
-  }
-};
-
-// Helper component for timeline items
-const TimelineItem = ({ title, date, icon, completed }) => (
-  <div className="flex items-start gap-3">
-    <div className={`mt-1 ${completed ? 'opacity-100' : 'opacity-40'}`}>
-      {icon}
-    </div>
-    <div className={completed ? 'opacity-100' : 'opacity-40'}>
-      <p className="font-medium">{title}</p>
-      {date && (
-        <p className="text-xs text-gray-500">
-          {new Date(date).toLocaleString()}
-        </p>
-      )}
-    </div>
-  </div>
-);
 
 export default SellerOrderDetail;

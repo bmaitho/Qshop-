@@ -1,3 +1,4 @@
+// src/components/MessageDialog.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../components/SupabaseClient';
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { toastSuccess, toastError } from '../utils/toastConfig';
-import { MessageCircle, User } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { MessageCircle } from 'lucide-react';
+import { createMessageWithFlow } from '../utils/buyerResponseHandler';
+import { getDisplayInfo } from '../utils/communicationUtils';
 
 const MessageDialog = ({ 
   recipientId, 
   productId = null, 
   orderId = null, 
+  orderItemId = null, // New prop for order item linking
   buttonText = "Contact Seller",
   buttonVariant = "outline",
   buttonClassName = "flex-1",
@@ -29,8 +32,9 @@ const MessageDialog = ({
   const [sending, setSending] = useState(false);
   const [recipientDetails, setRecipientDetails] = useState(null);
   const [currentUserProfile, setCurrentUserProfile] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Fetch recipient details when the dialog opens
+  // Fetch recipient and current user details when dialog opens
   useEffect(() => {
     if (isOpen) {
       fetchRecipientDetails();
@@ -42,32 +46,20 @@ const MessageDialog = ({
     if (!recipientId) return;
     
     try {
-      // Use maybeSingle instead of single to avoid PGRST116 error
-      // when no rows are found (it returns null instead of error)
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, phone, campus_location')
         .eq('id', recipientId)
-        .maybeSingle();  // <-- Change from single() to maybeSingle()
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching recipient details:', error);
       }
       
-      // Always set recipient details - either with data from DB or defaults
-      setRecipientDetails({
-        id: recipientId,
-        full_name: data?.full_name || null,
-        email: data?.email || null
-      });
+      setRecipientDetails(data || { id: recipientId });
     } catch (error) {
       console.error('Error in fetchRecipientDetails:', error);
-      // Set default recipient details on exception
-      setRecipientDetails({
-        id: recipientId,
-        full_name: null, 
-        email: null
-      });
+      setRecipientDetails({ id: recipientId });
     }
   };
 
@@ -76,88 +68,97 @@ const MessageDialog = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
+      setCurrentUser(user);
+      
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, full_name, email, phone, campus_location')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setCurrentUserProfile(data);
+      if (!error && data) {
+        setCurrentUserProfile(data);
+      }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error fetching current user profile:', error);
     }
   };
 
   const handleSend = async () => {
-    if (!message.trim()) return;
+    if (!message.trim()) {
+      toast.error('Please enter a message');
+      return;
+    }
     
     try {
       setSending(true);
       
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
+      if (!currentUser) {
         throw new Error('You must be logged in to send messages');
       }
 
-      // Ensure we have recipient details - if not, fetch them again
-      let recipient = recipientDetails;
-      if (!recipient) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .eq('id', recipientId)
-            .single();
-            
-          if (!error) {
-            recipient = data;
-          }
-        } catch (e) {
-          console.error('Final attempt to fetch recipient failed:', e);
-        }
-      }
+      // Get display info for both users
+      const recipientInfo = getDisplayInfo(recipientDetails);
+      const senderInfo = getDisplayInfo(currentUserProfile);
 
-      // Get sender and recipient names with better fallbacks
-      const senderName = currentUserProfile?.full_name || user.email || user.id || 'Unknown Sender';
-      const recipientName = recipient?.full_name || recipient?.email || (recipient ? recipient.id : recipientId) || 'Unknown Recipient';
+      // Prepare message data
+      const messageData = {
+        sender_id: currentUser.id,
+        recipient_id: recipientId,
+        product_id: productId,
+        order_id: orderId,
+        order_item_id: orderItemId, // Link to specific order item if provided
+        message: message.trim(),
+        sender_name: senderInfo.name,
+        recipient_name: recipientInfo.name
+      };
 
-      console.log('Sending message with recipient name:', recipientName);
+      // Use the enhanced message creation function
+      const result = await createMessageWithFlow(messageData);
       
-      // Create message record with names
-      const { error } = await supabase
-        .from('messages')
-        .insert([
-          {
-            sender_id: user.id,
-            recipient_id: recipientId,
-            product_id: productId,
-            order_id: orderId,
-            message: message.trim(),
-            sender_name: senderName,
-            recipient_name: recipientName
-          }
-        ]);
-
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send message');
+      }
       
       // Success!
-      toastSuccess("Message sent successfully!");
+      toast.success("Message sent successfully!");
       setMessage('');
       setIsOpen(false);
+      
+      // If this was an order-related message from seller, might need to refresh parent component
+      if (orderItemId && window.location.pathname.includes('/seller/orders/')) {
+        // Trigger a refresh of the order detail page
+        window.location.reload();
+      }
+      
     } catch (error) {
       console.error('Error sending message:', error);
-      toastError(error.message || "Failed to send message");
+      toast.error(error.message || "Failed to send message");
     } finally {
       setSending(false);
     }
   };
 
   const getRecipientName = () => {
-    if (!recipientDetails) return "Seller";
-    return recipientDetails.full_name || recipientDetails.email || "Seller";
+    const recipientInfo = getDisplayInfo(recipientDetails);
+    return recipientInfo.name;
+  };
+
+  const getDialogTitle = () => {
+    if (productName) {
+      return `Message about ${productName}`;
+    }
+    if (orderId) {
+      return `Message about Order`;
+    }
+    return `Message ${getRecipientName()}`;
+  };
+
+  const getDialogDescription = () => {
+    if (orderItemId) {
+      return "Send a message about this order. The recipient will be notified.";
+    }
+    return "Send a message to this user. They will be notified of your message.";
   };
 
   return (
@@ -172,49 +173,53 @@ const MessageDialog = ({
           {buttonText}
         </Button>
       </DialogTrigger>
-      <DialogContent className="dark:bg-gray-800 dark:border-gray-700">
+      
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-primary dark:text-gray-100">
-            {productName ? `Message about ${productName}` : `Message to ${getRecipientName()}`}
+          <DialogTitle>
+            {getDialogTitle()}
           </DialogTitle>
-          <DialogDescription className="text-primary/70 dark:text-gray-300">
-            {recipientDetails && (
-              <div className="flex items-center gap-2 mt-2">
-                <div className="w-8 h-8 bg-primary/10 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary/60 dark:text-gray-400" />
-                </div>
-                <span>{getRecipientName()}</span>
-              </div>
-            )}
+          <DialogDescription>
+            {getDialogDescription()}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 py-4">
+        <div className="space-y-4">
+          {/* Recipient Info */}
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">To: </span>
+            {getRecipientName()}
+          </div>
+          
+          {/* Message Input */}
           <Textarea
-            placeholder="Write your message here..."
+            placeholder={orderItemId ? 
+              "Write a message about shipping arrangements..." : 
+              "Write your message..."
+            }
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="min-h-[120px] w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+            className="min-h-[100px]"
+            disabled={sending}
           />
+          
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsOpen(false)}
+              disabled={sending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={!message.trim() || sending}
+            >
+              {sending ? "Sending..." : "Send Message"}
+            </Button>
+          </div>
         </div>
-        
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsOpen(false)}
-            className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            onClick={handleSend}
-            disabled={!message.trim() || sending}
-            className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
-          >
-            {sending ? "Sending..." : "Send Message"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
