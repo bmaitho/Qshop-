@@ -8,9 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
 import { updateOrderStatus } from '../utils/orderUtils';
-import { canMarkAsShipped, getCommunicationStatus, getDisplayInfo } from '../utils/communicationUtils';
+import { getCommunicationStatus, getDisplayInfo } from '../utils/communicationUtils';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
+
+// 🚧 TEMPORARY BYPASS FOR B2C TESTING - REMOVE WHEN MESSAGING IS FIXED
+const DEV_MODE = true; // Set to false when messaging is working
 
 const SellerOrderDetail = () => {
   const { id } = useParams(); // order_item id
@@ -25,6 +28,18 @@ const SellerOrderDetail = () => {
   useEffect(() => {
     fetchOrderDetails();
   }, [id]);
+
+  // 🚧 BYPASS FUNCTION FOR TESTING
+  const canMarkAsShipped = (orderItem) => {
+    // Bypass for testing - remove this when messaging works
+    if (DEV_MODE) {
+      console.log('🚧 DEV MODE: Bypassing messaging check for B2C testing');
+      return true;
+    }
+    
+    // Original logic (restore when messaging is fixed)
+    return orderItem?.buyer_contacted && orderItem?.buyer_agreed;
+  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -152,7 +167,7 @@ const SellerOrderDetail = () => {
     }
   };
 
-  // Simulate buyer response for testing (remove in production)
+  // 🚧 TESTING HELPER FUNCTIONS - REMOVE IN PRODUCTION
   const simulateBuyerResponse = async () => {
     try {
       const { error } = await supabase
@@ -167,6 +182,93 @@ const SellerOrderDetail = () => {
     } catch (error) {
       console.error('Error simulating buyer response:', error);
     }
+  };
+
+  const simulateMessageFlow = async () => {
+    try {
+      const { error } = await supabase
+        .from('order_items')
+        .update({ 
+          buyer_contacted: true,
+          buyer_agreed: true 
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success("🚧 DEV: Simulated complete messaging flow");
+      fetchOrderDetails();
+    } catch (error) {
+      console.error('Error simulating messaging:', error);
+      toast.error('Failed to simulate messaging flow');
+    }
+  };
+
+  const forceReadyToShip = async () => {
+    try {
+      const { error } = await supabase
+        .from('order_items')
+        .update({ 
+          buyer_contacted: true,
+          buyer_agreed: true,
+          status: 'ready_to_ship'
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success("🚧 DEV: Forced order to ready-to-ship status");
+      fetchOrderDetails();
+    } catch (error) {
+      console.error('Error forcing ready to ship:', error);
+      toast.error('Failed to force ready to ship');
+    }
+  };
+
+  // 🚧 TESTING BYPASS COMPONENT - REMOVE IN PRODUCTION
+  const TestingBypassPanel = ({ orderItem }) => {
+    if (!DEV_MODE) return null;
+    
+    return (
+      <Card className="mb-6 border-orange-200 bg-orange-50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="h-4 w-4 text-orange-600" />
+            <p className="text-orange-700 font-medium">🚧 Development Mode - B2C Testing</p>
+          </div>
+          <p className="text-orange-600 text-sm mb-3">
+            Quick actions to bypass messaging system for B2C testing. Remove when messaging is fixed.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={simulateMessageFlow}
+              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+            >
+              Simulate Complete Messaging
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={forceReadyToShip}
+              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+            >
+              Force Ready to Ship
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={simulateBuyerResponse}
+              className="border-orange-300 text-orange-700 hover:bg-orange-100"
+            >
+              Simulate Buyer Agreement
+            </Button>
+          </div>
+          <div className="mt-2 text-xs text-orange-600">
+            Current Status: buyer_contacted={orderItem?.buyer_contacted?.toString()}, buyer_agreed={orderItem?.buyer_agreed?.toString()}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -220,67 +322,97 @@ const SellerOrderDetail = () => {
             ${commStatus.color === 'yellow' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' : ''}
             ${commStatus.color === 'green' ? 'border-green-500 text-green-700 bg-green-50' : ''}
           `}>
-            {commStatus.emoji} {commStatus.label}
+            {commStatus.text}
           </Badge>
         </div>
 
+        {/* 🚧 TESTING BYPASS PANEL */}
+        <TestingBypassPanel orderItem={orderItem} />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Order Information - Left Column */}
+          {/* Product Information */}
           <div className="space-y-6">
-            {/* Product & Order Details */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Order Details</h2>
-                
-                {orderItem.products && (
-                  <div className="flex gap-4 mb-4">
-                    {orderItem.products.image_url && (
-                      <img 
-                        src={orderItem.products.image_url} 
-                        alt={orderItem.products.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-medium">{orderItem.products.name}</h3>
-                      <p className="text-sm text-gray-600">{orderItem.products.description}</p>
+                <h2 className="text-lg font-semibold mb-4">Product Details</h2>
+                <div className="space-y-4">
+                  {orderItem.products?.images && orderItem.products.images.length > 0 && (
+                    <img 
+                      src={orderItem.products.images[0]} 
+                      alt={orderItem.products.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  )}
+                  
+                  <div>
+                    <h3 className="font-medium text-lg">{orderItem.products?.name}</h3>
+                    <p className="text-gray-600 mt-1">{orderItem.products?.description}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Quantity:</span>
+                      <span className="ml-2 font-medium">{orderItem.quantity}</span>
                     </div>
-                  </div>
-                )}
-                
-                <div className="flex justify-between mt-2">
-                  <p className="text-sm text-gray-600">
-                    Quantity: {orderItem.quantity} × KES {orderItem.price_per_unit?.toLocaleString()}
-                  </p>
-                  <p className="font-bold">
-                    KES {orderItem.subtotal?.toLocaleString()}
-                  </p>
-                </div>
-                
-                <div className="space-y-2 mt-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Order Date:</span>
-                    <span>{new Date(order?.created_at).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Payment Status:</span>
-                    <span className="capitalize">{order?.payment_status}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Order Status:</span>
-                    <span className="capitalize">{orderItem.status}</span>
+                    <div>
+                      <span className="text-gray-600">Price:</span>
+                      <span className="ml-2 font-medium">KES {orderItem.price}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Total:</span>
+                      <span className="ml-2 font-medium">KES {orderItem.quantity * orderItem.price}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Order Status:</span>
+                      <span className="ml-2 capitalize">{orderItem.status}</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Communication & Actions */}
+            {/* Buyer Information */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold mb-4">Buyer Information</h2>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{buyerInfo.name}</span>
+                  </div>
+                  
+                  {buyerInfo.phone && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="h-4 w-4" />
+                      <span>{buyerInfo.phone}</span>
+                    </div>
+                  )}
+                  
+                  {buyerInfo.email && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Mail className="h-4 w-4" />
+                      <span>{buyerInfo.email}</span>
+                    </div>
+                  )}
+                  
+                  {buyerInfo.location && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      <span>{buyerInfo.location}</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Communication & Actions */}
+          <div className="space-y-6">
             <Card>
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold mb-4">Communication & Actions</h2>
                 
                 {/* Status-based Action Section */}
-                {commStatus.status === 'need_contact' && (
+                {commStatus.status === 'need_contact' && !DEV_MODE && (
                   <div className="space-y-4">
                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
@@ -310,7 +442,7 @@ const SellerOrderDetail = () => {
                   </div>
                 )}
                 
-                {commStatus.status === 'waiting_response' && (
+                {commStatus.status === 'waiting_response' && !DEV_MODE && (
                   <div className="space-y-4">
                     <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
@@ -333,17 +465,31 @@ const SellerOrderDetail = () => {
                   </div>
                 )}
                 
-                {commStatus.status === 'ready_to_ship' && (
+                {(commStatus.status === 'ready_to_ship' || DEV_MODE) && (
                   <div className="space-y-4">
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <p className="text-green-700 font-medium">Ready to Ship</p>
+                    {!DEV_MODE && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <p className="text-green-700 font-medium">Ready to Ship</p>
+                        </div>
+                        <p className="text-green-600 text-sm">
+                          The buyer has agreed to the shipping arrangements. You can now mark this order as shipped.
+                        </p>
                       </div>
-                      <p className="text-green-600 text-sm">
-                        The buyer has agreed to the shipping arrangements. You can now mark this order as shipped.
-                      </p>
-                    </div>
+                    )}
+                    
+                    {DEV_MODE && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-4 w-4 text-blue-600" />
+                          <p className="text-blue-700 font-medium">🚧 DEV MODE: Testing Enabled</p>
+                        </div>
+                        <p className="text-blue-600 text-sm">
+                          Messaging check bypassed. You can now test the B2C shipping flow.
+                        </p>
+                      </div>
+                    )}
                     
                     <Button 
                       onClick={() => handleUpdateOrderStatus('shipped')}
@@ -369,47 +515,30 @@ const SellerOrderDetail = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
 
-          {/* Buyer Information - Right Column */}
-          <div className="space-y-6">
+            {/* Order Information */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Buyer Information</h2>
-                
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium">{buyerInfo.initials}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium">{buyerInfo.name}</p>
-                      <p className="text-xs text-gray-500">Customer</p>
-                    </div>
+                <h2 className="text-lg font-semibold mb-4">Order Information</h2>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order Date:</span>
+                    <span>{new Date(order?.created_at).toLocaleDateString()}</span>
                   </div>
                   
-                  {buyerInfo.phone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-gray-500" />
-                      <span>{buyerInfo.phone}</span>
-                    </div>
-                  )}
-                  
-                  {buyerInfo.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-gray-500" />
-                      <span>{buyerInfo.email}</span>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-gray-500" />
-                    <span>{buyerInfo.location}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order ID:</span>
+                    <span className="font-mono text-xs">{order?.id}</span>
                   </div>
                   
-                  <div className="mt-4 p-3 bg-gray-50 rounded">
-                    <p className="text-xs text-gray-600 mb-1">Preferred Contact:</p>
-                    <p className="text-sm">{buyerInfo.contact}</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Payment Status:</span>
+                    <span className="capitalize">{order?.payment_status}</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order Status:</span>
+                    <span className="capitalize">{orderItem.status}</span>
                   </div>
                 </div>
               </CardContent>

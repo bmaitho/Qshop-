@@ -1,4 +1,4 @@
-/
+
 import { supabase } from '../components/SupabaseClient';
 
 export const fetchProducts = async () => {
