@@ -98,7 +98,7 @@ const App = () => {
       <Route path="/checkout/:orderId" element={<Checkout />} />
       <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
       <Route path="/orders/:orderId" element={<OrderDetails />} />
-      <Route path="/seller/order/:id" element={<SellerOrderDetail />} />
+      <Route path="/seller/orders/:id" element={<SellerOrderDetail />} />
       <Route path="/subscription" element={<SubscriptionPage />} />
       <Route path="/admin/codes" element={<WholesalerCodes />} />
       <Route path="*" element={<Navigate to="/home" replace />} />

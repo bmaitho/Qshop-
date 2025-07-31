@@ -8,12 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Truck, CheckCircle, AlertCircle, Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
 import { updateOrderStatus } from '../utils/orderUtils';
-import { getCommunicationStatus, getDisplayInfo } from '../utils/communicationUtils';
+import { canMarkAsShipped, getCommunicationStatus, getDisplayInfo } from '../utils/communicationUtils';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
-
-// 🚧 TEMPORARY BYPASS FOR B2C TESTING - REMOVE WHEN MESSAGING IS FIXED
-const DEV_MODE = true; // Set to false when messaging is working
 
 const SellerOrderDetail = () => {
   const { id } = useParams(); // order_item id
@@ -24,26 +21,25 @@ const SellerOrderDetail = () => {
   const [message, setMessage] = useState('');
   const [updateInProgress, setUpdateInProgress] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [logs, setLogs] = useState([]);
+
+  // Helper function to add logs
+  const addLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+    console.log(logEntry);
+    setLogs(prev => [...prev.slice(-4), logEntry]); // Keep last 5 logs
+  };
 
   useEffect(() => {
     fetchOrderDetails();
   }, [id]);
 
-  // 🚧 BYPASS FUNCTION FOR TESTING
-  const canMarkAsShipped = (orderItem) => {
-    // Bypass for testing - remove this when messaging works
-    if (DEV_MODE) {
-      console.log('🚧 DEV MODE: Bypassing messaging check for B2C testing');
-      return true;
-    }
-    
-    // Original logic (restore when messaging is fixed)
-    return orderItem?.buyer_contacted && orderItem?.buyer_agreed;
-  };
-
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
+      addLog(`Fetching order details for ID: ${id}`, 'info');
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) return;
@@ -53,7 +49,7 @@ const SellerOrderDetail = () => {
         .from('order_items')
         .select(`
           *,
-          orders(*),
+          orders!order_items_order_id_fkey(*),
           products(*)
         `)
         .eq('id', id)
@@ -62,9 +58,11 @@ const SellerOrderDetail = () => {
       
       if (itemError) throw itemError;
       setOrderItem(itemData);
+      addLog(`✅ Order item loaded with status: ${itemData.status}`, 'success');
       
       if (itemData?.orders) {
         setOrder(itemData.orders);
+        addLog(`✅ Order data loaded: ${itemData.orders.id}`, 'success');
         
         // Fetch buyer info with better error handling
         try {
@@ -76,15 +74,19 @@ const SellerOrderDetail = () => {
             
           if (buyerData) {
             setBuyer(buyerData);
+            addLog(`✅ Buyer info loaded: ${buyerData.full_name || buyerData.email}`, 'success');
           } else if (buyerError) {
             console.warn(`Error fetching buyer profile: ${buyerError.message}`);
+            addLog(`⚠️ Buyer profile error: ${buyerError.message}`, 'warning');
           }
         } catch (e) {
           console.error('Error fetching buyer details:', e);
+          addLog(`❌ Error fetching buyer: ${e.message}`, 'error');
         }
       }
     } catch (error) {
       console.error('Error fetching order details:', error);
+      addLog(`❌ Error fetching order details: ${error.message}`, 'error');
       toast.error('Failed to load order details');
     } finally {
       setLoading(false);
@@ -92,25 +94,103 @@ const SellerOrderDetail = () => {
   };
 
   const handleUpdateOrderStatus = async (newStatus) => {
-    // Check communication requirements before shipping
-    if (newStatus === 'shipped' && !canMarkAsShipped(orderItem)) {
-      toast.error('You must contact the buyer and get their agreement before shipping');
-      return;
-    }
-
+    addLog(`Starting status update to: ${newStatus}`, 'info');
     setUpdateInProgress(true);
     
     try {
-      const success = await updateOrderStatus(id, newStatus);
-      if (success) {
-        toast.success(`Order marked as ${newStatus}`);
-        fetchOrderDetails(); // Refresh data
+      // Update status in Supabase first
+      addLog(`Updating order status in database to: ${newStatus}`, 'info');
+      
+      const { data, error } = await supabase
+        .from('order_items')
+        .update({ 
+          status: newStatus,
+          ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {})
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      addLog(`✅ Database updated successfully`, 'success');
+      toast.success(`Order marked as ${newStatus}`);
+
+      // If marked as delivered, trigger B2C payment manually
+      if (newStatus === 'delivered') {
+        addLog(`🎯 Status is DELIVERED - triggering B2C payment...`, 'success');
+        await triggerB2CPayment();
       }
+      
+      addLog(`Refreshing order details...`, 'info');
+      fetchOrderDetails(); // Refresh data
+      
     } catch (error) {
       console.error("Error updating order status:", error);
+      addLog(`❌ Error updating status: ${error.message}`, 'error');
       toast.error('Failed to update order status');
     } finally {
       setUpdateInProgress(false);
+      addLog(`Status update process completed`, 'info');
+    }
+  };
+
+  // Function to manually trigger B2C payment
+  const triggerB2CPayment = async () => {
+    try {
+      addLog(`Getting seller profile for B2C payment...`, 'info');
+      
+      // Get seller profile (current user)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const { data: sellerProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !sellerProfile?.phone) {
+        throw new Error('Seller phone number not found in profile');
+      }
+
+      addLog(`Seller phone: ${sellerProfile.phone}`, 'info');
+      
+      // Prepare B2C payment data
+      const paymentData = {
+        phoneNumber: sellerProfile.phone,
+        amount: orderItem.quantity * orderItem.price, // Total amount
+        orderId: order.id,
+        orderItemId: orderItem.id,
+        sellerId: user.id,
+        remarks: `Payment for order ${order.id}`
+      };
+
+      addLog(`Calling B2C API with data: ${JSON.stringify(paymentData)}`, 'info');
+
+      // Call the B2C API
+      const response = await fetch('/api/mpesa/b2c', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paymentData)
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        addLog(`✅ B2C API Success: ${result.message}`, 'success');
+        addLog(`Transaction ID: ${result.transactionId}`, 'success');
+        toast.success(`B2C Payment initiated! Transaction ID: ${result.transactionId || 'N/A'}`);
+      } else {
+        addLog(`❌ B2C API Error: ${result.error}`, 'error');
+        toast.error(`B2C Failed: ${result.error}`);
+      }
+
+    } catch (error) {
+      addLog(`❌ B2C Trigger Error: ${error.message}`, 'error');
+      toast.error(`B2C Error: ${error.message}`);
     }
   };
 
@@ -167,7 +247,7 @@ const SellerOrderDetail = () => {
     }
   };
 
-  // 🚧 TESTING HELPER FUNCTIONS - REMOVE IN PRODUCTION
+  // Simulate buyer response for testing (remove in production)
   const simulateBuyerResponse = async () => {
     try {
       const { error } = await supabase
@@ -182,93 +262,6 @@ const SellerOrderDetail = () => {
     } catch (error) {
       console.error('Error simulating buyer response:', error);
     }
-  };
-
-  const simulateMessageFlow = async () => {
-    try {
-      const { error } = await supabase
-        .from('order_items')
-        .update({ 
-          buyer_contacted: true,
-          buyer_agreed: true 
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success("🚧 DEV: Simulated complete messaging flow");
-      fetchOrderDetails();
-    } catch (error) {
-      console.error('Error simulating messaging:', error);
-      toast.error('Failed to simulate messaging flow');
-    }
-  };
-
-  const forceReadyToShip = async () => {
-    try {
-      const { error } = await supabase
-        .from('order_items')
-        .update({ 
-          buyer_contacted: true,
-          buyer_agreed: true,
-          status: 'ready_to_ship'
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success("🚧 DEV: Forced order to ready-to-ship status");
-      fetchOrderDetails();
-    } catch (error) {
-      console.error('Error forcing ready to ship:', error);
-      toast.error('Failed to force ready to ship');
-    }
-  };
-
-  // 🚧 TESTING BYPASS COMPONENT - REMOVE IN PRODUCTION
-  const TestingBypassPanel = ({ orderItem }) => {
-    if (!DEV_MODE) return null;
-    
-    return (
-      <Card className="mb-6 border-orange-200 bg-orange-50">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="h-4 w-4 text-orange-600" />
-            <p className="text-orange-700 font-medium">🚧 Development Mode - B2C Testing</p>
-          </div>
-          <p className="text-orange-600 text-sm mb-3">
-            Quick actions to bypass messaging system for B2C testing. Remove when messaging is fixed.
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={simulateMessageFlow}
-              className="border-orange-300 text-orange-700 hover:bg-orange-100"
-            >
-              Simulate Complete Messaging
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={forceReadyToShip}
-              className="border-orange-300 text-orange-700 hover:bg-orange-100"
-            >
-              Force Ready to Ship
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={simulateBuyerResponse}
-              className="border-orange-300 text-orange-700 hover:bg-orange-100"
-            >
-              Simulate Buyer Agreement
-            </Button>
-          </div>
-          <div className="mt-2 text-xs text-orange-600">
-            Current Status: buyer_contacted={orderItem?.buyer_contacted?.toString()}, buyer_agreed={orderItem?.buyer_agreed?.toString()}
-          </div>
-        </CardContent>
-      </Card>
-    );
   };
 
   if (loading) {
@@ -316,18 +309,11 @@ const SellerOrderDetail = () => {
             Back to Orders
           </Link>
           
-          {/* Communication Status Badge */}
-          <Badge variant="outline" className={`
-            ${commStatus.color === 'red' ? 'border-red-500 text-red-700 bg-red-50' : ''}
-            ${commStatus.color === 'yellow' ? 'border-yellow-500 text-yellow-700 bg-yellow-50' : ''}
-            ${commStatus.color === 'green' ? 'border-green-500 text-green-700 bg-green-50' : ''}
-          `}>
-            {commStatus.text}
+          {/* 🚧 B2C Testing Notice */}
+          <Badge className="bg-orange-100 text-orange-800 border-orange-300">
+            🚧 B2C Testing Mode
           </Badge>
         </div>
-
-        {/* 🚧 TESTING BYPASS PANEL */}
-        <TestingBypassPanel orderItem={orderItem} />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Product Information */}
@@ -405,91 +391,24 @@ const SellerOrderDetail = () => {
             </Card>
           </div>
 
-          {/* Communication & Actions */}
+          {/* Actions & Status */}
           <div className="space-y-6">
+            {/* 🚧 Simplified Actions for B2C Testing */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold mb-4">Communication & Actions</h2>
+                <h2 className="text-lg font-semibold mb-4">Actions</h2>
                 
-                {/* Status-based Action Section */}
-                {commStatus.status === 'need_contact' && !DEV_MODE && (
+                {orderItem.status === 'processing' && (
                   <div className="space-y-4">
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                        <p className="text-red-700 font-medium">Contact Required</p>
+                        <AlertCircle className="h-4 w-4 text-orange-600" />
+                        <p className="text-orange-700 font-medium">🚧 Testing Mode</p>
                       </div>
-                      <p className="text-red-600 text-sm">
-                        You must contact the buyer about shipping arrangements before you can mark this order as shipped.
+                      <p className="text-orange-600 text-sm">
+                        Messaging requirements bypassed for B2C testing. You can mark as shipped directly.
                       </p>
                     </div>
-                    
-                    <Textarea
-                      placeholder="Message the buyer about shipping arrangements..."
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      className="min-h-[100px]"
-                    />
-                    
-                    <Button 
-                      onClick={handleContactBuyer} 
-                      className="w-full"
-                      disabled={!message.trim() || sendingMessage}
-                    >
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      {sendingMessage ? "Sending..." : "Contact Buyer"}
-                    </Button>
-                  </div>
-                )}
-                
-                {commStatus.status === 'waiting_response' && !DEV_MODE && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertCircle className="h-4 w-4 text-yellow-600" />
-                        <p className="text-yellow-700 font-medium">Waiting for Buyer Response</p>
-                      </div>
-                      <p className="text-yellow-600 text-sm">
-                        You've contacted the buyer. Waiting for them to confirm shipping arrangements.
-                      </p>
-                    </div>
-                    
-                    {/* Temporary button for testing - remove in production */}
-                    <Button 
-                      onClick={simulateBuyerResponse}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Simulate Buyer Agreement (Test Only)
-                    </Button>
-                  </div>
-                )}
-                
-                {(commStatus.status === 'ready_to_ship' || DEV_MODE) && (
-                  <div className="space-y-4">
-                    {!DEV_MODE && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <p className="text-green-700 font-medium">Ready to Ship</p>
-                        </div>
-                        <p className="text-green-600 text-sm">
-                          The buyer has agreed to the shipping arrangements. You can now mark this order as shipped.
-                        </p>
-                      </div>
-                    )}
-                    
-                    {DEV_MODE && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CheckCircle className="h-4 w-4 text-blue-600" />
-                          <p className="text-blue-700 font-medium">🚧 DEV MODE: Testing Enabled</p>
-                        </div>
-                        <p className="text-blue-600 text-sm">
-                          Messaging check bypassed. You can now test the B2C shipping flow.
-                        </p>
-                      </div>
-                    )}
                     
                     <Button 
                       onClick={() => handleUpdateOrderStatus('shipped')}
@@ -497,19 +416,42 @@ const SellerOrderDetail = () => {
                       disabled={updateInProgress}
                     >
                       <Truck className="mr-2 h-4 w-4" />
-                      {updateInProgress ? "Updating..." : "Mark as Shipped"}
+                      {updateInProgress ? "Updating..." : "🚧 Mark as Shipped (Test)"}
                     </Button>
                   </div>
                 )}
-                
+
                 {orderItem.status === 'shipped' && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Truck className="h-4 w-4 text-blue-600" />
-                      <p className="text-blue-700 font-medium">Order Shipped</p>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Truck className="h-4 w-4 text-blue-600" />
+                        <p className="text-blue-700 font-medium">Order Shipped</p>
+                      </div>
+                      <p className="text-blue-600 text-sm">
+                        Order is shipped. Mark as delivered to trigger B2C payment to seller.
+                      </p>
                     </div>
-                    <p className="text-blue-600 text-sm">
-                      This order has been shipped and is on its way to the buyer.
+                    
+                    <Button 
+                      onClick={() => handleUpdateOrderStatus('delivered')}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      disabled={updateInProgress}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {updateInProgress ? "Updating..." : "🚧 Mark as Delivered (Triggers B2C)"}
+                    </Button>
+                  </div>
+                )}
+
+                {orderItem.status === 'delivered' && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <p className="text-green-700 font-medium">Order Delivered</p>
+                    </div>
+                    <p className="text-green-600 text-sm">
+                      This order has been successfully delivered to the buyer.
                     </p>
                   </div>
                 )}
