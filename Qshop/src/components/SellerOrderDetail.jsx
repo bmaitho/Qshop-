@@ -103,10 +103,7 @@ const SellerOrderDetail = () => {
       
       const { data, error } = await supabase
         .from('order_items')
-        .update({ 
-          status: newStatus,
-          ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {})
-        })
+        .update({ status: newStatus })
         .eq('id', id)
         .select()
         .single();
@@ -156,20 +153,25 @@ const SellerOrderDetail = () => {
 
       addLog(`Seller phone: ${sellerProfile.phone}`, 'info');
       
-      // Prepare B2C payment data
+      // Prepare B2C payment data - use orderItem data since order might be null
+      const paymentAmount = orderItem.subtotal || (orderItem.quantity * orderItem.price) || orderItem.price || 10;
+      
       const paymentData = {
         phoneNumber: sellerProfile.phone,
-        amount: orderItem.quantity * orderItem.price, // Total amount
-        orderId: order.id,
+        amount: paymentAmount,
+        orderId: orderItem.order_id || `order-${Date.now()}`, // Use order_id from orderItem
         orderItemId: orderItem.id,
         sellerId: user.id,
-        remarks: `Payment for order ${order.id}`
+        remarks: `Payment for order ${orderItem.order_id || orderItem.id}`
       };
 
       addLog(`Calling B2C API with data: ${JSON.stringify(paymentData)}`, 'info');
 
-      // Call the B2C API
-      const response = await fetch('/api/mpesa/b2c', {
+      // Call the B2C API - use your environment variable
+      const backendUrl = import.meta.env.VITE_API_URL;
+      addLog(`Using backend URL: ${backendUrl}`, 'info');
+      
+      const response = await fetch(`${backendUrl}/api/mpesa/b2c`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
