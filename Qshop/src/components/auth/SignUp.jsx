@@ -35,7 +35,7 @@ const SignUp = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // File upload state
+  // File upload state for wholesaler
   const [documentFile, setDocumentFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -129,7 +129,6 @@ const SignUp = () => {
     
     // Validate student-specific fields
     if (formData.accountType === 'student') {
-      // Check for either direct input or dropdown selection
       if (!formData.campusLocation.trim() && !formData.campusLocationId) {
         newErrors.campusLocation = "Campus location is required";
       }
@@ -155,12 +154,11 @@ const SignUp = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const newValue = type === 'checkbox' ? checked : value;
+    const { name, value } = e.target;
     
     setFormData(prev => ({
       ...prev,
-      [name]: newValue
+      [name]: value
     }));
     
     // Clear error when field is being edited
@@ -191,27 +189,19 @@ const SignUp = () => {
     }
   };
 
-  // File upload handlers
+  // File upload handlers for wholesaler
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
-        toast.error('Please upload an image or PDF file');
-        return;
-      }
-      
       setDocumentFile(file);
       
-      // Only create preview for images
+      // Create preview URL for images
       if (file.type.startsWith('image/')) {
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
-      } else {
-        // For PDFs, just show a placeholder or filename
-        setPreviewUrl(null);
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
       }
       
-      // Clear document upload errors
+      // Clear error
       if (errors.businessDocument) {
         setErrors(prev => ({
           ...prev,
@@ -221,54 +211,57 @@ const SignUp = () => {
     }
   };
 
-  // Handle drag events
+  const handleFileRemove = () => {
+    setDocumentFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleDragEnter = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!isDragging) setIsDragging(true);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
     
     const files = e.dataTransfer.files;
-    if (files?.length) {
+    if (files.length > 0) {
       const file = files[0];
-      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
-        handleFileChange({ target: { files } });
-      } else {
-        toast.error('Please upload an image or PDF file');
+      setDocumentFile(file);
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+      }
+      
+      // Clear error
+      if (errors.businessDocument) {
+        setErrors(prev => ({
+          ...prev,
+          businessDocument: undefined
+        }));
       }
     }
-  }; 
-  
-  const openFileBrowser = () => {
-    fileInputRef.current?.click();
-  };
-
-  const removeFile = () => {
-    setDocumentFile(null);
-    setPreviewUrl(null);
   };
 
   const uploadDocument = async (userId) => {
-    if (!documentFile) return null;
-    
     try {
+      if (!documentFile) return null;
+
       const fileExt = documentFile.name.split('.').pop();
       const fileName = `${userId}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
@@ -367,85 +360,96 @@ const SignUp = () => {
         phone: formData.phone,
         campus_location: formData.campusLocation,
         campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-        seller_type: formData.accountType,
-        is_seller: formData.isSeller
+        account_type: formData.accountType,
+        ...(formData.accountType === 'wholesaler' && {
+          business_name: formData.businessName,
+          business_license_number: formData.businessLicenseNumber,
+          tax_id: formData.taxId,
+          business_address: formData.businessAddress,
+          business_phone: formData.businessPhone,
+          business_email: formData.businessEmail,
+          business_description: formData.businessDescription,
+          business_website: formData.businessWebsite
+        })
       };
 
-      // 1. Sign up with Supabase Auth
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // Create user account
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
-          data: metadata,
-          emailRedirectTo: `${window.location.origin}/auth/confirm`
+          data: metadata
         }
       });
 
-      if (signUpError) throw signUpError;
-      
-      if (data?.user) {
-        userId = data.user.id;
+      if (error) throw error;
+
+      if (data.user) {
         userCreated = true;
+        userId = data.user.id;
         
-        // 2. Upload document if provided
-        let documentUrl = null;
-        try {
-          if (documentFile) {
-            documentUrl = await uploadDocument(userId);
-          }
-        } catch (docError) {
-          console.error('Document upload error (non-critical):', docError);
-          // Continue even if document upload fails
-        }
-        
-        // 3. Create profile with seller_type
+        // Insert into profiles table
         try {
           const { error: profileError } = await supabase
             .from('profiles')
-            .upsert([{
-              id: userId,
-              full_name: formData.fullName,
-              phone: formData.phone,
-              campus_location: formData.campusLocation,
-              campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-              seller_type: formData.accountType,
-              is_seller: formData.isSeller,
-              email: formData.email
-            }]);
-            
+            .insert([
+              {
+                id: userId,
+                full_name: formData.fullName,
+                email: formData.email,
+                phone: formData.phone,
+                campus_location: formData.campusLocation,
+                campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
+                account_type: formData.accountType,
+                is_seller: formData.accountType === 'wholesaler',
+                verification_status: 'pending',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            ]);
+
           if (profileError) {
-            // If it's an RLS error, log it but don't throw
-            if (profileError.code === '42501') {
-              console.warn('RLS error during profile creation (non-critical):', profileError);
-            } else {
-              throw profileError;
-            }
+            console.error('Profile creation error:', profileError);
           }
         } catch (profileError) {
           console.error('Profile creation error (non-critical):', profileError);
-          // Continue even if profile creation fails - the main auth record was created
         }
-        
-        // 4. Create wholesaler details if applicable
+
+        // Upload document if provided (wholesaler)
+        if (documentFile && formData.accountType === 'wholesaler') {
+          try {
+            await uploadDocument(userId);
+          } catch (documentError) {
+            console.error('Document upload error (non-critical):', documentError);
+            toast.warning("Account created but document upload failed. Please upload verification documents in your profile.");
+          }
+        }
+
+        // Create wholesaler details if needed
         if (formData.accountType === 'wholesaler') {
           try {
             const { error: wholesalerError } = await supabase
               .from('wholesaler_details')
-              .insert([{
-                id: userId,
-                business_name: formData.businessName,
-                business_license_number: formData.businessLicenseNumber,
-                tax_id: formData.taxId,
-                business_address: formData.businessAddress,
-                business_phone: formData.businessPhone || formData.phone,
-                business_email: formData.businessEmail || formData.email,
-                business_description: formData.businessDescription,
-                business_website: formData.businessWebsite
-              }]);
-              
-            if (wholesalerError) throw wholesalerError;
-            
-            // 5. Mark the code as used
+              .insert([
+                {
+                  user_id: userId,
+                  business_name: formData.businessName,
+                  business_license_number: formData.businessLicenseNumber,
+                  tax_id: formData.taxId,
+                  business_address: formData.businessAddress,
+                  business_phone: formData.businessPhone,
+                  business_email: formData.businessEmail,
+                  business_description: formData.businessDescription,
+                  business_website: formData.businessWebsite,
+                  verification_status: 'pending'
+                }
+              ]);
+
+            if (wholesalerError) {
+              console.error('Wholesaler details creation error:', wholesalerError);
+            }
+
+            // Mark the code as used
             const { error: updateCodeError } = await supabase
               .from('wholesaler_codes')
               .update({
@@ -460,7 +464,6 @@ const SignUp = () => {
             }
           } catch (wholesalerError) {
             console.error('Wholesaler details creation error (non-critical):', wholesalerError);
-            // Continue even if wholesaler details creation fails
           }
         }
         
@@ -477,7 +480,6 @@ const SignUp = () => {
           emailSent = true;
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);
-          // Still consider email sent even if our service fails
           emailSent = true;
           toast.warning("Account created, but there was an issue sending the custom confirmation email. Please check your inbox for the default confirmation email.");
         }
@@ -485,7 +487,6 @@ const SignUp = () => {
     } catch (error) {
       console.error('Sign up error:', error);
       
-      // If user was created but we hit other errors, still show confirmation screen
       if (userCreated) {
         toast.warning("Your account was created, but we encountered some issues. Please check your email for the confirmation link.");
         setEmailSent(true);
@@ -493,7 +494,6 @@ const SignUp = () => {
         return;
       }
       
-      // Handle other signup errors
       let errorMessage = 'Failed to create account';
       
       if (error.message?.includes('password')) {
@@ -512,35 +512,31 @@ const SignUp = () => {
         errorMessage = 'Server error. Please try again later.';
       }
       
-      toast.error(errorMessage, {
-        position: "top-right",
-        autoClose: 4000,
-      });
-    } finally {
-      // If user was created and email was sent (or attempted),
-      // show the confirmation screen regardless of other errors
-      if (userCreated && emailSent) {
-        setEmailSent(true);
-      }
-      
+      toast.error(errorMessage);
       setSubmitting(false);
+      return;
     }
+
+    setEmailSent(true);
+    setSubmitting(false);
+    toast.success("Account created successfully! Please check your email for the confirmation link.");
   };
 
-  // If email sent, show confirmation message
+  // Show email confirmation screen
   if (emailSent) {
     return (
-      <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+      <div className="bg-card dark:bg-card p-4 rounded-lg shadow-md border border-border dark:border-border">
         <div className="text-center">
-          <Mail className="mx-auto h-12 w-12 text-primary dark:text-primary mb-4" />
-          <h2 className="text-2xl font-bold mb-4 text-foreground dark:text-foreground">
-            Verify Your Email
-          </h2>
+          <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
+            <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
+          </div>
           
-          <Alert className="mb-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <AlertTitle>Check your inbox</AlertTitle>
-            <AlertDescription>
+          <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Check Your Email</h2>
+          
+          <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800 dark:text-blue-200">Verification Required</AlertTitle>
+            <AlertDescription className="text-blue-700 dark:text-blue-300">
               We've sent a confirmation email to <strong>{formData.email}</strong>.
               Please click the link in the email to verify your account.
             </AlertDescription>
@@ -573,13 +569,13 @@ const SignUp = () => {
   }
 
   return (
-    <div className="bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border styled-scrollbar">
+    <div className="bg-card dark:bg-card p-4 rounded-lg shadow-md border border-border dark:border-border">
       <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Create an Account</h2>
       
       <Tabs 
         value={activeTab} 
         onValueChange={setActiveTab} 
-        className="mb-6"
+        className="mb-4"
       >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="student">Student</TabsTrigger>
@@ -591,7 +587,7 @@ const SignUp = () => {
         </div>
       </Tabs>
       
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-2">
         {/* Common fields for all account types */}
         <div className="space-y-1">
           <Input
@@ -665,9 +661,9 @@ const SignUp = () => {
           />
         </div>
 
-        {/* Student-specific fields */}
+        {/* Student-specific fields - NO SELLER CHECKBOX */}
         {activeTab === 'student' && (
-          <div className="p-4 border border-border dark:border-border rounded-md space-y-3 bg-background/50 dark:bg-muted/50">
+          <div className="p-3 border border-border dark:border-border rounded-md space-y-2 bg-background/50 dark:bg-muted/50">
             <div className="space-y-1">
               <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Campus Location
@@ -687,10 +683,10 @@ const SignUp = () => {
                   >
                     <SelectValue placeholder="Select your campus" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card dark:bg-card text-foreground dark:text-foreground border-border dark:border-border">
-                    {campusLocations.map((campus) => (
-                      <SelectItem key={campus.id} value={campus.id.toString()}>
-                        {campus.name}
+                  <SelectContent>
+                    {campusLocations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -717,94 +713,69 @@ const SignUp = () => {
                 Student ID (Optional)
               </label>
               <div
-                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'p-6' : 'p-2'}`}
+                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'hover:border-ring/70 cursor-pointer' : ''} p-3`}
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
+                onClick={() => !documentFile && fileInputRef.current?.click()}
               >
-                {documentFile ? (
-                  <div className="relative">
-                    {previewUrl ? (
-                      <img 
-                        src={previewUrl} 
-                        alt="Student ID preview" 
-                        className="w-full h-40 object-contain rounded"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-16 bg-background dark:bg-muted rounded">
-                        <p className="text-sm text-foreground/70 dark:text-foreground/70 truncate max-w-full px-4">
-                          {documentFile.name}
-                        </p>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDocumentFile(null);
-                        setPreviewUrl(null);
-                      }}
-                      className="absolute top-2 right-2 p-1 bg-background rounded-full shadow-md hover:bg-destructive/10 transition-colors"
-                    >
-                      <X className="h-4 w-4 text-destructive" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <ImagePlus className="mx-auto h-10 w-10 text-foreground/40 dark:text-foreground/40" />
-                    <p className="mt-2 text-sm text-foreground/60 dark:text-foreground/60">
-                      Upload a photo of your student ID
-                    </p>
-                    <p className="text-xs text-foreground/50 dark:text-foreground/50 mt-1">
-                      Drag and drop, or click to browse
-                    </p>
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => fileInputRef.current.click()}
-                      className="mt-4 border-input dark:border-input text-foreground dark:text-foreground hover:bg-accent dark:hover:bg-accent"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Browse Files
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,.pdf"
                   onChange={handleFileChange}
+                  accept="image/*,.pdf"
                   className="hidden"
                 />
+                
+                {documentFile ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="Preview" className="w-10 h-10 object-cover rounded" />
+                      ) : (
+                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                          <Upload className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{documentFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(documentFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFileRemove();
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <ImagePlus className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-foreground mb-1">
+                      {isDragging ? 'Drop your student ID here' : 'Upload student ID card'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Drag & drop or click • PDF, JPG, PNG
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2 pt-2">
-              <input
-                type="checkbox"
-                id="isSeller"
-                name="isSeller"
-                checked={formData.isSeller}
-                onChange={handleChange}
-                className="rounded border-input dark:border-input bg-background dark:bg-muted checked:bg-accent dark:checked:bg-primary"
-              />
-              <label 
-                htmlFor="isSeller" 
-                className="text-sm font-medium text-foreground/80 dark:text-foreground/80"
-              >
-                Register as a Seller
-              </label>
             </div>
           </div>
         )}
 
         {/* Wholesaler-specific fields */}
         {activeTab === 'wholesaler' && (
-          <div className="p-4 border border-border dark:border-border rounded-md space-y-3 bg-background/50 dark:bg-muted/50">
-            {/* Wholesaler code field */}
+          <div className="p-3 border border-border dark:border-border rounded-md space-y-2 bg-background/50 dark:bg-muted/50">
             <div className="space-y-1">
               <label htmlFor="wholesalerCode" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                 Wholesaler Access Code *
@@ -825,7 +796,7 @@ const SignUp = () => {
 
             <div className="space-y-1">
               <label htmlFor="businessName" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business Name
+                Business Name *
               </label>
               <Input
                 id="businessName"
@@ -841,21 +812,35 @@ const SignUp = () => {
               )}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="businessLicenseNumber" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business License Number
-              </label>
-              <Input
-                id="businessLicenseNumber"
-                name="businessLicenseNumber"
-                value={formData.businessLicenseNumber}
-                onChange={handleChange}
-                placeholder="Enter license number (optional)"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-              />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label htmlFor="businessLicenseNumber" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
+                  License Number
+                </label>
+                <Input
+                  id="businessLicenseNumber"
+                  name="businessLicenseNumber"
+                  value={formData.businessLicenseNumber}
+                  onChange={handleChange}
+                  placeholder="Business license number"
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                />
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label htmlFor="taxId" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
+                  Tax ID
+                </label>
+                <Input
+                  id="taxId"
+                  name="taxId"
+                  value={formData.taxId}
+                  onChange={handleChange}
+                  placeholder="Tax identification number"
+                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                />
+              </div>
+              
               <div className="space-y-1">
                 <label htmlFor="businessEmail" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
                   Business Email
@@ -897,7 +882,7 @@ const SignUp = () => {
                 value={formData.businessAddress}
                 onChange={handleChange}
                 placeholder="Enter business address"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[80px]"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[60px]"
               />
             </div>
 
@@ -911,7 +896,22 @@ const SignUp = () => {
                 value={formData.businessDescription}
                 onChange={handleChange}
                 placeholder="Describe your business"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[80px]"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[60px]"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="businessWebsite" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
+                Website (Optional)
+              </label>
+              <Input
+                id="businessWebsite"
+                type="url"
+                name="businessWebsite"
+                value={formData.businessWebsite}
+                onChange={handleChange}
+                placeholder="https://yourwebsite.com"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
               />
             </div>
 
@@ -920,68 +920,61 @@ const SignUp = () => {
                 Business Document *
               </label>
               <div
-                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'p-6' : 'p-2'}`}
+                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'hover:border-ring/70 cursor-pointer' : ''} p-4`}
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
+                onClick={() => !documentFile && fileInputRef.current?.click()}
               >
-                {documentFile ? (
-                  <div className="relative">
-                    {previewUrl ? (
-                      <img 
-                        src={previewUrl} 
-                        alt="Document preview" 
-                        className="w-full h-40 object-contain rounded"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-16 bg-background dark:bg-muted rounded">
-                        <p className="text-sm text-foreground/70 dark:text-foreground/70 truncate max-w-full px-4">
-                          {documentFile.name}
-                        </p>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDocumentFile(null);
-                        setPreviewUrl(null);
-                      }}
-                      className="absolute top-2 right-2 p-1 bg-background rounded-full shadow-md hover:bg-destructive/10 transition-colors"
-                    >
-                      <X className="h-4 w-4 text-destructive" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <ImagePlus className="mx-auto h-10 w-10 text-foreground/40 dark:text-foreground/40" />
-                    <p className="mt-2 text-sm text-foreground/60 dark:text-foreground/60">
-                      Upload business license or registration document
-                      </p>
-                    <p className="text-xs text-foreground/50 dark:text-foreground/50 mt-1">
-                      Supported formats: JPG, PNG, PDF
-                    </p>
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => fileInputRef.current.click()}
-                      className="mt-4 border-input dark:border-input text-foreground dark:text-foreground hover:bg-accent dark:hover:bg-accent"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Browse Files
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,.pdf"
                   onChange={handleFileChange}
+                  accept="image/*,.pdf,.doc,.docx"
                   className="hidden"
                 />
+                
+                {documentFile ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                          <Upload className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{documentFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(documentFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleFileRemove();
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-foreground mb-1">
+                      {isDragging ? 'Drop your document here' : 'Upload business license or certificate'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Drag & drop or click to browse • PDF, JPG, PNG, DOC
+                    </p>
+                  </div>
+                )}
               </div>
               {errors.businessDocument && (
                 <p className="text-sm text-red-500 dark:text-red-400">{errors.businessDocument}</p>
@@ -992,7 +985,7 @@ const SignUp = () => {
 
         <Button 
           type="submit" 
-          className="w-full mt-4 bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
+          className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90"
           disabled={submitting}
         >
           {submitting ? 'Creating Account...' : 'Sign Up'}

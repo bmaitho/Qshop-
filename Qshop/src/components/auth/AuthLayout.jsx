@@ -128,7 +128,7 @@ const AuthLayout = ({ setToken }) => {
   
   // Mobile Layout - Different for Login vs SignUp routes
   if (!isSignupRoute) {
-    // Login route: Keep slideshow with limited scrolling area
+    // Login route: Keep slideshow - REMOVED overflow-y-auto from inner container
     return (
       <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
         {/* Top Image Slider Section */}
@@ -138,8 +138,8 @@ const AuthLayout = ({ setToken }) => {
           </div>
         </div>
 
-        {/* Bottom Authentication Section */}
-        <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto text-white">
+        {/* Bottom Authentication Section - NO OVERFLOW-Y-AUTO */}
+        <div className="w-full h-3/5 p-4 flex flex-col text-white">
           <div className="max-w-md mx-auto w-full">
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
@@ -156,28 +156,24 @@ const AuthLayout = ({ setToken }) => {
       </div>
     );
   } else {
-    // Signup route: Single scrollbar for entire page - NO nested containers with scroll
+    // Signup route: Completely different structure - full page scroll, no containers
     return (
-      <div className="min-h-screen w-full bg-[#0e1a19] text-white overflow-x-hidden">
-        {/* Single scrollable container - remove all overflow-hidden and nested scrolls */}
-        <div className="w-full min-h-screen p-3">
-          <div className="max-w-md mx-auto w-full">
-            <div className="text-center mb-4 py-4">
-              <h1 className="text-2xl font-bold text-[#e7c65f]">UniHive</h1>
-              <p className="text-gray-400 text-sm">Student Marketplace</p>
-            </div>
-            
-            {/* Routes for Login and SignUp components */}
-            <div className="w-full">
-              <Routes>
-                <Route path="signup" element={<SignUp />} />
-                <Route path="*" element={<Login setToken={setToken} />} />
-              </Routes>
-            </div>
-            
-            {/* Add some bottom padding to ensure content is accessible */}
-            <div className="h-8"></div>
+      <div className="min-h-screen bg-[#0e1a19] text-white">
+        {/* Simple page structure - no height restrictions */}
+        <div className="max-w-md mx-auto p-4">
+          <div className="text-center py-8">
+            <h1 className="text-2xl font-bold text-[#e7c65f]">UniHive</h1>
+            <p className="text-gray-400 text-sm mt-2">Student Marketplace</p>
           </div>
+          
+          {/* Routes for Login and SignUp components */}
+          <Routes>
+            <Route path="signup" element={<SignUp />} />
+            <Route path="*" element={<Login setToken={setToken} />} />
+          </Routes>
+          
+          {/* Bottom padding for better mobile experience */}
+          <div className="pb-8"></div>
         </div>
       </div>
     );
