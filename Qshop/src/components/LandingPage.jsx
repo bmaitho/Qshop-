@@ -165,7 +165,7 @@ const LandingPage = ({ setToken }) => {
   
   // Mobile Layout - Different for Login vs SignUp
   if (isLogin) {
-    // Login: Keep slideshow
+    // Login: Keep slideshow with limited scrolling area
     return (
       <div className="flex flex-col h-screen w-full overflow-hidden">
         {/* Top Image Slider Section */}
@@ -192,25 +192,28 @@ const LandingPage = ({ setToken }) => {
       </div>
     );
   } else {
-    // SignUp: Full screen, no slideshow, optimized for no scrolling
+    // SignUp: Single scrollbar for entire page - NO nested containers with scroll
     return (
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
-        {/* Full height authentication section - no slideshow */}
-        <div className="w-full h-full p-3 flex flex-col text-white overflow-y-auto">
-          <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
-            <div className="text-center mb-4 flex-shrink-0">
+      <div className="min-h-screen w-full bg-[#0e1a19] text-white overflow-x-hidden">
+        {/* Single scrollable container - remove all overflow-hidden and nested scrolls */}
+        <div className="w-full min-h-screen p-3">
+          <div className="max-w-md mx-auto w-full">
+            <div className="text-center mb-4 py-4">
               <h1 className="text-2xl font-bold text-[#e7c65f]">UniHive</h1>
               <p className="text-gray-400 text-sm">Student Marketplace</p>
             </div>
             
-            {/* Authentication Component - Optimized for mobile signup */}
-            <div className="flex-1 flex flex-col">
+            {/* Authentication Component - Full content without any scroll restrictions */}
+            <div className="w-full">
               <AuthForms 
                 isLogin={isLogin} 
                 toggleAuthMode={toggleAuthMode}
                 setToken={setToken}
               />
             </div>
+            
+            {/* Add some bottom padding to ensure content is accessible */}
+            <div className="h-8"></div>
           </div>
         </div>
       </div>
