@@ -134,14 +134,17 @@ const LandingPage = ({ setToken }) => {
     setIsLogin(!isLogin);
   };
 
-  // Desktop Layout
+  // Desktop Layout (unchanged)
   if (!isMobile) {
     return (
       <div className="flex h-screen w-full overflow-hidden">
         {/* Left side - Authentication */}
         <div className="w-1/2 p-6 flex flex-col justify-center bg-[#0e1a19] text-white">
           <div className="max-w-md mx-auto w-full">
-
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
+              <p className="text-gray-400 mt-2">Student Marketplace</p>
+            </div>
             
             {/* Authentication Component - Memoized to prevent rerendering on slide change */}
             <AuthForms 
@@ -160,28 +163,59 @@ const LandingPage = ({ setToken }) => {
     );
   }
   
-  // Mobile Layout
-  return (
-    <div className="flex flex-col h-screen w-full overflow-hidden">
-      {/* Top Image Slider Section */}
-      <div className="w-full h-2/5">
-        <Slideshow slides={slides} />
-      </div>
+  // Mobile Layout - Different for Login vs SignUp
+  if (isLogin) {
+    // Login: Keep slideshow
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden">
+        {/* Top Image Slider Section */}
+        <div className="w-full h-2/5">
+          <Slideshow slides={slides} />
+        </div>
 
-      {/* Bottom Authentication Section */}
-      <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto bg-[#0e1a19] text-white">
-        <div className="max-w-md mx-auto w-full">
-          
-          {/* Authentication Component - Memoized */}
-          <AuthForms 
-            isLogin={isLogin} 
-            toggleAuthMode={toggleAuthMode}
-            setToken={setToken}
-          />
+        {/* Bottom Authentication Section */}
+        <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto bg-[#0e1a19] text-white">
+          <div className="max-w-md mx-auto w-full">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
+              <p className="text-gray-400 mt-2">Student Marketplace</p>
+            </div>
+            
+            {/* Authentication Component - Memoized */}
+            <AuthForms 
+              isLogin={isLogin} 
+              toggleAuthMode={toggleAuthMode}
+              setToken={setToken}
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  } else {
+    // SignUp: Full screen, no slideshow, optimized for no scrolling
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
+        {/* Full height authentication section - no slideshow */}
+        <div className="w-full h-full p-3 flex flex-col text-white overflow-y-auto">
+          <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
+            <div className="text-center mb-4 flex-shrink-0">
+              <h1 className="text-2xl font-bold text-[#e7c65f]">UniHive</h1>
+              <p className="text-gray-400 text-sm">Student Marketplace</p>
+            </div>
+            
+            {/* Authentication Component - Optimized for mobile signup */}
+            <div className="flex-1 flex flex-col">
+              <AuthForms 
+                isLogin={isLogin} 
+                toggleAuthMode={toggleAuthMode}
+                setToken={setToken}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default LandingPage;

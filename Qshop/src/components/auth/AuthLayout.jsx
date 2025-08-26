@@ -1,6 +1,6 @@
 // src/components/auth/AuthLayout.jsx
 import React, { useState, useEffect, memo } from 'react';
-import { useNavigate, Routes, Route } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
 import Login from './Login';
 import SignUp from './SignUp';
 
@@ -66,6 +66,7 @@ const Slideshow = memo(({ slides, interval = 10000 }) => {
 const AuthLayout = ({ setToken }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Check if user is already logged in
   useEffect(() => {
@@ -92,7 +93,10 @@ const AuthLayout = ({ setToken }) => {
     { image: Image3 }
   ];
 
-  // Desktop Layout
+  // Check if we're on the signup route
+  const isSignupRoute = location.pathname.includes('/signup');
+
+  // Desktop Layout (unchanged)
   if (!isMobile) {
     return (
       <div className="flex h-screen w-full overflow-hidden bg-[#0e1a19]">
@@ -122,33 +126,59 @@ const AuthLayout = ({ setToken }) => {
     );
   }
   
-  // Mobile Layout
-  return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
-      {/* Top Image Slider Section */}
-      <div className="w-full h-2/5 bg-[#0e1a19] pt-2 px-4">
-        <div className="h-full overflow-hidden">
-          <Slideshow slides={slides} />
-        </div>
-      </div>
-
-      {/* Bottom Authentication Section */}
-      <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto text-white">
-        <div className="max-w-md mx-auto w-full">
-          <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
-            <p className="text-gray-400 mt-2">Student Marketplace</p>
+  // Mobile Layout - Different for Login vs SignUp routes
+  if (!isSignupRoute) {
+    // Login route: Keep slideshow
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
+        {/* Top Image Slider Section */}
+        <div className="w-full h-2/5 bg-[#0e1a19] pt-2 px-4">
+          <div className="h-full overflow-hidden">
+            <Slideshow slides={slides} />
           </div>
-          
-          {/* Routes for Login and SignUp components */}
-          <Routes>
-            <Route path="signup" element={<SignUp />} />
-            <Route path="*" element={<Login setToken={setToken} />} />
-          </Routes>
+        </div>
+
+        {/* Bottom Authentication Section */}
+        <div className="w-full h-3/5 p-4 flex flex-col overflow-y-auto text-white">
+          <div className="max-w-md mx-auto w-full">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
+              <p className="text-gray-400 mt-2">Student Marketplace</p>
+            </div>
+            
+            {/* Routes for Login and SignUp components */}
+            <Routes>
+              <Route path="signup" element={<SignUp />} />
+              <Route path="*" element={<Login setToken={setToken} />} />
+            </Routes>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  } else {
+    // Signup route: Full screen, no slideshow, optimized for no scrolling
+    return (
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-[#0e1a19]">
+        {/* Full height authentication section - no slideshow */}
+        <div className="w-full h-full p-3 flex flex-col text-white overflow-y-auto">
+          <div className="max-w-md mx-auto w-full min-h-full flex flex-col">
+            <div className="text-center mb-4 flex-shrink-0">
+              <h1 className="text-2xl font-bold text-[#e7c65f]">UniHive</h1>
+              <p className="text-gray-400 text-sm">Student Marketplace</p>
+            </div>
+            
+            {/* Routes for Login and SignUp components */}
+            <div className="flex-1 flex flex-col">
+              <Routes>
+                <Route path="signup" element={<SignUp />} />
+                <Route path="*" element={<Login setToken={setToken} />} />
+              </Routes>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default AuthLayout;
