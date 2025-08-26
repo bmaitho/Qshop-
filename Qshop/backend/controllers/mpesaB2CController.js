@@ -446,7 +446,7 @@ export const processSellerPayment = async (orderItemId) => {
     // Note: In production, you'd use a queue system for this
     const paymentData = {
       phoneNumber: sellerProfile.phone,
-      amount: paymentAmount,
+      amount: 20,
       orderId: orderItem.order_id,
       orderItemId: orderItem.id,
       sellerId: orderItem.seller_id,
