@@ -1,23 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  Sparkles, 
-  BookOpen, 
-  Laptop, 
-  Pencil, 
-  GraduationCap,
-  ShoppingBag,
-  Store
-} from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import { supabase } from '../components/SupabaseClient';
+// Updated Home.jsx with green hue removed from category cards
+
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
-import ProductCard from './ProductCard';
+import { Button } from "@/components/ui/button";
+import { Store, ShoppingBag, Sparkles, Shirt, Coffee, BookOpen, Laptop, Headphones, Car, Pencil, GraduationCap } from 'lucide-react';
 import FeaturedShops from './FeaturedShops';
 
 // Import local images for categories
@@ -28,36 +15,6 @@ import StudyMaterialsImage from '../assets/categories/study-materials.jpg';
 
 const Home = () => {
   const navigate = useNavigate();
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchFeaturedProducts();
-  }, []);
-
-  const fetchFeaturedProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          profiles:seller_id (
-            id,
-            email,
-            campus_location
-          )
-        `)
-        .limit(4)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setFeaturedProducts(data || []);
-    } catch (error) {
-      console.error('Error fetching featured products:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const categories = [
     { 
@@ -90,7 +47,6 @@ const Home = () => {
     }
   ];
 
- 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -153,7 +109,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Categories Section */}
+      {/* Categories Section - UPDATED: Removed green hue */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e] dark:text-white">
@@ -180,7 +136,7 @@ const Home = () => {
                       alt={category.name}
                       className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#113b1e] via-[#113b1e]/60 to-transparent opacity-90"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-90"></div>
                     <div className="absolute inset-0 bg-gradient-to-b from-black/30 to-transparent"></div>
                   </div>
                   <div className="absolute top-4 right-4 bg-white/90 p-2 rounded-full">
@@ -203,7 +159,6 @@ const Home = () => {
 
     </div>
   );
-
-}
+};
 
 export default Home;
