@@ -656,7 +656,7 @@ const SignUp = () => {
             name="phone"
             value={formData.phone}
             onChange={handleChange}
-            placeholder="Phone number (optional)"
+            placeholder="Phone number (mpesa)"
             className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
           />
         </div>
