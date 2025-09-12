@@ -28,22 +28,39 @@ const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 /**
  * Send confirmation email to a newly registered user
+ * FIXED VERSION - Uses proper admin token generation
  */
 export const sendConfirmationEmail = async (req, res) => {
   try {
-    const { email, confirmationToken, username } = req.body;
+    const { email, username } = req.body;
     
     // Validate required fields
-    if (!email || !confirmationToken) {
+    if (!email) {
       return res.status(400).json({
         success: false,
-        error: 'Email and confirmation token are required'
+        error: 'Email is required'
       });
     }
     
-    // Construct confirmation URL
-    // Note: This should match Supabase's configuration
-    const confirmationUrl = `${APP_URL}/auth/confirm#confirmation_token=${confirmationToken}&type=signup`;
+    // Generate proper confirmation link using admin API
+    const { data, error } = await supabase.auth.admin.generateLink({
+      type: 'signup',
+      email: email,
+      options: {
+        redirectTo: `${APP_URL}/auth/confirm`
+      }
+    });
+    
+    if (error) {
+      console.error('Error generating confirmation link:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate confirmation link'
+      });
+    }
+    
+    // Extract the confirmation URL directly
+    const confirmationUrl = data.properties.action_link;
     
     // Get user information from Supabase if username is not provided
     let finalUsername = username;
@@ -65,8 +82,8 @@ export const sendConfirmationEmail = async (req, res) => {
       }
     }
     
-    // Send email using Resend
-    const { data, error } = await resend.emails.send({
+    // Send email using Resend with the proper confirmation URL
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: SENDER_EMAIL,
       to: email,
       subject: 'Confirm Your UniHive Account',
@@ -74,8 +91,8 @@ export const sendConfirmationEmail = async (req, res) => {
       text: confirmationEmailText(finalUsername, confirmationUrl),
     });
     
-    if (error) {
-      console.error('Resend API error:', error);
+    if (emailError) {
+      console.error('Resend API error:', emailError);
       return res.status(500).json({
         success: false,
         error: 'Failed to send confirmation email'
@@ -83,12 +100,12 @@ export const sendConfirmationEmail = async (req, res) => {
     }
     
     // Log success for debugging
-    console.log('Confirmation email sent:', data.id);
+    console.log('Confirmation email sent:', emailData.id);
     
     return res.status(200).json({
       success: true,
       message: 'Confirmation email sent successfully',
-      data: { id: data.id }
+      data: { id: emailData.id }
     });
   } catch (error) {
     console.error('Error in sendConfirmationEmail:', error);
@@ -100,7 +117,7 @@ export const sendConfirmationEmail = async (req, res) => {
 };
 
 /**
- * Send welcome email after a user confirms their account
+ * Send welcome email after successful signup
  */
 export const sendWelcomeEmail = async (req, res) => {
   try {
@@ -242,6 +259,7 @@ export const sendPasswordResetEmail = async (req, res) => {
 
 /**
  * Resend confirmation email for users who haven't confirmed yet
+ * FIXED VERSION - Uses proper admin token generation
  */
 export const resendConfirmationEmail = async (req, res) => {
   try {
@@ -285,9 +303,7 @@ export const resendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Generate a new confirmation token
-    // This is a simplified example; in practice, you would use Supabase's API
-    // to request a new confirmation token
+    // Generate a new confirmation token using admin API
     const { data: tokenData, error: tokenError } = await supabase.auth.admin.generateLink({
       type: 'signup',
       email: email,
@@ -304,28 +320,34 @@ export const resendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Extract the token from the generated URL
-    const url = new URL(tokenData.properties.action_link);
-    const token = url.hash.split('token=')[1].split('&')[0];
+    // Extract the confirmation URL directly
+    const confirmationUrl = tokenData.properties.action_link;
     
     // Send confirmation email with new token
-    const result = await sendConfirmationEmail({
-      body: {
-        email,
-        confirmationToken: token,
-        username: user.user_metadata?.full_name
-      }
-    }, {
-      status: (code) => ({
-        json: (data) => {
-          res.status(code).json(data);
-          return { end: () => {} };
-        },
-        end: () => {}
-      })
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: SENDER_EMAIL,
+      to: email,
+      subject: 'Confirm Your UniHive Account',
+      html: confirmationEmailTemplate(user.user_metadata?.full_name, confirmationUrl),
+      text: confirmationEmailText(user.user_metadata?.full_name, confirmationUrl),
     });
     
-    return result;
+    if (emailError) {
+      console.error('Resend API error:', emailError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send confirmation email'
+      });
+    }
+    
+    // Log success for debugging
+    console.log('Confirmation email resent:', emailData.id);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Confirmation email sent successfully',
+      data: { id: emailData.id }
+    });
   } catch (error) {
     console.error('Error in resendConfirmationEmail:', error);
     return res.status(500).json({

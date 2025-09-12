@@ -44,49 +44,47 @@ const SignUp = () => {
   
   // Form data with all necessary fields for both student and wholesaler
   const [formData, setFormData] = useState({
-        // Common fields
-        fullName: '',
-        email: '',
-        password: '',
-        phone: '',
-        
-        // Student-specific fields
-        campusLocation: '',
-        campusLocationId: '',
-        
-        // Wholesaler-specific fields
-        businessName: '',
-        businessLicenseNumber: '',
-        taxId: '',
-        businessAddress: '',
-        businessPhone: '',
-        businessEmail: '',
-        businessDescription: '',
-        businessWebsite: '',
-        wholesalerCode: ''
-    });
-  
+    // Common fields
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
+    campusLocation: '',
+    campusLocationId: null,
+    accountType: 'student', // 'student' or 'wholesaler'
+    
+    // Student-specific fields
+    studentId: '',
+    
+    // Wholesaler-specific fields
+    businessName: '',
+    businessLicenseNumber: '',
+    taxId: '',
+    businessAddress: '',
+    businessPhone: '',
+    businessEmail: '',
+    businessDescription: '',
+    businessWebsite: '',
+    wholesalerCode: '',
+    
+    // Document verification
+    documentFile: null
+  });
+
   const [errors, setErrors] = useState({});
 
-  // Check for mobile screen on resize
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch campus locations when component mounts
   useEffect(() => {
     fetchCampusLocations();
   }, []);
-
-  // Set form data account type when tab changes
-  useEffect(() => {
-    // setFormData(prev => ({ ...prev, accountType: activeTab })); // REMOVE THIS LINE
-  }, [activeTab]);
 
   const fetchCampusLocations = async () => {
     try {
@@ -95,8 +93,9 @@ const SignUp = () => {
         .from('campus_locations')
         .select('*')
         .order('name');
-
+      
       if (error) throw error;
+      
       setCampusLocations(data || []);
     } catch (error) {
       console.error('Error fetching campus locations:', error);
@@ -106,161 +105,96 @@ const SignUp = () => {
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    
-    // Validate common fields
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email address is invalid";
-    }
-    
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-    
-    // Validate student-specific fields
-    if (formData.accountType === 'student') {
-      if (!formData.campusLocation.trim() && !formData.campusLocationId) {
-        newErrors.campusLocation = "Campus location is required";
-      }
-    }
-    
-    // Validate wholesaler-specific fields
-    if (formData.accountType === 'wholesaler') {
-      if (!formData.businessName.trim()) {
-        newErrors.businessName = "Business name is required";
-      }
-      
-      if (!formData.wholesalerCode.trim()) {
-        newErrors.wholesalerCode = "Wholesaler access code is required";
-      }
-      
-      if (!documentFile) {
-        newErrors.businessDocument = "Business verification document is required";
-      }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
     
-    // Clear error when field is being edited
+    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
-        [name]: undefined
+        [name]: ''
       }));
     }
   };
 
-  const handleCampusChange = (value) => {
-    // Find the selected campus to get its name
-    const selectedCampus = campusLocations.find(c => c.id.toString() === value);
+  const handleSelectChange = (name, value) => {
+    if (name === 'campusLocation') {
+      const selectedLocation = campusLocations.find(loc => loc.name === value);
+      setFormData(prev => ({
+        ...prev,
+        campusLocation: value,
+        campusLocationId: selectedLocation?.id || null
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     
-    setFormData(prev => ({
-      ...prev,
-      campusLocationId: value,
-      campusLocation: selectedCampus ? selectedCampus.name : prev.campusLocation
-    }));
-    
-    // Clear error
-    if (errors.campusLocation) {
+    // Clear error when user makes selection
+    if (errors[name]) {
       setErrors(prev => ({
         ...prev,
-        campusLocation: undefined
+        [name]: ''
       }));
     }
   };
 
-  // File upload handlers for wholesaler
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setDocumentFile(file);
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Common validations
+    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (!formData.password) newErrors.password = "Password is required";
+    if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
+    if (!formData.campusLocation) newErrors.campusLocation = "Campus location is required";
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.email && !emailRegex.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    // Phone validation (basic)
+    const phoneRegex = /^[0-9+\-\s()]+$/;
+    if (formData.phone && !phoneRegex.test(formData.phone)) {
+      newErrors.phone = "Please enter a valid phone number";
+    }
+
+    // Account type specific validations
+    if (formData.accountType === 'student') {
+      if (!formData.studentId.trim()) newErrors.studentId = "Student ID is required";
+    }
+
+    if (formData.accountType === 'wholesaler') {
+      if (!formData.businessName.trim()) newErrors.businessName = "Business name is required";
+      if (!formData.businessLicenseNumber.trim()) newErrors.businessLicenseNumber = "Business license number is required";
+      if (!formData.businessAddress.trim()) newErrors.businessAddress = "Business address is required";
+      if (!formData.businessPhone.trim()) newErrors.businessPhone = "Business phone is required";
+      if (!formData.businessEmail.trim()) newErrors.businessEmail = "Business email is required";
+      if (!formData.wholesalerCode.trim()) newErrors.wholesalerCode = "Access code is required";
       
-      // Create preview URL for images
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-      }
-      
-      // Clear error
-      if (errors.businessDocument) {
-        setErrors(prev => ({
-          ...prev,
-          businessDocument: undefined
-        }));
+      // Business email validation
+      if (formData.businessEmail && !emailRegex.test(formData.businessEmail)) {
+        newErrors.businessEmail = "Please enter a valid business email address";
       }
     }
-  };
 
-  const handleFileRemove = () => {
-    setDocumentFile(null);
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      setDocumentFile(file);
-      
-      // Create preview URL for images
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrl(url);
-      }
-      
-      // Clear error
-      if (errors.businessDocument) {
-        setErrors(prev => ({
-          ...prev,
-          businessDocument: undefined
-        }));
-      }
-    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const uploadDocument = async (userId) => {
+    if (!documentFile) return null;
+    
     try {
-      if (!documentFile) return null;
-
       const fileExt = documentFile.name.split('.').pop();
       const fileName = `${userId}_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
@@ -359,20 +293,13 @@ const SignUp = () => {
         phone: formData.phone,
         campus_location: formData.campusLocation,
         campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-        // account_type: formData.accountType, // REMOVE THIS LINE
-        ...(activeTab === 'wholesaler' && {
-          business_name: formData.businessName,
-          business_license_number: formData.businessLicenseNumber,
-          tax_id: formData.taxId,
-          business_address: formData.businessAddress,
-          business_phone: formData.businessPhone,
-          business_email: formData.businessEmail,
-          business_description: formData.businessDescription,
-          business_website: formData.businessWebsite
-        })
+        account_type: formData.accountType,
+        student_id: formData.accountType === 'student' ? formData.studentId : null,
+        business_name: formData.accountType === 'wholesaler' ? formData.businessName : null,
+        business_license_number: formData.accountType === 'wholesaler' ? formData.businessLicenseNumber : null
       };
 
-      // Create user account
+      // Create user with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -386,43 +313,17 @@ const SignUp = () => {
       if (data.user) {
         userCreated = true;
         userId = data.user.id;
-        
-        // Insert into profiles table
-         try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .upsert([
-              {
-                id: userId,
-                full_name: formData.fullName,
-                email: formData.email,
-                phone: formData.phone,
-                campus_location: formData.campusLocation,
-                campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-                //account_type: formData.accountType,
-                is_seller: formData.accountType === 'wholesaler',
-                //verification_status: 'pending',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            ], {
-              onConflict: 'id'
-            });
 
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-          }
-        } catch (profileError) {
-          console.error('Profile creation error (non-critical):', profileError);
-        }
-
-        // Upload document if provided (wholesaler)
-        if (documentFile && formData.accountType === 'wholesaler') {
+        // Upload document if provided
+        if (documentFile) {
           try {
             await uploadDocument(userId);
-          } catch (documentError) {
-            console.error('Document upload error (non-critical):', documentError);
-            toast.warning("Account created but document upload failed. Please upload verification documents in your profile.");
+            toast.success(formData.accountType === 'student' 
+              ? "Account created successfully! Your student ID document has been uploaded for verification. Please check your email for the confirmation link."
+              : "Account created successfully! Your business license has been uploaded for verification. Please upload verification documents in your profile.");
+          } catch (uploadError) {
+            console.error('Document upload error:', uploadError);
+            toast.warning("Account created, but there was an issue uploading your document. You can upload it later in your profile.");
           }
         }
 
@@ -468,13 +369,10 @@ const SignUp = () => {
           }
         }
         
-        // Send confirmation email using our service
+        // Send confirmation email using our service - FIXED VERSION
         try {
-          const confirmationToken = data.session?.access_token || '';
-          
           await emailApiService.sendConfirmationEmail(
             formData.email,
-            confirmationToken,
             formData.fullName
           );
           
@@ -553,452 +451,378 @@ const SignUp = () => {
             disabled={submitting}
             className="w-full mb-4"
           >
-            {submitting ? 'Sending...' : 'Resend Confirmation Email'}
+            {submitting ? 'Sending...' : 'Resend Email'}
           </Button>
           
-          <Link to="/auth" className="block w-full">
-            <Button 
-              variant="default"
-              className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90"
-            >
-              Go to Login
-            </Button>
+          <Link 
+            to="/login" 
+            className="inline-block text-primary hover:underline"
+          >
+            Back to Login
           </Link>
         </div>
       </div>
     );
   }
 
+  // File handling functions
+  const handleFileSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setDocumentFile(file);
+      setFormData(prev => ({ ...prev, documentFile: file }));
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+      }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      setDocumentFile(file);
+      setFormData(prev => ({ ...prev, documentFile: file }));
+      
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+      }
+    }
+  };
+
+  const removeFile = () => {
+    setDocumentFile(null);
+    setFormData(prev => ({ ...prev, documentFile: null }));
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <div className="bg-card dark:bg-card p-4 rounded-lg shadow-md border border-border dark:border-border">
-      <h2 className="text-2xl text-center font-bold mb-4 text-foreground dark:text-foreground">Create an Account</h2>
-      
-      <Tabs 
-        value={activeTab} 
-        onValueChange={setActiveTab} 
-        className="mb-4"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="student">Student</TabsTrigger>
-          <TabsTrigger value="wholesaler">Wholesaler</TabsTrigger>
-        </TabsList>
-        <div className="mt-2 text-xs text-center text-foreground/60 dark:text-foreground/60">
-          {activeTab === 'student' && 'Create a student account to buy and sell within your campus.'}
-          {activeTab === 'wholesaler' && 'Create a wholesaler account to sell products to students.'}
-        </div>
-      </Tabs>
-      
-      <form onSubmit={handleSubmit} className="space-y-2">
-        {/* Common fields for all account types */}
-        <div className="space-y-1">
-          <Input
-            id="fullName"
-            name="fullName"
-            value={formData.fullName}
-            onChange={handleChange}
-            placeholder="Full name"
-            className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-            aria-invalid={errors.fullName ? "true" : "false"}
-          />
-          {errors.fullName && (
-            <p className="text-sm text-red-500 dark:text-red-400">{errors.fullName}</p>
-          )}
+    <div className="min-h-screen flex items-center justify-center bg-background dark:bg-background p-4">
+      <div className="w-full max-w-md bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-foreground dark:text-foreground mb-2">
+            Create Account
+          </h1>
+          <p className="text-muted-foreground dark:text-muted-foreground">
+            Join the UniHive marketplace
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <Input
-            id="email"
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Enter your email"
-            className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-            aria-invalid={errors.email ? "true" : "false"}
-          />
-          {errors.email && (
-            <p className="text-sm text-red-500 dark:text-red-400">{errors.email}</p>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring pr-10"
-              aria-invalid={errors.password ? "true" : "false"}
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-400"
-              onClick={() => setShowPassword(!showPassword)}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger 
+              value="student" 
+              onClick={() => setFormData(prev => ({ ...prev, accountType: 'student' }))}
             >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
-            </button>
-          </div>
-          {errors.password && (
-            <p className="text-sm text-red-500 dark:text-red-400">{errors.password}</p>
-          )}
-        </div>
+              Student
+            </TabsTrigger>
+            <TabsTrigger 
+              value="wholesaler"
+              onClick={() => setFormData(prev => ({ ...prev, accountType: 'wholesaler' }))}
+            >
+              Wholesaler
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-1">
-          <Input
-            id="phone"
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            placeholder="Phone number (mpesa)"
-            className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Common Fields */}
+            <div>
+              <Input
+                name="fullName"
+                type="text"
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                className={errors.fullName ? "border-red-500" : ""}
+              />
+              {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
+            </div>
 
-        {/* Student-specific fields - NO SELLER CHECKBOX */}
-        {activeTab === 'student' && (
-          <div className="p-3 border border-border dark:border-border rounded-md space-y-2 bg-background/50 dark:bg-muted/50">
-            <div className="space-y-1">
-              <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Campus Location
-              </label>
-              
-              {loadingCampuses ? (
-                <div className="text-sm text-foreground/60 dark:text-foreground/60">Loading campus locations...</div>
-              ) : campusLocations.length > 0 ? (
-                <Select
-                  value={formData.campusLocationId}
-                  onValueChange={handleCampusChange}
-                >
-                  <SelectTrigger 
-                    id="campusLocationId"
-                    className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-                    aria-invalid={errors.campusLocation ? "true" : "false"}
-                  >
-                    <SelectValue placeholder="Select your campus" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {campusLocations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
+            <div>
+              <Input
+                name="email"
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={errors.email ? "border-red-500" : ""}
+              />
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            </div>
+
+            <div className="relative">
+              <Input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleChange}
+                className={errors.password ? "border-red-500" : ""}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+            </div>
+
+            <div>
+              <Input
+                name="phone"
+                type="tel"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={handleChange}
+                className={errors.phone ? "border-red-500" : ""}
+              />
+              {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+            </div>
+
+            <div>
+              <Select 
+                value={formData.campusLocation} 
+                onValueChange={(value) => handleSelectChange('campusLocation', value)}
+              >
+                <SelectTrigger className={errors.campusLocation ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select Campus Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {loadingCampuses ? (
+                    <SelectItem value="loading" disabled>Loading...</SelectItem>
+                  ) : (
+                    campusLocations.map((location) => (
+                      <SelectItem key={location.id} value={location.name}>
                         {location.name}
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.campusLocation && <p className="text-red-500 text-sm mt-1">{errors.campusLocation}</p>}
+            </div>
+
+            {/* Student-specific fields */}
+            <TabsContent value="student" className="space-y-4 mt-0">
+              <div>
                 <Input
-                  id="campusLocation"
-                  name="campusLocation"
-                  value={formData.campusLocation}
+                  name="studentId"
+                  type="text"
+                  placeholder="Student ID"
+                  value={formData.studentId}
                   onChange={handleChange}
-                  placeholder="Enter your campus location"
-                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-                  aria-invalid={errors.campusLocation ? "true" : "false"}
+                  className={errors.studentId ? "border-red-500" : ""}
                 />
-              )}
-              
-              {errors.campusLocation && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.campusLocation}</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Student ID (Optional)
-              </label>
-              <div
-                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'hover:border-ring/70 cursor-pointer' : ''} p-3`}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => !documentFile && fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileChange}
-                  accept="image/*,.pdf"
-                  className="hidden"
-                />
-                
-                {documentFile ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {previewUrl ? (
-                        <img src={previewUrl} alt="Preview" className="w-10 h-10 object-cover rounded" />
-                      ) : (
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                          <Upload className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{documentFile.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(documentFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFileRemove();
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <ImagePlus className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-foreground mb-1">
-                      {isDragging ? 'Drop your student ID here' : 'Upload student ID card'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Drag & drop or click • PDF, JPG, PNG
-                    </p>
-                  </div>
-                )}
+                {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
               </div>
-            </div>
-          </div>
-        )}
+            </TabsContent>
 
-        {/* Wholesaler-specific fields */}
-        {activeTab === 'wholesaler' && (
-          <div className="p-3 border border-border dark:border-border rounded-md space-y-2 bg-background/50 dark:bg-muted/50">
-            <div className="space-y-1">
-              <label htmlFor="wholesalerCode" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Wholesaler Access Code *
-              </label>
-              <Input
-                id="wholesalerCode"
-                name="wholesalerCode"
-                value={formData.wholesalerCode}
-                onChange={handleChange}
-                placeholder="Enter your access code"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-                aria-invalid={errors.wholesalerCode ? "true" : "false"}
-              />
-              {errors.wholesalerCode && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.wholesalerCode}</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label htmlFor="businessName" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business Name *
-              </label>
-              <Input
-                id="businessName"
-                name="businessName"
-                value={formData.businessName}
-                onChange={handleChange}
-                placeholder="Enter business name"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-                aria-invalid={errors.businessName ? "true" : "false"}
-              />
-              {errors.businessName && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.businessName}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label htmlFor="businessLicenseNumber" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                  License Number
-                </label>
+            {/* Wholesaler-specific fields */}
+            <TabsContent value="wholesaler" className="space-y-4 mt-0">
+              <div>
                 <Input
-                  id="businessLicenseNumber"
+                  name="businessName"
+                  type="text"
+                  placeholder="Business Name"
+                  value={formData.businessName}
+                  onChange={handleChange}
+                  className={errors.businessName ? "border-red-500" : ""}
+                />
+                {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
+              </div>
+
+              <div>
+                <Input
                   name="businessLicenseNumber"
+                  type="text"
+                  placeholder="Business License Number"
                   value={formData.businessLicenseNumber}
                   onChange={handleChange}
-                  placeholder="Business license number"
-                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  className={errors.businessLicenseNumber ? "border-red-500" : ""}
                 />
+                {errors.businessLicenseNumber && <p className="text-red-500 text-sm mt-1">{errors.businessLicenseNumber}</p>}
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="taxId" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                  Tax ID
-                </label>
+              <div>
                 <Input
-                  id="taxId"
                   name="taxId"
+                  type="text"
+                  placeholder="Tax ID (Optional)"
                   value={formData.taxId}
                   onChange={handleChange}
-                  placeholder="Tax identification number"
-                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
                 />
               </div>
-              
-              <div className="space-y-1">
-                <label htmlFor="businessEmail" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                  Business Email
-                </label>
-                <Input
-                  id="businessEmail"
-                  type="email"
-                  name="businessEmail"
-                  value={formData.businessEmail}
+
+              <div>
+                <Textarea
+                  name="businessAddress"
+                  placeholder="Business Address"
+                  value={formData.businessAddress}
                   onChange={handleChange}
-                  placeholder="Business email (optional)"
-                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  className={errors.businessAddress ? "border-red-500" : ""}
                 />
+                {errors.businessAddress && <p className="text-red-500 text-sm mt-1">{errors.businessAddress}</p>}
               </div>
-              
-              <div className="space-y-1">
-                <label htmlFor="businessPhone" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                  Business Phone
-                </label>
+
+              <div>
                 <Input
-                  id="businessPhone"
-                  type="tel"
                   name="businessPhone"
+                  type="tel"
+                  placeholder="Business Phone"
                   value={formData.businessPhone}
                   onChange={handleChange}
-                  placeholder="Business phone (optional)"
-                  className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
+                  className={errors.businessPhone ? "border-red-500" : ""}
+                />
+                {errors.businessPhone && <p className="text-red-500 text-sm mt-1">{errors.businessPhone}</p>}
+              </div>
+
+              <div>
+                <Input
+                  name="businessEmail"
+                  type="email"
+                  placeholder="Business Email"
+                  value={formData.businessEmail}
+                  onChange={handleChange}
+                  className={errors.businessEmail ? "border-red-500" : ""}
+                />
+                {errors.businessEmail && <p className="text-red-500 text-sm mt-1">{errors.businessEmail}</p>}
+              </div>
+
+              <div>
+                <Textarea
+                  name="businessDescription"
+                  placeholder="Business Description (Optional)"
+                  value={formData.businessDescription}
+                  onChange={handleChange}
                 />
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label htmlFor="businessAddress" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business Address
-              </label>
-              <Textarea
-                id="businessAddress"
-                name="businessAddress"
-                value={formData.businessAddress}
-                onChange={handleChange}
-                placeholder="Enter business address"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[60px]"
-              />
-            </div>
+              <div>
+                <Input
+                  name="businessWebsite"
+                  type="url"
+                  placeholder="Business Website (Optional)"
+                  value={formData.businessWebsite}
+                  onChange={handleChange}
+                />
+              </div>
 
-            <div className="space-y-1">
-              <label htmlFor="businessDescription" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business Description
-              </label>
-              <Textarea
-                id="businessDescription"
-                name="businessDescription"
-                value={formData.businessDescription}
-                onChange={handleChange}
-                placeholder="Describe your business"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring min-h-[60px]"
-              />
-            </div>
+              <div>
+                <Input
+                  name="wholesalerCode"
+                  type="text"
+                  placeholder="Wholesaler Access Code"
+                  value={formData.wholesalerCode}
+                  onChange={handleChange}
+                  className={errors.wholesalerCode ? "border-red-500" : ""}
+                />
+                {errors.wholesalerCode && <p className="text-red-500 text-sm mt-1">{errors.wholesalerCode}</p>}
+              </div>
+            </TabsContent>
 
-            <div className="space-y-1">
-              <label htmlFor="businessWebsite" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Website (Optional)
-              </label>
-              <Input
-                id="businessWebsite"
-                type="url"
-                name="businessWebsite"
-                value={formData.businessWebsite}
-                onChange={handleChange}
-                placeholder="https://yourwebsite.com"
-                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                Business Document *
+            {/* Document Upload Section */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                {activeTab === 'student' ? 'Student ID Document' : 'Business License'} (Optional)
               </label>
               <div
-                className={`border-2 ${isDragging ? 'border-ring bg-ring/5' : documentFile ? 'border-ring/50' : 'border-dashed border-input dark:border-input'} rounded-lg transition-colors ${!documentFile ? 'hover:border-ring/70 cursor-pointer' : ''} p-4`}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
+                  ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}
+                  ${documentFile ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : ''}
+                `}
                 onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                onClick={() => !documentFile && fileInputRef.current?.click()}
+                onClick={() => fileInputRef.current?.click()}
               >
                 <input
                   ref={fileInputRef}
                   type="file"
-                  onChange={handleFileChange}
-                  accept="image/*,.pdf,.doc,.docx"
+                  accept="image/*,.pdf"
+                  onChange={handleFileSelect}
                   className="hidden"
                 />
                 
                 {documentFile ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {previewUrl ? (
-                        <img src={previewUrl} alt="Preview" className="w-12 h-12 object-cover rounded" />
-                      ) : (
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                          <Upload className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{documentFile.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {(documentFile.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center space-x-2">
+                      <Upload className="w-5 h-5 text-green-600" />
+                      <span className="text-sm text-green-700 dark:text-green-300">
+                        {documentFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFile();
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleFileRemove();
-                      }}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                    {previewUrl && (
+                      <img
+                        src={previewUrl}
+                        alt="Preview"
+                        className="mx-auto mt-2 max-h-20 object-cover rounded"
+                      />
+                    )}
                   </div>
                 ) : (
-                  <div className="text-center py-6">
-                    <ImagePlus className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                    <p className="text-sm text-foreground mb-1">
-                      {isDragging ? 'Drop your document here' : 'Upload business license or certificate'}
+                  <div className="space-y-2">
+                    <ImagePlus className="w-8 h-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      Click or drag to upload {activeTab === 'student' ? 'student ID' : 'business license'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Drag & drop or click to browse • PDF, JPG, PNG, DOC
+                      PNG, JPG or PDF up to 10MB
                     </p>
                   </div>
                 )}
               </div>
-              {errors.businessDocument && (
-                <p className="text-sm text-red-500 dark:text-red-400">{errors.businessDocument}</p>
-              )}
             </div>
-          </div>
-        )}
 
-        <Button 
-          type="submit" 
-          className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90"
-          disabled={submitting}
-        >
-          {submitting ? 'Creating Account...' : 'Sign Up'}
-        </Button>
-      </form>
-      
-      <p className="mt-3 text-center text-sm text-foreground/60 dark:text-foreground/60">
-        Already have an account?{' '}
-        <Link to="/auth" className="text-accent-foreground hover:text-accent-foreground/90 dark:text-primary dark:hover:text-primary/90 hover:underline font-medium">
-          Login
-        </Link>
-      </p>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={submitting}
+            >
+              {submitting ? 'Creating Account...' : 'Create Account'}
+            </Button>
+          </form>
+        </Tabs>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
