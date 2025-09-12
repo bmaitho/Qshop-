@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Your base URL from environment variables
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173';
 
 /**
  * Service for handling email-related API calls

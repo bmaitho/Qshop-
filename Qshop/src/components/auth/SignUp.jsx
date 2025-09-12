@@ -44,28 +44,27 @@ const SignUp = () => {
   
   // Form data with all necessary fields for both student and wholesaler
   const [formData, setFormData] = useState({
-    // Common fields
-    fullName: '',
-    email: '',
-    password: '',
-    phone: '',
-    accountType: 'student',
-    
-    // Student-specific fields
-    campusLocation: '',
-    campusLocationId: '',
-    
-    // Wholesaler-specific fields
-    businessName: '',
-    businessLicenseNumber: '',
-    taxId: '',
-    businessAddress: '',
-    businessPhone: '',
-    businessEmail: '',
-    businessDescription: '',
-    businessWebsite: '',
-    wholesalerCode: ''
-  });
+        // Common fields
+        fullName: '',
+        email: '',
+        password: '',
+        phone: '',
+        
+        // Student-specific fields
+        campusLocation: '',
+        campusLocationId: '',
+        
+        // Wholesaler-specific fields
+        businessName: '',
+        businessLicenseNumber: '',
+        taxId: '',
+        businessAddress: '',
+        businessPhone: '',
+        businessEmail: '',
+        businessDescription: '',
+        businessWebsite: '',
+        wholesalerCode: ''
+    });
   
   const [errors, setErrors] = useState({});
 
@@ -86,7 +85,7 @@ const SignUp = () => {
 
   // Set form data account type when tab changes
   useEffect(() => {
-    setFormData(prev => ({ ...prev, accountType: activeTab }));
+    // setFormData(prev => ({ ...prev, accountType: activeTab })); // REMOVE THIS LINE
   }, [activeTab]);
 
   const fetchCampusLocations = async () => {
@@ -360,8 +359,8 @@ const SignUp = () => {
         phone: formData.phone,
         campus_location: formData.campusLocation,
         campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-        account_type: formData.accountType,
-        ...(formData.accountType === 'wholesaler' && {
+        // account_type: formData.accountType, // REMOVE THIS LINE
+        ...(activeTab === 'wholesaler' && {
           business_name: formData.businessName,
           business_license_number: formData.businessLicenseNumber,
           tax_id: formData.taxId,
@@ -389,10 +388,10 @@ const SignUp = () => {
         userId = data.user.id;
         
         // Insert into profiles table
-        try {
+         try {
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert([
+            .upsert([
               {
                 id: userId,
                 full_name: formData.fullName,
@@ -400,13 +399,15 @@ const SignUp = () => {
                 phone: formData.phone,
                 campus_location: formData.campusLocation,
                 campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
-                account_type: formData.accountType,
+                //account_type: formData.accountType,
                 is_seller: formData.accountType === 'wholesaler',
-                verification_status: 'pending',
+                //verification_status: 'pending',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               }
-            ]);
+            ], {
+              onConflict: 'id'
+            });
 
           if (profileError) {
             console.error('Profile creation error:', profileError);
