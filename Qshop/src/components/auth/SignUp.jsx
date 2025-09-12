@@ -168,20 +168,22 @@ const SignUp = () => {
       newErrors.phone = "Please enter a valid phone number";
     }
 
-    // Account type specific validations
+    // Account type specific validations - MAKE OPTIONAL FOR NOW
     if (formData.accountType === 'student') {
-      if (!formData.studentId.trim()) newErrors.studentId = "Student ID is required";
+      // Student ID is optional for now
+      // if (!formData.studentId.trim()) newErrors.studentId = "Student ID is required";
     }
 
     if (formData.accountType === 'wholesaler') {
-      if (!formData.businessName.trim()) newErrors.businessName = "Business name is required";
-      if (!formData.businessLicenseNumber.trim()) newErrors.businessLicenseNumber = "Business license number is required";
-      if (!formData.businessAddress.trim()) newErrors.businessAddress = "Business address is required";
-      if (!formData.businessPhone.trim()) newErrors.businessPhone = "Business phone is required";
-      if (!formData.businessEmail.trim()) newErrors.businessEmail = "Business email is required";
-      if (!formData.wholesalerCode.trim()) newErrors.wholesalerCode = "Access code is required";
+      // Make all wholesaler fields optional for now - can be filled later
+      // if (!formData.businessName.trim()) newErrors.businessName = "Business name is required";
+      // if (!formData.businessLicenseNumber.trim()) newErrors.businessLicenseNumber = "Business license number is required";
+      // if (!formData.businessAddress.trim()) newErrors.businessAddress = "Business address is required";
+      // if (!formData.businessPhone.trim()) newErrors.businessPhone = "Business phone is required";
+      // if (!formData.businessEmail.trim()) newErrors.businessEmail = "Business email is required";
+      // if (!formData.wholesalerCode.trim()) newErrors.wholesalerCode = "Access code is required";
       
-      // Business email validation
+      // Business email validation only if provided
       if (formData.businessEmail && !emailRegex.test(formData.businessEmail)) {
         newErrors.businessEmail = "Please enter a valid business email address";
       }
@@ -265,38 +267,41 @@ const SignUp = () => {
     setSubmitting(true);
     let userCreated = false;
     let userId = null;
-    let emailSent = false;
 
     try {
-      // If account type is wholesaler, verify the code first
-      if (formData.accountType === 'wholesaler') {
-        const { data: codeData, error: codeError } = await supabase
-          .from('wholesaler_codes')
-          .select('*')
-          .eq('code', formData.wholesalerCode.trim())
-          .eq('is_used', false)
-          .single();
-        
-        if (codeError || !codeData) {
-          setErrors(prev => ({
-            ...prev,
-            wholesalerCode: "Invalid or already used access code"
-          }));
-          setSubmitting(false);
-          return;
+      // If account type is wholesaler and code provided, verify it (optional)
+      if (formData.accountType === 'wholesaler' && formData.wholesalerCode.trim()) {
+        try {
+          const { data: codeData, error: codeError } = await supabase
+            .from('wholesaler_codes')
+            .select('*')
+            .eq('code', formData.wholesalerCode.trim())
+            .eq('is_used', false)
+            .single();
+          
+          if (codeError || !codeData) {
+            toast.warning("Wholesaler code not found or already used. You can update this later in your profile.");
+            // Don't fail the signup - just warn
+          }
+        } catch (codeError) {
+          console.error('Code verification error (non-critical):', codeError);
+          toast.warning("Could not verify wholesaler code. You can update this later in your profile.");
         }
       }
 
-      // Prepare metadata for Supabase
+      // Prepare metadata for Supabase - EXACTLY what your database trigger expects
       const metadata = {
         full_name: formData.fullName,
         phone: formData.phone,
         campus_location: formData.campusLocation,
+        is_seller: formData.accountType === 'wholesaler', // Simple mapping
+        // These extra fields will be ignored by your trigger but stored in raw_user_meta_data
         campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
         account_type: formData.accountType,
         student_id: formData.accountType === 'student' ? formData.studentId : null,
         business_name: formData.accountType === 'wholesaler' ? formData.businessName : null,
-        business_license_number: formData.accountType === 'wholesaler' ? formData.businessLicenseNumber : null
+        business_license_number: formData.accountType === 'wholesaler' ? formData.businessLicenseNumber : null,
+        email: formData.email // Include email in metadata for completeness
       };
 
       // Create user with Supabase Auth
@@ -314,72 +319,71 @@ const SignUp = () => {
         userCreated = true;
         userId = data.user.id;
 
-        // Upload document if provided
+        // Upload document if provided (optional)
         if (documentFile) {
           try {
             await uploadDocument(userId);
-            toast.success(formData.accountType === 'student' 
-              ? "Account created successfully! Your student ID document has been uploaded for verification. Please check your email for the confirmation link."
-              : "Account created successfully! Your business license has been uploaded for verification. Please upload verification documents in your profile.");
+            toast.success("Document uploaded successfully!");
           } catch (uploadError) {
-            console.error('Document upload error:', uploadError);
+            console.error('Document upload error (non-critical):', uploadError);
             toast.warning("Account created, but there was an issue uploading your document. You can upload it later in your profile.");
           }
         }
 
-        // Create wholesaler details if needed
-        if (formData.accountType === 'wholesaler') {
+        // Create wholesaler details if needed and data provided (optional)
+        if (formData.accountType === 'wholesaler' && formData.businessName.trim()) {
           try {
             const { error: wholesalerError } = await supabase
               .from('wholesaler_details')
               .insert([
                 {
                   user_id: userId,
-                  business_name: formData.businessName,
-                  business_license_number: formData.businessLicenseNumber,
-                  tax_id: formData.taxId,
-                  business_address: formData.businessAddress,
-                  business_phone: formData.businessPhone,
-                  business_email: formData.businessEmail,
-                  business_description: formData.businessDescription,
-                  business_website: formData.businessWebsite,
+                  business_name: formData.businessName || 'TBD',
+                  business_license_number: formData.businessLicenseNumber || null,
+                  tax_id: formData.taxId || null,
+                  business_address: formData.businessAddress || null,
+                  business_phone: formData.businessPhone || null,
+                  business_email: formData.businessEmail || null,
+                  business_description: formData.businessDescription || null,
+                  business_website: formData.businessWebsite || null,
                   verification_status: 'pending'
                 }
               ]);
 
             if (wholesalerError) {
-              console.error('Wholesaler details creation error:', wholesalerError);
+              console.error('Wholesaler details creation error (non-critical):', wholesalerError);
+              toast.warning("Account created, but some business details couldn't be saved. You can complete them in your profile.");
             }
 
-            // Mark the code as used
-            const { error: updateCodeError } = await supabase
-              .from('wholesaler_codes')
-              .update({
-                is_used: true,
-                used_by: formData.email,
-                used_at: new Date().toISOString()
-              })
-              .eq('code', formData.wholesalerCode.trim());
-            
-            if (updateCodeError) {
-              console.error('Error updating code status:', updateCodeError);
+            // Mark the code as used (optional)
+            if (formData.wholesalerCode.trim()) {
+              try {
+                await supabase
+                  .from('wholesaler_codes')
+                  .update({
+                    is_used: true,
+                    used_by: formData.email,
+                    used_at: new Date().toISOString()
+                  })
+                  .eq('code', formData.wholesalerCode.trim());
+              } catch (updateCodeError) {
+                console.error('Error updating code status (non-critical):', updateCodeError);
+              }
             }
           } catch (wholesalerError) {
             console.error('Wholesaler details creation error (non-critical):', wholesalerError);
+            toast.warning("Account created, but some business details couldn't be saved. You can complete them in your profile.");
           }
         }
         
-        // Send confirmation email using our service - FIXED VERSION
+        // Send confirmation email using Resend - FIXED VERSION
         try {
           await emailApiService.sendConfirmationEmail(
             formData.email,
             formData.fullName
           );
-          
-          emailSent = true;
         } catch (emailError) {
           console.error('Error sending confirmation email:', emailError);
-          emailSent = true;
           toast.warning("Account created, but there was an issue sending the custom confirmation email. Please check your inbox for the default confirmation email.");
         }
       }
@@ -424,42 +428,44 @@ const SignUp = () => {
   // Show email confirmation screen
   if (emailSent) {
     return (
-      <div className="bg-card dark:bg-card p-4 rounded-lg shadow-md border border-border dark:border-border">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
-            <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
-          </div>
-          
-          <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Check Your Email</h2>
-          
-          <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-            <AlertCircle className="h-4 w-4 text-blue-600" />
-            <AlertTitle className="text-blue-800 dark:text-blue-200">Verification Required</AlertTitle>
-            <AlertDescription className="text-blue-700 dark:text-blue-300">
-              We've sent a confirmation email to <strong>{formData.email}</strong>.
-              Please click the link in the email to verify your account.
-            </AlertDescription>
-          </Alert>
-          
-          <p className="mb-6 text-primary/70 dark:text-foreground/70">
-            Once verified, you'll be able to sign in to your account.
-          </p>
+      <div className="min-h-screen flex items-center justify-center bg-background dark:bg-background p-4">
+        <div className="w-full max-w-md bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
+              <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            
+            <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Check Your Email</h2>
+            
+            <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertTitle className="text-blue-800 dark:text-blue-200">Verification Required</AlertTitle>
+              <AlertDescription className="text-blue-700 dark:text-blue-300">
+                We've sent a confirmation email to <strong>{formData.email}</strong>.
+                Please click the link in the email to verify your account.
+              </AlertDescription>
+            </Alert>
+            
+            <p className="mb-6 text-primary/70 dark:text-foreground/70">
+              Once verified, you'll be able to sign in to your account.
+            </p>
 
-          <Button 
-            variant="outline"
-            onClick={handleResendEmail}
-            disabled={submitting}
-            className="w-full mb-4"
-          >
-            {submitting ? 'Sending...' : 'Resend Email'}
-          </Button>
-          
-          <Link 
-            to="/login" 
-            className="inline-block text-primary hover:underline"
-          >
-            Back to Login
-          </Link>
+            <Button 
+              variant="outline"
+              onClick={handleResendEmail}
+              disabled={submitting}
+              className="w-full mb-4"
+            >
+              {submitting ? 'Sending...' : 'Resend Email'}
+            </Button>
+            
+            <Link 
+              to="/login" 
+              className="inline-block text-primary hover:underline"
+            >
+              Back to Login
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -629,12 +635,13 @@ const SignUp = () => {
                 <Input
                   name="studentId"
                   type="text"
-                  placeholder="Student ID"
+                  placeholder="Student ID (Optional)"
                   value={formData.studentId}
                   onChange={handleChange}
                   className={errors.studentId ? "border-red-500" : ""}
                 />
                 {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
+                <p className="text-xs text-muted-foreground mt-1">You can add this later in your profile</p>
               </div>
             </TabsContent>
 
@@ -644,7 +651,7 @@ const SignUp = () => {
                 <Input
                   name="businessName"
                   type="text"
-                  placeholder="Business Name"
+                  placeholder="Business Name (Optional)"
                   value={formData.businessName}
                   onChange={handleChange}
                   className={errors.businessName ? "border-red-500" : ""}
@@ -656,7 +663,7 @@ const SignUp = () => {
                 <Input
                   name="businessLicenseNumber"
                   type="text"
-                  placeholder="Business License Number"
+                  placeholder="Business License Number (Optional)"
                   value={formData.businessLicenseNumber}
                   onChange={handleChange}
                   className={errors.businessLicenseNumber ? "border-red-500" : ""}
@@ -677,7 +684,7 @@ const SignUp = () => {
               <div>
                 <Textarea
                   name="businessAddress"
-                  placeholder="Business Address"
+                  placeholder="Business Address (Optional)"
                   value={formData.businessAddress}
                   onChange={handleChange}
                   className={errors.businessAddress ? "border-red-500" : ""}
@@ -689,7 +696,7 @@ const SignUp = () => {
                 <Input
                   name="businessPhone"
                   type="tel"
-                  placeholder="Business Phone"
+                  placeholder="Business Phone (Optional)"
                   value={formData.businessPhone}
                   onChange={handleChange}
                   className={errors.businessPhone ? "border-red-500" : ""}
@@ -701,7 +708,7 @@ const SignUp = () => {
                 <Input
                   name="businessEmail"
                   type="email"
-                  placeholder="Business Email"
+                  placeholder="Business Email (Optional)"
                   value={formData.businessEmail}
                   onChange={handleChange}
                   className={errors.businessEmail ? "border-red-500" : ""}
@@ -732,12 +739,13 @@ const SignUp = () => {
                 <Input
                   name="wholesalerCode"
                   type="text"
-                  placeholder="Wholesaler Access Code"
+                  placeholder="Wholesaler Access Code (Optional)"
                   value={formData.wholesalerCode}
                   onChange={handleChange}
                   className={errors.wholesalerCode ? "border-red-500" : ""}
                 />
                 {errors.wholesalerCode && <p className="text-red-500 text-sm mt-1">{errors.wholesalerCode}</p>}
+                <p className="text-xs text-muted-foreground mt-1">You can verify your access code later</p>
               </div>
             </TabsContent>
 
@@ -797,7 +805,7 @@ const SignUp = () => {
                       Click or drag to upload {activeTab === 'student' ? 'student ID' : 'business license'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      PNG, JPG or PDF up to 10MB
+                      PNG, JPG or PDF up to 10MB (Optional - you can upload later)
                     </p>
                   </div>
                 )}
