@@ -23,7 +23,7 @@ if (!process.env.RESEND_API_KEY) {
 }
 
 // Define email sender address from environment or use default
-const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <noreply@yourdomain.com>';
+const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <support@unihive.store>';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 /**
