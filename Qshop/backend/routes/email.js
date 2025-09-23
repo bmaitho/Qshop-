@@ -1,3 +1,6 @@
+// Add this line to your backend/routes/email.js file
+// This creates an alias for the route your frontend is actually calling
+
 // backend/routes/email.js
 import express from 'express';
 import { 
@@ -13,6 +16,9 @@ const router = express.Router();
 // Public route for sending confirmation emails
 // This is called from the frontend after sign-up
 router.post('/confirmation', rateLimiter(), sendConfirmationEmail);
+
+// ADD THIS LINE - Alias for the route your frontend is calling
+router.post('/send-confirmation', rateLimiter(), sendConfirmationEmail);
 
 // Public route for resending confirmation emails
 // Used when users didn't receive or lost the original email
