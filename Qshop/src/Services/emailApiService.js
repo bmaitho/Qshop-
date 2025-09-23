@@ -10,7 +10,7 @@ class EmailApiService {
    */
   async sendConfirmationEmail(email, username) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/email/send-confirmation`, {
+      const response = await fetch(`${API_BASE_URL}/email/send-confirmation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
