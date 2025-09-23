@@ -23,7 +23,7 @@ if (!process.env.RESEND_API_KEY) {
 }
 
 // Define email sender address - use unihive.store for sending emails
-const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <support@unihive.store>';
+const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 /**
@@ -41,9 +41,8 @@ export const sendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Construct confirmation URL
-    // Note: This should match Supabase's configuration
-    const confirmationUrl = `${APP_URL}/auth/confirm#confirmation_token=${confirmationToken}&type=signup`;
+    // Construct confirmation URL to match Supabase's expected format
+    const confirmationUrl = `${APP_URL}/auth/confirm#confirmation_token=${confirmationToken}&type=signup&redirect_to=${encodeURIComponent(APP_URL + '/home')}`;
     
     // Get user information from Supabase if username is not provided
     let finalUsername = username;
@@ -286,15 +285,21 @@ export const resendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Generate a new confirmation token
-    // This is a simplified example; in practice, you would use Supabase's API
-    // to request a new confirmation token
+    console.log('Generating confirmation link for email:', email);
+    
+    // Generate a new confirmation token using Supabase Admin API
     const { data: tokenData, error: tokenError } = await supabase.auth.admin.generateLink({
       type: 'signup',
       email: email,
       options: {
         redirectTo: `${APP_URL}/auth/confirm`
       }
+    });
+    
+    console.log('Token generation result:', { 
+      success: !tokenError, 
+      hasData: !!tokenData,
+      actionLinkExists: !!tokenData?.properties?.action_link 
     });
     
     if (tokenError) {
@@ -305,9 +310,38 @@ export const resendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Extract the token from the generated URL
-    const url = new URL(tokenData.properties.action_link);
-    const token = url.hash.split('token=')[1].split('&')[0];
+    // Extract the token from the generated URL - FIX the token extraction
+    const actionLink = tokenData.properties.action_link;
+    console.log('Generated action link:', actionLink);
+    
+    // Parse the URL to extract the confirmation token properly
+    let token;
+    try {
+      const url = new URL(actionLink);
+      // Try multiple ways to extract the token
+      if (url.hash) {
+        // Check for confirmation_token in hash
+        const hashParams = new URLSearchParams(url.hash.substring(1));
+        token = hashParams.get('confirmation_token') || hashParams.get('token');
+      }
+      
+      if (!token) {
+        // If not in hash, check query params
+        token = url.searchParams.get('confirmation_token') || url.searchParams.get('token');
+      }
+      
+      if (!token) {
+        throw new Error('Could not extract confirmation token from URL');
+      }
+      
+      console.log('Extracted token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+    } catch (urlError) {
+      console.error('Error parsing action link:', urlError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to parse confirmation token'
+      });
+    }
     
     // Send confirmation email with new token
     const result = await sendConfirmationEmail({
