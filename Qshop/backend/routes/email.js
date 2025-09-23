@@ -22,7 +22,7 @@ router.post('/send-confirmation', rateLimiter(), sendConfirmationEmail);
 
 // Public route for resending confirmation emails
 // Used when users didn't receive or lost the original email
-router.post('/confirmation/resend', rateLimiter(), resendConfirmationEmail);
+router.post('/resend-confirmation', rateLimiter(), resendConfirmationEmail);
 
 // Protected route for sending welcome emails
 // This should be called after email confirmation
