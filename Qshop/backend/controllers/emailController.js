@@ -116,9 +116,7 @@ export const sendConfirmationEmail = async (req, res) => {
   }
 };
 
-/**
- * Send welcome email after successful signup
- */
+
 export const sendWelcomeEmail = async (req, res) => {
   try {
     const { email, username } = req.body;
