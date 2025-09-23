@@ -1,10 +1,11 @@
 // src/services/emailApiService.js
 import axios from 'axios';
 
-// Your base URL from environment variables
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173';
+// Your base URL from environment variables - remove /api since VITE_API_URL already includes it
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173/api';
 
-
+// Debug: Log the API URL being used (remove this in production)
+console.log('Email API Service - Using API_BASE_URL:', API_BASE_URL);
 
 /**
  * Service for handling email-related API calls
@@ -24,7 +25,7 @@ export const emailApiService = {
         throw new Error('Email and confirmation token are required');
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/email/confirmation`, {
+      const response = await axios.post(`${API_BASE_URL}/email/confirmation`, {
         email,
         confirmationToken,
         username
@@ -57,7 +58,7 @@ export const emailApiService = {
         throw new Error('Email is required');
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/email/confirmation/resend`, {
+      const response = await axios.post(`${API_BASE_URL}/email/confirmation/resend`, {
         email
       });
 
@@ -97,7 +98,7 @@ export const emailApiService = {
       }
 
       const response = await axios.post(
-        `${API_BASE_URL}/api/email/welcome`,
+        `${API_BASE_URL}/email/welcome`,
         { email, username },
         {
           headers: {
@@ -134,7 +135,7 @@ export const emailApiService = {
         throw new Error('Email and reset token are required');
       }
 
-      const response = await axios.post(`${API_BASE_URL}/api/email/password-reset`, {
+      const response = await axios.post(`${API_BASE_URL}/email/password-reset`, {
         email,
         resetToken
       });
