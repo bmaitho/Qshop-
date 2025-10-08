@@ -171,7 +171,7 @@ const SellerOrderDetail = () => {
       const backendUrl = import.meta.env.VITE_API_URL;
       addLog(`Using backend URL: ${backendUrl}`, 'info');
       
-      const response = await fetch(`${backendUrl}/api/mpesa/b2c`, {
+      const response = await fetch(`${backendUrl}/mpesa/b2c`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
