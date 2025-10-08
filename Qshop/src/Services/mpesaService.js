@@ -60,7 +60,7 @@ export const initiateMpesaPayment = async (phoneNumber, amount, orderId, account
     };
 
     // Make the API request with the correct path
-    const response = await axios.post(`${API_BASE_URL}/api/mpesa/stkpush`, paymentData);
+    const response = await axios.post(`${API_BASE_URL}/mpesa/stkpush`, paymentData);
 
     return {
       success: true,
@@ -92,7 +92,7 @@ export const checkPaymentStatus = async (checkoutRequestId) => {
     }
 
     
-    const response = await axios.get(`${API_BASE_URL}/api/mpesa/status/${checkoutRequestId}`);
+    const response = await axios.get(`${API_BASE_URL}/mpesa/status/${checkoutRequestId}`);
 
     return {
       success: true,
