@@ -20,7 +20,7 @@ const ProductDetails = () => {
   const [seller, setSeller] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [quantity, setQuantity] = useState(1); // NEW: Quantity state
+  const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -60,7 +60,6 @@ const ProductDetails = () => {
     }
   };
 
-  // NEW: Handle quantity changes with validation
   const handleQuantityChange = (newQuantity) => {
     if (newQuantity < 1) return;
     if (newQuantity > 99) {
@@ -70,13 +69,11 @@ const ProductDetails = () => {
     setQuantity(newQuantity);
   };
 
-  // ENHANCED: Add to cart with quantity
   const handleAddToCart = async () => {
     if (!product) return;
     
     try {
       setAddingToCart(true);
-      // Add the selected quantity to the product object
       const productWithQuantity = { ...product, quantity };
       await addToCart(productWithQuantity);
     } catch (error) {
@@ -87,7 +84,7 @@ const ProductDetails = () => {
     }
   };
 
-  // NEW: Buy Now functionality
+  // ✅ FIXED: Buy Now functionality with buyer_user_id
   const handleBuyNow = async () => {
     if (!product) return;
     
@@ -120,11 +117,12 @@ const ProductDetails = () => {
 
       const orderId = orderResult.id;
 
-      // Create order item
+      // ✅ FIXED: Create order item WITH buyer_user_id
       const orderItem = {
         order_id: orderId,
         product_id: product.id,
         seller_id: product.seller_id,
+        buyer_user_id: user.id,  // ← ADDED THIS LINE!
         quantity: quantity,
         price_per_unit: product.price,
         subtotal: product.price * quantity,
@@ -158,7 +156,8 @@ const ProductDetails = () => {
         await addToWishlist(product);
       }
     } catch (error) {
-      console.error('Error updating wishlist:', error);
+      console.error('Error toggling wishlist:', error);
+      toast.error('Failed to update wishlist');
     }
   };
 
@@ -166,17 +165,8 @@ const ProductDetails = () => {
     return (
       <>
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8 mt-12">
-          <div className="animate-pulse">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-gray-200 dark:bg-gray-700 h-96 rounded-lg"></div>
-              <div className="space-y-4">
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              </div>
-            </div>
-          </div>
+        <div className="flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-gray-300"></div>
         </div>
       </>
     );
@@ -186,12 +176,10 @@ const ProductDetails = () => {
     return (
       <>
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8 mt-12 text-center">
+        <div className="max-w-7xl mx-auto p-4 text-center">
           <h2 className="text-2xl font-bold mb-4 text-primary dark:text-gray-100">Product Not Found</h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-6">The product you're looking for doesn't exist or has been removed.</p>
           <Link to="/studentmarketplace">
-            <Button>
-              <ArrowLeft className="mr-2 h-4 w-4" />
+            <Button className="bg-secondary text-primary hover:bg-secondary/90">
               Back to Marketplace
             </Button>
           </Link>
@@ -203,187 +191,220 @@ const ProductDetails = () => {
   return (
     <>
       <Navbar />
-      <div className={`max-w-7xl mx-auto px-4 py-8 ${isMobile ? 'mt-12 mb-16' : 'mt-12'}`}>
+      <div className={`max-w-7xl mx-auto p-4 ${isMobile ? 'mt-12 mb-16' : 'mt-4'}`}>
         {/* Back Button */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="dark:text-gray-100 dark:hover:bg-gray-700"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          onClick={() => navigate(-1)}
+          className="mb-4 text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
 
-        <div className={`grid ${isMobile ? 'grid-cols-1 gap-6' : 'grid-cols-1 md:grid-cols-2 gap-12'}`}>
+        <div className={`${isMobile ? 'flex flex-col space-y-6' : 'grid grid-cols-1 md:grid-cols-2 gap-8'}`}>
           {/* Product Image */}
-          <div className="space-y-4">
-            <div className="aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+          <div className="relative">
+            <div className="aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
               <img
-                src={imageError ? "/api/placeholder/600/600" : (product.image_url || "/api/placeholder/600/600")}
+                src={imageError ? 'https://via.placeholder.com/500?text=No+Image' : product.image_url}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}
               />
             </div>
+            
+            {/* Status Badge */}
+            {product.status === 'sold' && (
+              <Badge className="absolute top-4 right-4 bg-blue-500 dark:bg-blue-600">
+                Sold
+              </Badge>
+            )}
+            {product.status === 'out_of_stock' && (
+              <Badge className="absolute top-4 right-4 bg-red-500 dark:bg-red-600">
+                Out of Stock
+              </Badge>
+            )}
           </div>
 
-          {/* Product Info */}
+          {/* Product Details */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-primary dark:text-gray-100 mb-2">
+              <h1 className="text-3xl font-bold mb-2 text-primary dark:text-gray-100">
                 {product.name}
               </h1>
-              
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex items-center">
-                  <span className="text-2xl md:text-3xl font-bold text-secondary dark:text-green-400">
-                    KES {product.price?.toLocaleString()}
-                  </span>
-                  {product.original_price && (
-                    <span className="ml-2 text-lg text-gray-500 dark:text-gray-400 line-through">
-                      KES {product.original_price?.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
-                  {product.condition}
-                </Badge>
-                <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {product.location}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">Description</h3>
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                {product.description}
+              <p className="text-2xl font-bold text-secondary dark:text-green-500">
+                KES {product.price?.toFixed(2)}
               </p>
             </div>
 
-            {/* Seller Info */}
-            {seller && (
-              <div className="border border-primary/10 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">Seller Information</h3>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-primary/10 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary/60 dark:text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-primary dark:text-gray-100">{seller.full_name || 'Anonymous Seller'}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{seller.campus_location || 'Location not specified'}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <MessageDialog 
-                      recipientId={product.seller_id}
-                      productId={product.id}
-                      buttonText="Message"
-                      buttonVariant="outline"
-                      buttonSize="sm"
-                      productName={product.name}
-                    />
-                    <Link to={`/seller/${product.seller_id}`}>
-                      <Button variant="outline" size="sm" className="dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
-                        View Shop
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
+            {/* Category */}
+            {product.category && (
+              <div>
+                <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
+                  {product.category}
+                </Badge>
               </div>
             )}
 
-            {/* NEW: Quantity Selector */}
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-primary dark:text-gray-200 mb-2 block">
-                  Quantity
-                </label>
-                <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 w-fit">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-10 w-10 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600 disabled:opacity-50"
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <div className="w-16 text-center">
-                    <span className="text-lg font-medium text-primary dark:text-gray-300">
-                      {quantity}
-                    </span>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-10 w-10 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600"
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {quantity > 1 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    Total: KES {(product.price * quantity).toLocaleString()}
-                  </p>
-                )}
+            {/* Description */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">
+                Description
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                {product.description || 'No description available.'}
+              </p>
+            </div>
+
+            {/* Location */}
+            {product.location && (
+              <div className="flex items-center text-gray-600 dark:text-gray-300">
+                <MapPin className="h-5 w-5 mr-2" />
+                <span>{product.location}</span>
               </div>
+            )}
 
-              {/* Action Buttons */}
-              <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-3`}>
-                {/* NEW: Buy Now Button */}
-                <Button 
-                  className={`${isMobile ? 'w-full' : 'flex-1'} bg-orange-600 hover:bg-orange-700 text-white`}
-                  onClick={handleBuyNow}
-                  disabled={buyingNow}
+            {/* Seller Info */}
+            {seller && (
+              <div className="border-t border-primary/10 dark:border-gray-700 pt-4">
+                <h3 className="text-lg font-semibold mb-3 text-primary dark:text-gray-100">
+                  Seller Information
+                </h3>
+                <Link
+                  to={`/seller/${product.seller_id}`}
+                  className="flex items-center space-x-3 hover:bg-primary/5 dark:hover:bg-gray-800 p-3 rounded-lg transition-colors"
                 >
-                  {buyingNow ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Zap className="mr-2 h-4 w-4" />
-                      Buy Now
-                    </>
-                  )}
-                </Button>
-
-                {/* Enhanced Add to Cart */}
-                <Button 
-                  className={`${isMobile ? 'w-full' : 'flex-1'} bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700`}
-                  onClick={handleAddToCart}
-                  disabled={addingToCart}
+                  <div className="w-12 h-12 bg-primary/10 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary dark:text-gray-300" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-primary dark:text-gray-100">
+                      {seller.full_name || 'Anonymous Seller'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      View seller profile →
+                    </p>
+                  </div>
+                </Link>
+                
+                {/* Message Seller Button */}
+                <MessageDialog 
+                  recipientId={product.seller_id}
+                  recipientName={seller.full_name || 'Seller'}
+                  productId={product.id}
+                  productName={product.name}
                 >
-                  {addingToCart ? (
-                    "Adding..."
-                  ) : (
-                    <>
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Add to Cart {quantity > 1 ? `(${quantity})` : ''}
-                    </>
-                  )}
-                </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-3 border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" />
+                    Message Seller
+                  </Button>
+                </MessageDialog>
+              </div>
+            )}
 
-                {/* Wishlist Button */}
+            {/* Quantity Selector */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">
+                Quantity
+              </h3>
+              <div className="flex items-center space-x-4">
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`${isMobile ? 'w-full' : ''} border-primary/20 dark:border-gray-600 hover:bg-primary/5 dark:hover:bg-gray-700`}
-                  onClick={handleWishlistToggle}
+                  onClick={() => handleQuantityChange(quantity - 1)}
+                  disabled={quantity <= 1}
+                  className="dark:border-gray-600 dark:text-gray-300"
                 >
-                  <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-500 dark:text-gray-400'}`} />
-                  {isMobile && <span className="ml-2">{isInWishlist(product.id) ? 'Remove from Wishlist' : 'Add to Wishlist'}</span>}
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="text-xl font-semibold min-w-[40px] text-center text-primary dark:text-gray-100">
+                  {quantity}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  disabled={quantity >= 99}
+                  className="dark:border-gray-600 dark:text-gray-300"
+                >
+                  <Plus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3">
+              {/* Buy Now Button */}
+              <Button
+                className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
+                onClick={handleBuyNow}
+                disabled={buyingNow || product.status === 'sold' || product.status === 'out_of_stock'}
+              >
+                {buyingNow ? (
+                  <>Processing...</>
+                ) : (
+                  <>
+                    <Zap className="mr-2 h-4 w-4" />
+                    Buy Now
+                  </>
+                )}
+              </Button>
+
+              {/* Add to Cart Button */}
+              <Button
+                variant="outline"
+                className="w-full border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                onClick={handleAddToCart}
+                disabled={addingToCart || product.status === 'sold' || product.status === 'out_of_stock'}
+              >
+                {addingToCart ? (
+                  <>Adding...</>
+                ) : (
+                  <>
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Add to Cart
+                  </>
+                )}
+              </Button>
+
+              {/* Wishlist Button */}
+              <Button
+                variant="outline"
+                className={`w-full border-primary/20 dark:border-gray-600 hover:bg-primary/5 dark:hover:bg-gray-700 ${
+                  isInWishlist(product.id)
+                    ? 'text-red-500 dark:text-red-400'
+                    : 'text-primary dark:text-gray-300'
+                }`}
+                onClick={handleWishlistToggle}
+              >
+                <Heart
+                  className={`mr-2 h-4 w-4 ${
+                    isInWishlist(product.id) ? 'fill-current' : ''
+                  }`}
+                />
+                {isInWishlist(product.id) ? 'Remove from Wishlist' : 'Add to Wishlist'}
+              </Button>
+            </div>
+
+            {/* Stock Status Message */}
+            {product.status === 'sold' && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-blue-700 dark:text-blue-300 text-center font-medium">
+                  This item has been sold
+                </p>
+              </div>
+            )}
+            {product.status === 'out_of_stock' && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <p className="text-red-700 dark:text-red-300 text-center font-medium">
+                  This item is currently out of stock
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

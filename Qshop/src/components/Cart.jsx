@@ -77,11 +77,12 @@ const Cart = () => {
 
       const orderId = orderResult.id;
 
-      // Create order items
+      // ✅ FIXED: Create order items WITH buyer_user_id
       const orderItems = cart.map(item => ({
         order_id: orderId,
         product_id: item.products.id,
         seller_id: item.products.seller_id,
+        buyer_user_id: user.id,  // ← ADDED THIS LINE!
         quantity: item.quantity,
         price_per_unit: item.products.price,
         subtotal: item.products.price * item.quantity,
@@ -196,173 +197,126 @@ const Cart = () => {
                   <div className={`${isMobile ? 'w-full flex mb-3' : ''}`}>
                     <div className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} overflow-hidden rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0`}>
                       <img 
-                        src={imageErrors[productId] ? "/api/placeholder/200/200" : (item.products.image_url || "/api/placeholder/200/200")}
+                        src={imageErrors[productId] ? 
+                          'https://via.placeholder.com/150?text=No+Image' : 
+                          item.products.image_url
+                        }
                         alt={item.products.name}
                         className="w-full h-full object-cover"
-                        loading="lazy"
                         onError={() => handleImageError(productId)}
                       />
                     </div>
-                    
-                    {isMobile && (
-                      <div className="flex-1">
-                        <Link 
-                          to={`/product/${productId}`}
-                          className="font-semibold text-sm hover:text-orange-600 dark:hover:text-orange-500 line-clamp-2 text-primary dark:text-gray-100"
-                        >
-                          {item.products.name}
-                        </Link>
-                        <p className="text-lg font-bold text-secondary dark:text-green-400">
-                          KES {item.products.price?.toLocaleString()}
-                        </p>
-                        {item.products.original_price && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 line-through">
-                            KES {item.products.original_price?.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Desktop view product info */}
-                  {!isMobile && (
+
                     <div className="flex-1">
-                      <Link 
-                        to={`/product/${productId}`}
-                        className="font-semibold text-lg hover:text-orange-600 dark:hover:text-orange-500 text-primary dark:text-gray-100"
-                      >
-                        {item.products.name}
+                      <Link to={`/product/${productId}`}>
+                        <h3 className="font-semibold text-primary dark:text-gray-100 hover:underline">
+                          {item.products.name}
+                        </h3>
                       </Link>
-                      <p className="text-xl font-bold text-secondary dark:text-green-400">
-                        KES {item.products.price?.toLocaleString()}
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        KES {item.products.price?.toFixed(2)}
                       </p>
-                      {item.products.original_price && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                          KES {item.products.original_price?.toLocaleString()}
-                        </p>
-                      )}
-                      <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                        <p>Condition: {item.products.condition}</p>
-                        <p>Location: {item.products.location}</p>
-                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Mobile view controls */}
-                  {isMobile && (
-                    <div className="w-full">
-                      <div className="flex items-center justify-between mb-3">
-                        {/* Enhanced quantity controls */}
-                        <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600 disabled:opacity-50"
-                            onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <div className="w-12 text-center">
-                            <span className="text-sm font-medium text-primary dark:text-gray-300">
-                              {item.quantity}
-                            </span>
-                          </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600"
-                            onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {/* Move to wishlist button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                            onClick={() => handleMoveToWishlist(item)}
-                            disabled={isMoving}
-                            title="Move to wishlist"
-                          >
-                            <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                          </Button>
-                          
-                          {/* Remove button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                            onClick={() => removeFromCart(productId, item.products.name)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {item.quantity} × KES {item.products.price?.toLocaleString()}
-                        </p>
-                        <p className="font-bold text-primary dark:text-gray-100">
-                          KES {(item.products.price * item.quantity).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Desktop view controls */}
+                  {/* Quantity and Actions */}
                   {!isMobile && (
-                    <div className="flex flex-col items-end space-y-3">
-                      {/* Enhanced quantity controls */}
-                      <div className="flex items-center border rounded-md border-primary/20 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600 disabled:opacity-50"
+                    <div className="flex items-center space-x-4">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center border border-primary/20 dark:border-gray-600 rounded">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary dark:text-gray-300"
                           onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <div className="w-16 text-center">
-                          <span className="font-medium text-primary dark:text-gray-300">
-                            {item.quantity}
-                          </span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="h-8 w-8 text-primary dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-gray-600"
+                        <span className="px-4 text-primary dark:text-gray-100">{item.quantity}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-primary dark:text-gray-300"
                           onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {item.quantity} × KES {item.products.price?.toLocaleString()}
-                        </p>
-                        <p className="font-bold text-lg text-primary dark:text-gray-100">
-                          KES {(item.products.price * item.quantity).toLocaleString()}
+                      {/* Subtotal */}
+                      <p className="font-semibold min-w-[100px] text-right text-primary dark:text-gray-100">
+                        KES {(item.products.price * item.quantity).toFixed(2)}
+                      </p>
+
+                      {/* Wishlist button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                        onClick={() => handleMoveToWishlist(item)}
+                        disabled={isMoving}
+                      >
+                        <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                      </Button>
+                      
+                      {/* Remove button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                        onClick={() => removeFromCart(productId, item.products.name)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Mobile Layout */}
+                  {isMobile && (
+                    <div className="space-y-3">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Quantity:</span>
+                        <div className="flex items-center border border-primary/20 dark:border-gray-600 rounded">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary dark:text-gray-300"
+                            onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="px-4 text-primary dark:text-gray-100">{item.quantity}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-primary dark:text-gray-300"
+                            onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Subtotal */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
+                        <p className="font-semibold text-primary dark:text-gray-100">
+                          KES {(item.products.price * item.quantity).toFixed(2)}
                         </p>
                       </div>
 
-                      <div className="flex space-x-2">
-                        {/* Move to wishlist button */}
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-2">
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300"
                           onClick={() => handleMoveToWishlist(item)}
                           disabled={isMoving}
-                          title="Move to wishlist"
                         >
-                          <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                          <Heart className={`h-4 w-4 mr-2 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
+                          Wishlist
                         </Button>
                         
                         {/* Remove button */}
