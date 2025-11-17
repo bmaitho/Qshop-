@@ -558,7 +558,7 @@ const SignUp = () => {
                 placeholder="Full Name"
                 value={formData.fullName}
                 onChange={handleChange}
-                className={errors.fullName ? "border-red-500" : ""}
+                className={`text-gray-900 dark:text-white ${errors.fullName ? "border-red-500" : ""}`}
               />
               {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>}
             </div>
@@ -570,7 +570,7 @@ const SignUp = () => {
                 placeholder="Email"
                 value={formData.email}
                 onChange={handleChange}
-                className={errors.email ? "border-red-500" : ""}
+                className={`text-gray-900 dark:text-white ${errors.email ? "border-red-500" : ""}`}
               />
               {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
             </div>
@@ -582,16 +582,15 @@ const SignUp = () => {
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
-                className={errors.password ? "border-red-500" : ""}
+                className={`text-gray-900 dark:text-white ${errors.password ? "border-red-500" : ""}`}
               />
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+  type="button"
+  onClick={() => setShowPassword(!showPassword)}
+  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+>
+  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+         </button>
             </div>
 
             <div>
@@ -601,7 +600,7 @@ const SignUp = () => {
                 placeholder="Phone Number"
                 value={formData.phone}
                 onChange={handleChange}
-                className={errors.phone ? "border-red-500" : ""}
+                className={`text-gray-900 dark:text-white ${errors.phone ? "border-red-500" : ""}`}
               />
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
             </div>
@@ -638,7 +637,7 @@ const SignUp = () => {
                   placeholder="Student ID (Optional)"
                   value={formData.studentId}
                   onChange={handleChange}
-                  className={errors.studentId ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.studentId ? "border-red-500" : ""}`}
                 />
                 {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
                 <p className="text-xs text-muted-foreground mt-1">You can add this later in your profile</p>
@@ -654,7 +653,7 @@ const SignUp = () => {
                   placeholder="Business Name (Optional)"
                   value={formData.businessName}
                   onChange={handleChange}
-                  className={errors.businessName ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.businessName ? "border-red-500" : ""}`}
                 />
                 {errors.businessName && <p className="text-red-500 text-sm mt-1">{errors.businessName}</p>}
               </div>
@@ -666,7 +665,7 @@ const SignUp = () => {
                   placeholder="Business License Number (Optional)"
                   value={formData.businessLicenseNumber}
                   onChange={handleChange}
-                  className={errors.businessLicenseNumber ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.businessLicenseNumber ? "border-red-500" : ""}`}
                 />
                 {errors.businessLicenseNumber && <p className="text-red-500 text-sm mt-1">{errors.businessLicenseNumber}</p>}
               </div>
@@ -678,6 +677,7 @@ const SignUp = () => {
                   placeholder="Tax ID (Optional)"
                   value={formData.taxId}
                   onChange={handleChange}
+                  className="text-gray-900 dark:text-white"
                 />
               </div>
 
@@ -687,7 +687,7 @@ const SignUp = () => {
                   placeholder="Business Address (Optional)"
                   value={formData.businessAddress}
                   onChange={handleChange}
-                  className={errors.businessAddress ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.businessAddress ? "border-red-500" : ""}`}
                 />
                 {errors.businessAddress && <p className="text-red-500 text-sm mt-1">{errors.businessAddress}</p>}
               </div>
@@ -699,7 +699,7 @@ const SignUp = () => {
                   placeholder="Business Phone (Optional)"
                   value={formData.businessPhone}
                   onChange={handleChange}
-                  className={errors.businessPhone ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.businessPhone ? "border-red-500" : ""}`}
                 />
                 {errors.businessPhone && <p className="text-red-500 text-sm mt-1">{errors.businessPhone}</p>}
               </div>
@@ -711,7 +711,7 @@ const SignUp = () => {
                   placeholder="Business Email (Optional)"
                   value={formData.businessEmail}
                   onChange={handleChange}
-                  className={errors.businessEmail ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.businessEmail ? "border-red-500" : ""}`}
                 />
                 {errors.businessEmail && <p className="text-red-500 text-sm mt-1">{errors.businessEmail}</p>}
               </div>
@@ -722,6 +722,7 @@ const SignUp = () => {
                   placeholder="Business Description (Optional)"
                   value={formData.businessDescription}
                   onChange={handleChange}
+                  className="text-gray-900 dark:text-white"
                 />
               </div>
 
@@ -732,6 +733,7 @@ const SignUp = () => {
                   placeholder="Business Website (Optional)"
                   value={formData.businessWebsite}
                   onChange={handleChange}
+                  className="text-gray-900 dark:text-white"
                 />
               </div>
 
@@ -742,7 +744,7 @@ const SignUp = () => {
                   placeholder="Wholesaler Access Code (Optional)"
                   value={formData.wholesalerCode}
                   onChange={handleChange}
-                  className={errors.wholesalerCode ? "border-red-500" : ""}
+                  className={`text-gray-900 dark:text-white ${errors.wholesalerCode ? "border-red-500" : ""}`}
                 />
                 {errors.wholesalerCode && <p className="text-red-500 text-sm mt-1">{errors.wholesalerCode}</p>}
                 <p className="text-xs text-muted-foreground mt-1">You can verify your access code later</p>
