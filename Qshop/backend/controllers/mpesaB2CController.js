@@ -3,6 +3,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateTimestamp } from '../utils/mpesaAuth.js';
 import { supabase } from '../supabaseClient.js';
+import { calculateOrderItemCommission } from '../utils/commissionCalculator.js';
 
 dotenv.config();
 
@@ -51,117 +52,92 @@ export const initiateB2C = async (req, res) => {
       
     if (!phoneRegex.test(formattedPhone)) {
       return res.status(400).json({
-        error: 'Invalid phone number format. Use format: 254XXXXXXXXX'
+        error: 'Invalid phone number format. Must be a valid Kenyan mobile number'
       });
     }
 
-    // Generate access token
-    console.log('Generating access token for B2C payment...');
+    // Generate M-Pesa access token
     const accessToken = await generateAccessToken();
     
-    if (!accessToken) {
-      throw new Error('Failed to generate a valid access token');
-    }
-
-    // Generate a unique transaction ID
-    const transactionId = `B2C_${Date.now()}_${orderId}_${Math.floor(Math.random() * 10000)}`;
-
-    // Prepare request data
-    const requestData = {
+    // Generate unique originator conversation ID
+    const originatorConversationID = `${orderId}_${Date.now()}`;
+    
+    // M-Pesa B2C request
+    const b2cRequest = {
       InitiatorName: INITIATOR_NAME,
       SecurityCredential: SECURITY_CREDENTIAL,
-      CommandID: "BusinessPayment", // Use BusinessPayment for selling goods
-      Amount: Math.ceil(amount), // Safaricom requires whole numbers
+      CommandID: 'BusinessPayment',
+      Amount: Math.round(amount), // Ensure integer
       PartyA: BUSINESS_SHORT_CODE,
       PartyB: formattedPhone,
       Remarks: remarks,
       QueueTimeOutURL: `${B2C_CALLBACK_URL}/timeout`,
       ResultURL: `${B2C_CALLBACK_URL}/result`,
-      Occasion: `Payment for order ${orderId}`
+      OriginatorConversationID: originatorConversationID
     };
 
-    console.log('Making B2C payment request with data:', {
-      url: B2C_API_URL,
-      businessShortCode: BUSINESS_SHORT_CODE,
-      amount,
-      phoneNumber: formattedPhone,
-      transactionId
+    console.log('Initiating B2C payment:', {
+      phone: formattedPhone,
+      amount: Math.round(amount),
+      orderId,
+      orderItemId
     });
 
-    // Make the B2C payment request
-    const response = await axios({
-      method: 'POST',
-      url: B2C_API_URL,
-      data: requestData,
+    // Make API call to M-Pesa
+    const response = await axios.post(B2C_API_URL, b2cRequest, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     });
 
-    console.log('B2C payment response:', response.data);
-    
-    // Save the transaction details to the database
-    if (response.data && response.data.ConversationID) {
-      try {
-        const { data, error } = await supabase
-          .from('seller_payments')
-          .insert([
-            { 
-              order_id: orderId,
-              order_item_id: orderItemId,
-              seller_id: sellerId,
-              amount: amount,
-              phone_number: formattedPhone,
-              conversation_id: response.data.ConversationID,
-              originator_conversation_id: response.data.OriginatorConversationID,
-              transaction_id: transactionId,
-              status: 'initiated',
-              remarks: remarks,
-              created_at: new Date().toISOString()
-            }
-          ])
-          .select();
-          
-        if (error) {
-          console.error('Error saving B2C payment details:', error);
-        } else {
-          console.log('Successfully saved B2C payment details:', data);
-          
-          // Update the order item status
-          const { error: updateError } = await supabase
-            .from('order_items')
-            .update({ 
-              payment_status: 'processing',
-              payment_reference: transactionId
-            })
-            .eq('id', orderItemId);
-            
-          if (updateError) {
-            console.error('Error updating order item payment status:', updateError);
-          }
-        }
-      } catch (dbError) {
-        console.error('Database error:', dbError);
-      }
+    console.log('B2C Response:', response.data);
+
+    // Store payment record in database
+    const paymentRecord = {
+      order_id: orderId,
+      order_item_id: orderItemId,
+      seller_id: sellerId,
+      amount: Math.round(amount),
+      phone_number: formattedPhone,
+      status: 'initiated',
+      conversation_id: response.data.ConversationID,
+      originator_conversation_id: originatorConversationID,
+      response_code: response.data.ResponseCode,
+      response_description: response.data.ResponseDescription,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: payment, error: dbError } = await supabase
+      .from('seller_payments')
+      .insert(paymentRecord)
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Error storing payment record:', dbError);
     }
 
-    res.json({
+    // Update order item payment status
+    await supabase
+      .from('order_items')
+      .update({ payment_status: 'processing' })
+      .eq('id', orderItemId);
+
+    return res.json({
       success: true,
       data: response.data,
-      message: 'B2C payment initiated successfully',
-      transactionId: transactionId
+      payment: payment
     });
   } catch (error) {
-    console.error('M-Pesa B2C payment error:', error);
+    console.error('M-Pesa B2C error:', error);
     
-    // Extract meaningful error information
     const errorMessage = error.response?.data?.errorMessage || 
                          error.response?.data?.ResponseDescription ||
                          error.message || 
-                         'Failed to initiate B2C payment';
+                         'Failed to initiate payment';
                          
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: errorMessage
     });
@@ -438,15 +414,27 @@ export const processSellerPayment = async (orderItemId) => {
       throw new Error(`Error fetching seller phone number: ${sellerError?.message || 'Phone not found'}`);
     }
     
-    // Calculate amount to pay seller (normally subtract platform fee)
-    // For simplicity, we'll pay the full amount
-    const paymentAmount = orderItem.subtotal;
+    // ✅ CALCULATE COMMISSION AND SELLER PAYOUT
+    const pricePerUnit = orderItem.products.price;
+    const quantity = orderItem.quantity;
+    const commission = calculateOrderItemCommission(pricePerUnit, quantity);
     
-    // Call the B2C API directly
-    // Note: In production, you'd use a queue system for this
+    // The amount to send via M-Pesa (after deducting seller's portion of platform fee)
+    const paymentAmount = commission.totalSellerPayout;
+    
+    console.log(`Commission calculation for order item ${orderItemId}:`, {
+      productPrice: commission.totalProductPrice,
+      platformFee: commission.totalPlatformFee,
+      sellerFee: commission.sellerFee,
+      sellerPayout: commission.totalSellerPayout,
+      platformProfit: commission.totalPlatformProfit,
+      quantity: quantity
+    });
+    
+    // Call the B2C API with the correct payout amount
     const paymentData = {
       phoneNumber: sellerProfile.phone,
-      amount: 20,
+      amount: Math.round(paymentAmount), // ✅ NOW USES CALCULATED AMOUNT WITH COMMISSION
       orderId: orderItem.order_id,
       orderItemId: orderItem.id,
       sellerId: orderItem.seller_id,
@@ -457,19 +445,25 @@ export const processSellerPayment = async (orderItemId) => {
     const fakeReq = { body: paymentData };
     const fakeRes = {
       status: (code) => ({
-        json: (data) => {
-          // Return the data directly
-          return data;
-        }
+        json: (data) => data
       }),
-      json: (data) => {
-        // Return the data directly
-        return data;
-      }
+      json: (data) => data
     };
     
     // Initiate the B2C payment
     const result = await initiateB2C(fakeReq, fakeRes);
+    
+    // Update seller_payments record with commission info
+    if (result.success && result.payment) {
+      await supabase
+        .from('seller_payments')
+        .update({
+          commission_amount: commission.totalPlatformFee,
+          platform_profit: commission.totalPlatformProfit,
+          original_amount: commission.totalProductPrice
+        })
+        .eq('id', result.payment.id);
+    }
     
     console.log(`Automatic payment initiated for order item ${orderItemId}:`, result);
     
