@@ -1,5 +1,6 @@
 // src/components/SellerOrderDetail.jsx
 // FIXED VERSION - Uses backend endpoint with commission calculation
+// ✅ FIXED: buyer_user_id error in handleContactBuyer
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -106,16 +107,18 @@ const SellerOrderDetail = () => {
       setOrderItem(orderItemData);
       setOrder(orderItemData.orders);
 
-      // Fetch buyer profile
-      if (orderItemData.orders?.user_id) {
+      // ✅ FIX: Fetch buyer profile using buyer_user_id from order_items
+      if (orderItemData.buyer_user_id) {
         const { data: buyerData, error: buyerError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', orderItemData.orders.user_id)
+          .eq('id', orderItemData.buyer_user_id)
           .single();
 
         if (!buyerError && buyerData) {
           setBuyer(buyerData);
+        } else {
+          console.warn('Failed to fetch buyer profile:', buyerError);
         }
       }
     } catch (error) {
@@ -157,7 +160,7 @@ const SellerOrderDetail = () => {
     }
   };
 
-  // ✅ NEW: Trigger payment via backend endpoint (with commission calculation)
+  // ✅ Trigger payment via backend endpoint (with commission calculation)
   const triggerAutomaticPayment = async () => {
     try {
       setPaymentProcessing(true);
@@ -193,9 +196,17 @@ const SellerOrderDetail = () => {
     }
   };
 
+  // ✅ FIXED: handleContactBuyer now uses orderItem.buyer_user_id instead of order.user_id
   const handleContactBuyer = async () => {
     if (!message.trim()) {
       toast.error('Please enter a message');
+      return;
+    }
+
+    // ✅ FIX: Check if orderItem and buyer_user_id exist
+    if (!orderItem || !orderItem.buyer_user_id) {
+      toast.error('Cannot send message - buyer information is missing');
+      console.error('OrderItem data is invalid:', { orderItem });
       return;
     }
 
@@ -203,17 +214,20 @@ const SellerOrderDetail = () => {
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        toast.error('You must be logged in to send messages');
+        return;
+      }
       
       const buyerInfo = getDisplayInfo(buyer);
       const senderInfo = getDisplayInfo({ full_name: user.user_metadata?.full_name || user.email });
       
-      // Create message record with order_item_id link
+      // ✅ FIX: Use orderItem.buyer_user_id instead of order.user_id
       const { error: messageError } = await supabase
         .from('messages')
         .insert([{
           sender_id: user.id,
-          recipient_id: order.user_id,
+          recipient_id: orderItem.buyer_user_id,  // ✅ Changed from order.user_id
           product_id: orderItem.product_id,
           order_id: orderItem.order_id,
           order_item_id: orderItem.id,
@@ -264,157 +278,124 @@ const SellerOrderDetail = () => {
   }
 
   const buyerInfo = buyer ? getDisplayInfo(buyer) : { name: 'Unknown Buyer', initials: '??' };
-  const canShip = orderItem.buyer_contacted && orderItem.buyer_agreed;
-  const isDelivered = orderItem.status === 'delivered';
   const isShipped = orderItem.status === 'shipped';
+  const isDelivered = orderItem.status === 'delivered';
+  const canShip = orderItem.buyer_contacted && orderItem.buyer_agreed;
+
+  const getStatusBadge = (status) => {
+    const variants = {
+      'processing': 'bg-blue-100 text-blue-800',
+      'shipped': 'bg-amber-100 text-amber-800',
+      'delivered': 'bg-green-100 text-green-800',
+    };
+    
+    return variants[status] || 'bg-gray-100 text-gray-800';
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={() => navigate('/myshop')}
-        className="mb-6"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to My Shop
-      </Button>
+    <div className="container mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/seller/orders')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Orders
+        </Button>
+        <Badge className={getStatusBadge(orderItem.status)}>
+          {orderItem.status?.toUpperCase()}
+        </Badge>
+      </div>
 
-      {/* Order Header */}
+      {/* Order Details Card */}
       <Card className="mb-6">
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">{orderItem.products?.name}</h1>
-              <p className="text-gray-500">Order ID: {orderItem.order_id?.slice(-8)}</p>
-            </div>
-            <Badge className={
-              orderItem.status === 'delivered' ? 'bg-green-500' :
-              orderItem.status === 'shipped' ? 'bg-blue-500' :
-              'bg-yellow-500'
-            }>
-              {orderItem.status?.toUpperCase()}
-            </Badge>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* ✅ NEW: Commission & Earnings Breakdown */}
-      {commissionInfo && (
-        <Card className="mb-6">
-          <CardHeader>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              Your Earnings Breakdown
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* Product Sale */}
-              <div className="flex justify-between items-center pb-3 border-b">
-                <span className="text-gray-600">
-                  Product Sale ({orderItem.quantity}x @ KES {orderItem.products?.price})
-                </span>
-                <span className="font-semibold">
-                  KES {commissionInfo.totalProductPrice?.toFixed(2)}
-                </span>
-              </div>
-              
-              {/* Platform Fee */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="text-gray-600">Platform Fee (Your Share)</span>
-                  <p className="text-xs text-gray-400">
-                    Split 50/50 with buyer - Total fee: KES {commissionInfo.platformFee?.toFixed(2)}
-                  </p>
-                </div>
-                <span className="text-red-600 font-semibold">
-                  -KES {commissionInfo.sellerFee?.toFixed(2)}
-                </span>
-              </div>
-              
-              {/* Your Payout */}
-              <div className="flex justify-between items-center pt-3 border-t-2 border-green-600">
-                <span className="text-lg font-bold text-gray-900">
-                  Your M-Pesa Payout
-                </span>
-                <span className="text-2xl font-bold text-green-600">
-                  KES {commissionInfo.totalSellerPayout?.toFixed(2)}
-                </span>
-              </div>
-              
-              {/* Payment Status */}
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-blue-900">Payment Status</p>
-                    <p className="text-sm text-blue-700">
-                      {orderItem.payment_status === 'completed' 
-                        ? '✅ Paid to your M-Pesa' 
-                        : orderItem.payment_status === 'processing'
-                        ? '⏳ Payment processing...'
-                        : isDelivered
-                        ? '🔄 Will be processed automatically'
-                        : '📦 Payment after delivery confirmation'}
-                    </p>
-                  </div>
-                  {orderItem.payment_status === 'completed' && (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Order Details */}
-      <Card className="mb-6">
-        <CardHeader>
-          <h3 className="text-lg font-semibold">Order Details</h3>
+          <h2 className="text-2xl font-bold">Order Details</h2>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Quantity</p>
-              <p className="font-semibold">{orderItem.quantity}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Product Price</p>
-              <p className="font-semibold">KES {orderItem.products?.price}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Value</p>
-              <p className="font-semibold">KES {orderItem.subtotal?.toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Order Date</p>
-              <p className="font-semibold">
-                {new Date(orderItem.created_at).toLocaleDateString()}
+          {/* Product Info */}
+          <div className="flex gap-4">
+            {orderItem.products?.images?.[0] && (
+              <img
+                src={orderItem.products.images[0]}
+                alt={orderItem.products.name}
+                className="w-24 h-24 object-cover rounded-lg"
+              />
+            )}
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">{orderItem.products?.name}</h3>
+              <p className="text-gray-600">Quantity: {orderItem.quantity}</p>
+              <p className="text-lg font-bold text-primary">
+                KES {(orderItem.products?.price * orderItem.quantity).toLocaleString()}
               </p>
+            </div>
+          </div>
+
+          {/* Commission Info */}
+          {commissionInfo && (
+            <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+                <h4 className="font-semibold text-blue-900">Payment Breakdown</h4>
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Product Total:</span>
+                  <span className="font-medium">KES {commissionInfo.totalProductPrice?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-red-600">
+                  <span>Platform Fee:</span>
+                  <span className="font-medium">- KES {commissionInfo.sellerFee?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between border-t pt-1 text-lg font-bold text-green-600">
+                  <span>Your Payout:</span>
+                  <span>KES {commissionInfo.totalSellerPayout?.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Order Timeline */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="h-4 w-4 text-gray-500" />
+              <span>Ordered: {new Date(orderItem.created_at).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Package className="h-4 w-4 text-gray-500" />
+              <span>Order ID: {orderItem.id.slice(0, 8)}</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Buyer Information */}
+      {/* Buyer Information Card */}
       <Card className="mb-6">
         <CardHeader>
-          <h3 className="text-lg font-semibold">Buyer Information</h3>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Buyer Information
+          </h3>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-gray-500" />
-            <span>{buyerInfo.name}</span>
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="font-semibold text-primary">{buyerInfo.initials}</span>
+            </div>
+            <span className="font-medium">{buyerInfo.name}</span>
           </div>
+          
           {buyer?.phone && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-gray-500" />
               <span>{buyer.phone}</span>
             </div>
           )}
+          
           {buyer?.campus_location && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-sm">
               <MapPin className="h-4 w-4 text-gray-500" />
               <span>{buyer.campus_location}</span>
             </div>
