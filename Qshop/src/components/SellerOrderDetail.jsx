@@ -96,7 +96,7 @@ const SellerOrderDetail = () => {
         .select(`
           *,
           products(*),
-          orders(*)
+          orders!fk_order_items_order_id(*)
         `)
         .eq('id', id)
         .single();

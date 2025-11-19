@@ -2,7 +2,7 @@
 import { supabase } from '../supabaseClient.js';
 import { processSellerPayment } from './mpesaB2CController.js';
 import { processAutomaticPayments } from '../services/disbursementService.js';
-
+import { calculateOrderItemCommission } from '../utils/commissionCalculator.js';
 /**
  * Update order item status - will trigger payment when marked as delivered
  */
@@ -424,6 +424,39 @@ export const triggerOrderItemPayment = async (req, res) => {
   }
 };
 
+export const calculateCommission = async (req, res) => {
+  try {
+    const { pricePerUnit, quantity } = req.body;
+    
+    if (!pricePerUnit || !quantity) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'pricePerUnit and quantity are required' 
+      });
+    }
+    
+    // Import at top of file if not already imported:
+    // 
+    
+    const commission = calculateOrderItemCommission(
+      parseFloat(pricePerUnit), 
+      parseInt(quantity)
+    );
+    
+    return res.status(200).json({
+      success: true,
+      commission
+    });
+  } catch (error) {
+    console.error('Error calculating commission:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
+  }
+};
+
+
 export default {
   updateOrderItemStatus,
   getOrderDetails,
@@ -431,5 +464,6 @@ export default {
   getSellerOrders,
   getSellerPayments,
   getOrderItemPayment,
-  triggerOrderItemPayment
+  triggerOrderItemPayment,
+  calculateCommission
 };
