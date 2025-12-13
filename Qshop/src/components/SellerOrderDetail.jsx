@@ -56,7 +56,7 @@ const SellerOrderDetail = () => {
     try {
       // Call backend to get commission calculation
       const backendUrl = import.meta.env.VITE_API_URL;
-      const response = await fetch(`${backendUrl}/orders/calculate-commission`, {
+      const response = await fetch(`${backendUrl}/mpesa/orders/calculate-commission`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,7 +168,7 @@ const SellerOrderDetail = () => {
       const backendUrl = import.meta.env.VITE_API_URL;
       
       // ✅ Call the backend endpoint that handles commission calculation
-      const response = await fetch(`${backendUrl}/orders/trigger-payment/${id}`, {
+      const response = await fetch(`${backendUrl}/mpesa/orders/trigger-payment/${id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
