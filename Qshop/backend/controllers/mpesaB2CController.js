@@ -1,4 +1,5 @@
 // backend/controllers/mpesaB2CController.js
+// ✅ FIXED VERSION - Foreign key relationship issue resolved
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateTimestamp } from '../utils/mpesaAuth.js';
@@ -22,7 +23,7 @@ if (!BUSINESS_SHORT_CODE || !INITIATOR_NAME || !SECURITY_CREDENTIAL || !B2C_CALL
 }
 
 /**
- * Initiates an B2C payment to a seller
+ * Initiates a B2C payment to a seller
  */
 export const initiateB2C = async (req, res) => {
   try {
@@ -131,7 +132,7 @@ export const initiateB2C = async (req, res) => {
     });
   } catch (error) {
     console.error('M-Pesa B2C error:', error);
-    
+   
     const errorMessage = error.response?.data?.errorMessage || 
                          error.response?.data?.ResponseDescription ||
                          error.message || 
@@ -254,8 +255,6 @@ export const handleB2CTimeout = async (req, res) => {
   try {
     console.log('B2C timeout callback received:', JSON.stringify(req.body));
     
-    // The timeout callback doesn't have much to work with,
-    // but we can log it and update records if possible
     const callbackData = req.body.Result || req.body;
     
     if (callbackData.OriginatorConversationID) {
@@ -361,18 +360,18 @@ export const checkB2CStatus = async (req, res) => {
 
 /**
  * Automatic payment to seller when order is delivered
+ * ✅ FIXED: Fetches order and order_item separately to avoid FK ambiguity
  */
 export const processSellerPayment = async (orderItemId) => {
   try {
     console.log(`Processing automatic payment for order item: ${orderItemId}`);
     
-    // Fetch the order item details
+    // ✅ STEP 1: Fetch order_item with products only (no orders join)
     const { data: orderItem, error: orderItemError } = await supabase
       .from('order_items')
       .select(`
         *,
-        products(*),
-        orders!order_id(*)
+        products(*)
       `)
       .eq('id', orderItemId)
       .single();
@@ -385,6 +384,20 @@ export const processSellerPayment = async (orderItemId) => {
       throw new Error(`Order item not found: ${orderItemId}`);
     }
     
+    // ✅ STEP 2: Fetch order separately to avoid FK ambiguity
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderItem.order_id)
+      .single();
+      
+    if (orderError) {
+      throw new Error(`Error fetching order: ${orderError.message}`);
+    }
+    
+    // ✅ STEP 3: Attach order to orderItem for compatibility with existing code
+    orderItem.orders = order;
+    
     // Check if payment to seller is already processed
     if (orderItem.payment_status === 'completed' || orderItem.payment_status === 'processing') {
       console.log(`Seller payment for order item ${orderItemId} already processed`);
@@ -395,7 +408,7 @@ export const processSellerPayment = async (orderItemId) => {
     }
     
     // Check if the order has been paid by the customer
-    if (orderItem.orders.payment_status !== 'completed') {
+    if (order.payment_status !== 'completed') {
       console.log(`Order ${orderItem.order_id} not yet paid by customer`);
       return {
         success: false,
