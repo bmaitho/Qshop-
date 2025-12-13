@@ -195,10 +195,12 @@ const MessageCenter = () => {
             sender_id: currentUser.id,
             recipient_id: activeConversation.otherUserId,
             product_id: activeConversation.productId,
+            order_item_id: activeConversation.orderItemId,
             order_id: activeConversation.orderId,
             message: replyText.trim(),
             sender_name: senderName,
             recipient_name: recipientName
+
           }
         ]);
   
