@@ -152,79 +152,72 @@ const MessageCenter = () => {
   };
 
   const sendReply = async () => {
-    if (!replyText.trim() || !activeConversation || !currentUser || !currentUserProfile) return;
-    
-    try {
-      // Fetch the recipient profile to get their name
-      // Use maybeSingle instead of single to avoid PGRST116 error
-      const { data: recipientProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', activeConversation.otherUserId)
-        .maybeSingle();  // <-- Changed from single() to maybeSingle()
-      
-      // Initialize default recipient info if query fails    
-      let recipientInfo = {
-        full_name: null,
-        email: null
-      };
-      
-      if (recipientProfile) {
-        recipientInfo = recipientProfile;
-      } else if (profileError) {
-        console.warn(`Error fetching profile for recipient ID ${activeConversation.otherUserId}:`, profileError);
-      } else {
-        console.warn(`No profile found for recipient ID ${activeConversation.otherUserId}`);
-      }
-        
-      const senderName = currentUserProfile.full_name || currentUser.email || currentUser.id || 'Unknown Sender';
-      
-      // Build recipient name with strong fallbacks
-      const recipientName = recipientInfo.full_name || 
-                            recipientInfo.email || 
-                            activeConversation.otherUserName || 
-                            activeConversation.otherUserId || 
-                            'Unknown Recipient';
+  if (!replyText.trim() || !activeConversation || !currentUser || !currentUserProfile) return;
   
-      console.log('Sending reply with recipient name:', recipientName);
-      
+  try {
+    // ✅ NEW: Fetch order_item_id if this is an order-related conversation
+    let orderItemId = null;
+    if (activeConversation.orderId && activeConversation.productId) {
       const { data: orderItem } = await supabase
-    .from('order_items')
-    .select('id')
-    .eq('order_id', activeConversation.orderId)
-    .eq('product_id', activeConversation.productId)
-    .single();
-
-      const { error: insertError } = await supabase
-        .from('messages')
-        .insert([
-          {
-            sender_id: currentUser.id,
-            recipient_id: activeConversation.otherUserId,
-            product_id: activeConversation.productId,
-            order_item_id: orderItem?.id,
-            order_id: activeConversation.orderId,
-            message: replyText.trim(),
-            sender_name: senderName,
-            recipient_name: recipientName
-
-          }
-        ]);
-  
-      if (insertError) throw insertError;
+        .from('order_items')
+        .select('id')
+        .eq('order_id', activeConversation.orderId)
+        .eq('product_id', activeConversation.productId)
+        .maybeSingle();
       
-      // Clear input and refresh conversation
-      setReplyText('');
-      fetchConversationMessages(activeConversation.otherUserId);
-      
-      // Also refresh the main messages list
-      fetchMessages(activeTab);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toastError("Failed to send message");
+      orderItemId = orderItem?.id || null;
     }
-  };
+    
+    // Fetch the recipient profile...
+    const { data: recipientProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', activeConversation.otherUserId)
+      .maybeSingle();
+    
+    let recipientInfo = {
+      full_name: null,
+      email: null
+    };
+    
+    if (recipientProfile) {
+      recipientInfo = recipientProfile;
+    }
+      
+    const senderName = currentUserProfile.full_name || currentUser.email || currentUser.id || 'Unknown Sender';
+    const recipientName = recipientInfo.full_name || 
+                          recipientInfo.email || 
+                          activeConversation.otherUserName || 
+                          activeConversation.otherUserId || 
+                          'Unknown Recipient';
 
+    console.log('Sending reply with recipient name:', recipientName);
+    
+    // ✅ UPDATED: Now includes order_item_id
+    const { error: insertError } = await supabase
+      .from('messages')
+      .insert([{
+        sender_id: currentUser.id,
+        recipient_id: activeConversation.otherUserId,
+        product_id: activeConversation.productId,
+        order_id: activeConversation.orderId,
+        order_item_id: orderItemId,  // ✅ ADDED THIS LINE
+        message: replyText.trim(),
+        sender_name: senderName,
+        recipient_name: recipientName
+      }]);
+
+    if (insertError) throw insertError;
+    
+    // Clear input and refresh conversation
+    setReplyText('');
+    fetchConversationMessages(activeConversation.otherUserId);
+    fetchMessages(activeTab);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    toastError("Failed to send message");
+  }
+};
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString();
