@@ -372,7 +372,7 @@ export const processSellerPayment = async (orderItemId) => {
       .select(`
         *,
         products(*),
-        orders(*)
+        orders!order_id(*)
       `)
       .eq('id', orderItemId)
       .single();
