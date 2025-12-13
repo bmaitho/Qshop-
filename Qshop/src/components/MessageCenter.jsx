@@ -188,6 +188,13 @@ const MessageCenter = () => {
   
       console.log('Sending reply with recipient name:', recipientName);
       
+      const { data: orderItem } = await supabase
+    .from('order_items')
+    .select('id')
+    .eq('order_id', activeConversation.orderId)
+    .eq('product_id', activeConversation.productId)
+    .single();
+
       const { error: insertError } = await supabase
         .from('messages')
         .insert([
@@ -195,7 +202,7 @@ const MessageCenter = () => {
             sender_id: currentUser.id,
             recipient_id: activeConversation.otherUserId,
             product_id: activeConversation.productId,
-            order_item_id: activeConversation.orderItemId,
+            order_item_id: orderItem?.id,
             order_id: activeConversation.orderId,
             message: replyText.trim(),
             sender_name: senderName,
