@@ -13,6 +13,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [bannerDeleted, setBannerDeleted] = useState(false); // Track if banner was deleted
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const fileInputRef = useRef(null);
@@ -55,6 +56,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
       setImageFile(file);
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
+      setBannerDeleted(false); // Reset deletion flag when new image is selected
     }
   };
 
@@ -89,6 +91,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
         setImageFile(file);
         const objectUrl = URL.createObjectURL(file);
         setPreviewUrl(objectUrl);
+        setBannerDeleted(false); // Reset deletion flag
       } else {
         shopToasts.imageTypeError();
       }
@@ -103,7 +106,13 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   // Remove selected image
   const removeImage = () => {
     setImageFile(null);
-    setPreviewUrl(shopData?.banner_url || null);
+    setPreviewUrl(null);
+    setBannerDeleted(true); // Mark banner as deleted
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Upload banner image to Supabase
@@ -141,11 +150,17 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
         return;
       }
 
-      // Upload banner image if provided
+      // Determine banner URL based on user actions
       let bannerUrl = shopData?.banner_url;
+      
       if (imageFile) {
+        // User selected a new image
         bannerUrl = await uploadBannerImage(imageFile);
+      } else if (bannerDeleted) {
+        // User deleted the banner
+        bannerUrl = null;
       }
+      // Otherwise keep existing banner_url
 
       // Parse business hours if provided as string
       let businessHours = data.businessHours;
@@ -181,6 +196,10 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
       if (error) throw error;
 
       shopToasts.updateSuccess();
+      
+      // Reset deletion flag after successful update
+      setBannerDeleted(false);
+      
       onUpdate?.();
     } catch (error) {
       console.error('Error updating shop:', error);
