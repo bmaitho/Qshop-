@@ -91,7 +91,6 @@ const App = () => {
       <Route path="/product/:id" element={<ProductDetails token={token} />} />
       <Route path="/myshop" element={<MyShop token={token} />} />
       <Route path="/cart" element={<Cart token={token} />} />
-      <Route path="/seller/:id" element={<SellerProfile />} />
       <Route path="/wishlist" element={<Wishlist token={token} />} />
       <Route path="/profile" element={<Profile token={token} />} />
       <Route path="/category/:categoryName" element={<CategoryPage token={token} />} />
@@ -99,6 +98,7 @@ const App = () => {
       <Route path="/order-confirmation/:orderId" element={<OrderConfirmation />} />
       <Route path="/orders/:orderId" element={<OrderDetails />} />
       <Route path="/seller/orders/:id" element={<SellerOrderDetail />} />
+      <Route path="/seller/:id" element={<SellerProfile />} />
       <Route path="/subscription" element={<SubscriptionPage />} />
       <Route path="/admin/codes" element={<WholesalerCodes />} />
       <Route path="*" element={<Navigate to="/home" replace />} />

@@ -194,12 +194,12 @@ const SellerProfile = () => {
                   </div>
                 )}
                 
-                {shop?.preferred_contact && (
+                {/* {shop?.preferred_contact && (
                   <div className="flex items-center gap-2 justify-center md:justify-start text-sm text-gray-600 dark:text-gray-300 mb-1">
                     <Phone className="w-4 h-4 text-gray-500" />
                     <span>{shop.preferred_contact}</span>
                   </div>
-                )}
+                )} */}
                 
                 {seller?.email && (
                   <div className="flex items-center gap-2 justify-center md:justify-start text-sm text-gray-600 dark:text-gray-300">
