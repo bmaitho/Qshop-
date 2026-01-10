@@ -353,30 +353,30 @@ const SellerOrders = () => {
             )}
 
             {/* Ready to Ship */}
-            {urgency.level === 'ready' && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-green-600">
-                    <Zap className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-green-300">✅ Ready to Ship!</h4>
-                    <p className="text-sm text-green-400">
-                      Buyer confirmed - you can mark this as shipped
-                    </p>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  size="sm"
-                >
-                  <Truck className="h-4 w-4 mr-2" />
-                  Ship Now
-                </Button>
-              </div>
-            )}
+{urgency.level === 'ready' && (
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <div className="p-2 rounded-full bg-green-600">
+        <Zap className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">✅ Ready to Ship!</h4>
+        <p className="text-sm text-gray-200">
+          Buyer confirmed - you can mark this as shipped
+        </p>
+      </div>
+    </div>
+    
+    <Button
+      onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
+      className="bg-green-600 hover:bg-green-700 text-white"
+      size="sm"
+    >
+      <Truck className="h-4 w-4 mr-2" />
+      Ship Now
+    </Button>
+  </div>
+)}
 
             {/* Waiting for Response */}
             {urgency.level === 'waiting' && (
@@ -448,7 +448,7 @@ const SellerOrders = () => {
         <div>
           <h2 className="text-3xl font-bold text-gray-100">Order Management</h2>
           <p className="text-emerald-400 mt-1">
-            Track and manage your sales with smart priority sorting
+            Track and manage your sales 
           </p>
         </div>
         
