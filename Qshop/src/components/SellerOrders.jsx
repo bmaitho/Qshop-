@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../components/SupabaseClient';
@@ -141,7 +140,7 @@ const SellerOrders = () => {
       return { level: 'waiting', label: 'WAITING', color: 'bg-blue-500', pulse: false };
     }
     
-    return { level: 'normal', label: 'NORMAL', color: 'bg-gray-500', pulse: false };
+    return { level: 'normal', label: 'NORMAL', color: 'bg-emerald-700', pulse: false };
   };
 
   const renderOrderCard = (orderItem) => {
@@ -170,31 +169,31 @@ const SellerOrders = () => {
     };
     
     return (
-      <Card 
-        key={orderItem.id} 
-        className={`mb-4 transition-all duration-200 hover:shadow-lg hover:scale-[1.01] border-l-4 ${
-          urgency.level === 'critical' ? 'border-l-red-600 bg-red-50/50' :
-          urgency.level === 'high' ? 'border-l-orange-500 bg-orange-50/50' :
-          urgency.level === 'medium' ? 'border-l-yellow-500 bg-yellow-50/50' :
-          urgency.level === 'ready' ? 'border-l-green-600 bg-green-50/50' :
-          urgency.level === 'waiting' ? 'border-l-blue-500 bg-blue-50/50' :
-          'border-l-gray-300'
-        }`}
-      >
+              <Card 
+  key={orderItem.id} 
+  className={`mb-4 transition-all duration-200 hover:shadow-lg hover:scale-[1.01] bg-emerald-950/30 dark:bg-emerald-950/50 ${
+    urgency.level === 'critical' ? 'bg-red-900/20' :
+    urgency.level === 'high' ? 'bg-orange-900/20' :
+    urgency.level === 'medium' ? 'bg-yellow-900/20' :
+    urgency.level === 'ready' ? 'bg-green-900/20' :
+    urgency.level === 'waiting' ? 'bg-blue-900/20' :
+    ''
+  }`}
+>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               {/* Product Image Placeholder */}
-              <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-gray-500" />
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-lg flex items-center justify-center">
+                <Package className="h-6 w-6 text-emerald-300" />
               </div>
               
               <div>
-                <h3 className="font-semibold text-lg text-gray-900">
+                <h3 className="font-semibold text-lg text-gray-100">
                   {orderItem.products?.name || 'Unknown Product'}
                 </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Badge variant="outline" className="text-xs border-emerald-700 text-emerald-300">
                     {getStatusIcon()}
                     <span className="ml-1 capitalize">{orderItem.status}</span>
                   </Badge>
@@ -214,7 +213,7 @@ const SellerOrders = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-emerald-300 hover:text-emerald-100 hover:bg-emerald-800/50"
               >
                 <FileText className="h-4 w-4" />
               </Button>
@@ -228,7 +227,7 @@ const SellerOrders = () => {
                   buttonText=""
                   buttonVariant="ghost"
                   buttonSize="sm"
-                  buttonClassName="text-blue-600 hover:text-blue-900 p-2"
+                  buttonClassName="text-blue-400 hover:text-blue-300 hover:bg-emerald-800/50 p-2"
                   productName={orderItem.products?.name}
                 />
               )}
@@ -240,36 +239,36 @@ const SellerOrders = () => {
           {/* Order Details Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-600" />
+              <DollarSign className="h-4 w-4 text-green-400" />
               <div>
-                <p className="text-xs text-gray-500">Value</p>
-                <p className="font-semibold">KES {orderItem.subtotal}</p>
+                <p className="text-xs text-emerald-400">Value</p>
+                <p className="font-semibold text-gray-100">KES {orderItem.subtotal}</p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-600" />
+              <Package className="h-4 w-4 text-blue-400" />
               <div>
-                <p className="text-xs text-gray-500">Quantity</p>
-                <p className="font-semibold">{orderItem.quantity}</p>
+                <p className="text-xs text-emerald-400">Quantity</p>
+                <p className="font-semibold text-gray-100">{orderItem.quantity}</p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-purple-600" />
+              <Calendar className="h-4 w-4 text-purple-400" />
               <div>
-                <p className="text-xs text-gray-500">Age</p>
-                <p className="font-semibold">
+                <p className="text-xs text-emerald-400">Age</p>
+                <p className="font-semibold text-gray-100">
                   {daysSince === 0 ? 'Today' : `${daysSince} days`}
                 </p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-indigo-600" />
+              <User className="h-4 w-4 text-indigo-400" />
               <div>
-                <p className="text-xs text-gray-500">Order ID</p>
-                <p className="font-mono text-xs font-semibold">
+                <p className="text-xs text-emerald-400">Order ID</p>
+                <p className="font-mono text-xs font-semibold text-gray-100">
                   #{orderItem.order_id.slice(-8)}
                 </p>
               </div>
@@ -278,26 +277,26 @@ const SellerOrders = () => {
 
           {/* Action Section */}
           <div className={`p-4 rounded-lg border-2 border-dashed ${
-            urgency.level === 'critical' ? 'border-red-300 bg-red-50' :
-            urgency.level === 'high' ? 'border-orange-300 bg-orange-50' :
-            urgency.level === 'medium' ? 'border-yellow-300 bg-yellow-50' :
-            urgency.level === 'ready' ? 'border-green-300 bg-green-50' :
-            urgency.level === 'waiting' ? 'border-blue-300 bg-blue-50' :
-            'border-gray-300 bg-gray-50'
+            urgency.level === 'critical' ? 'border-red-400 bg-red-950/40' :
+            urgency.level === 'high' ? 'border-orange-400 bg-orange-950/40' :
+            urgency.level === 'medium' ? 'border-yellow-400 bg-yellow-950/40' :
+            urgency.level === 'ready' ? 'border-green-400 bg-green-950/40' :
+            urgency.level === 'waiting' ? 'border-blue-400 bg-blue-950/40' :
+            'border-emerald-600 bg-emerald-950/40'
           }`}>
             
             {/* Critical/High Urgency */}
             {(urgency.level === 'critical' || urgency.level === 'high') && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-full ${urgency.level === 'critical' ? 'bg-red-600' : 'bg-orange-500'}`}>
                     <Flame className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h4 className={`font-semibold ${urgency.level === 'critical' ? 'text-red-800' : 'text-orange-800'}`}>
+                    <h4 className={`font-semibold ${urgency.level === 'critical' ? 'text-red-300' : 'text-orange-300'}`}>
                       {urgency.level === 'critical' ? '🚨 URGENT: Contact Buyer Now!' : '⚡ High Priority Order'}
                     </h4>
-                    <p className={`text-sm ${urgency.level === 'critical' ? 'text-red-600' : 'text-orange-600'}`}>
+                    <p className={`text-sm ${urgency.level === 'critical' ? 'text-red-400' : 'text-orange-400'}`}>
                       {urgency.level === 'critical' 
                         ? `This order is ${daysSince} days old and needs immediate attention!`
                         : `Order placed ${daysSince} days ago - contact buyer soon`
@@ -324,14 +323,14 @@ const SellerOrders = () => {
 
             {/* Medium Urgency */}
             {urgency.level === 'medium' && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-yellow-500">
                     <Timer className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-yellow-800">Contact Buyer Today</h4>
-                    <p className="text-sm text-yellow-600">
+                    <h4 className="font-semibold text-yellow-300">Contact Buyer Today</h4>
+                    <p className="text-sm text-yellow-400">
                       Order from yesterday - reach out to arrange shipping
                     </p>
                   </div>
@@ -355,14 +354,14 @@ const SellerOrders = () => {
 
             {/* Ready to Ship */}
             {urgency.level === 'ready' && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-green-600">
                     <Zap className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-green-800">✅ Ready to Ship!</h4>
-                    <p className="text-sm text-green-600">
+                    <h4 className="font-semibold text-green-300">✅ Ready to Ship!</h4>
+                    <p className="text-sm text-green-400">
                       Buyer confirmed - you can mark this as shipped
                     </p>
                   </div>
@@ -381,14 +380,14 @@ const SellerOrders = () => {
 
             {/* Waiting for Response */}
             {urgency.level === 'waiting' && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-blue-500">
                     <Clock className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-blue-800">Waiting for Buyer</h4>
-                    <p className="text-sm text-blue-600">
+                    <h4 className="font-semibold text-blue-300">Waiting for Buyer</h4>
+                    <p className="text-sm text-blue-400">
                       Message sent - waiting for buyer confirmation
                     </p>
                   </div>
@@ -398,7 +397,7 @@ const SellerOrders = () => {
                   onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
                   variant="outline"
                   size="sm"
-                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                  className="border-blue-400 text-blue-300 hover:bg-blue-950/50"
                 >
                   View Details
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -408,14 +407,14 @@ const SellerOrders = () => {
 
             {/* Normal/Shipped/Delivered */}
             {['normal', 'shipped', 'delivered'].includes(urgency.level) && (
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-gray-500">
+                  <div className="p-2 rounded-full bg-emerald-700">
                     {getStatusIcon()}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-800 capitalize">{orderItem.status}</h4>
-                    <p className="text-sm text-gray-600">
+                    <h4 className="font-semibold text-emerald-300 capitalize">{orderItem.status}</h4>
+                    <p className="text-sm text-emerald-400">
                       {orderItem.status === 'delivered' ? 'Order completed successfully' :
                        orderItem.status === 'shipped' ? 'Package in transit' :
                        'New order - contact buyer to arrange shipping'}
@@ -427,6 +426,7 @@ const SellerOrders = () => {
                   onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
                   variant="outline"
                   size="sm"
+                  className="border-emerald-600 text-emerald-300 hover:bg-emerald-900/50"
                 >
                   View Details
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -446,21 +446,21 @@ const SellerOrders = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Order Management</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-3xl font-bold text-gray-100">Order Management</h2>
+          <p className="text-emerald-400 mt-1">
             Track and manage your sales with smart priority sorting
           </p>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-500">
-            <span className="font-semibold text-gray-700">{orders.length}</span> total orders
+          <div className="text-sm text-emerald-400">
+            <span className="font-semibold text-gray-100">{orders.length}</span> total orders
           </div>
           
           {counts.urgent > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-100 rounded-full">
-              <Flame className="h-4 w-4 text-red-600" />
-              <span className="text-sm font-medium text-red-800">
+            <div className="flex items-center gap-2 px-3 py-1 bg-red-900/40 rounded-full border border-red-600">
+              <Flame className="h-4 w-4 text-red-400" />
+              <span className="text-sm font-medium text-red-300">
                 {counts.urgent} urgent
               </span>
             </div>
@@ -471,82 +471,84 @@ const SellerOrders = () => {
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500 h-4 w-4" />
           <Input
             placeholder="Search by order ID or product name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-emerald-950/50 border-emerald-700 text-gray-100 placeholder:text-emerald-600"
           />
         </div>
-        <Button type="submit" variant="outline">
+        <Button type="submit" variant="outline" className="border-emerald-700 text-emerald-300 hover:bg-emerald-900/50">
           Search
         </Button>
       </form>
 
-      {/* Smart Tabs */}
+      {/* Smart Tabs - Mobile Responsive */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="all" className="flex items-center gap-1">
-            <Package className="h-3 w-3" />
-            All
-            {counts.all > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs">
-                {counts.all}
-              </Badge>
-            )}
-          </TabsTrigger>
-          
-          <TabsTrigger value="urgent" className="flex items-center gap-1">
-            <Flame className="h-3 w-3" />
-            Urgent
-            {counts.urgent > 0 && (
-              <Badge variant="destructive" className="ml-1 text-xs animate-pulse">
-                {counts.urgent}
-              </Badge>
-            )}
-          </TabsTrigger>
-          
-          <TabsTrigger value="ready" className="flex items-center gap-1">
-            <Zap className="h-3 w-3" />
-            Ready
-            {counts.ready > 0 && (
-              <Badge className="ml-1 text-xs bg-green-600">
-                {counts.ready}
-              </Badge>
-            )}
-          </TabsTrigger>
-          
-          <TabsTrigger value="new" className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Processing
-            {counts.new > 0 && (
-              <Badge variant="secondary" className="ml-1 text-xs">
-                {counts.new}
-              </Badge>
-            )}
-          </TabsTrigger>
-          
-          <TabsTrigger value="shipped" className="flex items-center gap-1">
-            <Truck className="h-3 w-3" />
-            Shipped
-            {counts.shipped > 0 && (
-              <Badge variant="outline" className="ml-1 text-xs">
-                {counts.shipped}
-              </Badge>
-            )}
-          </TabsTrigger>
-          
-          <TabsTrigger value="delivered" className="flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
-            Delivered
-            {counts.delivered > 0 && (
-              <Badge variant="outline" className="ml-1 text-xs">
-                {counts.delivered}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 pb-2">
+          <TabsList className="inline-flex min-w-full md:grid md:grid-cols-6 w-full bg-emerald-950/50">
+            <TabsTrigger value="all" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-emerald-800 data-[state=active]:text-emerald-100 text-emerald-400">
+              <Package className="h-3 w-3" />
+              <span className="hidden sm:inline">All</span>
+              {counts.all > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs bg-emerald-700 text-emerald-100">
+                  {counts.all}
+                </Badge>
+              )}
+            </TabsTrigger>
+            
+            <TabsTrigger value="urgent" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-red-900/50 data-[state=active]:text-red-100 text-emerald-400">
+              <Flame className="h-3 w-3" />
+              <span className="hidden sm:inline">Urgent</span>
+              {counts.urgent > 0 && (
+                <Badge variant="destructive" className="ml-1 text-xs animate-pulse">
+                  {counts.urgent}
+                </Badge>
+              )}
+            </TabsTrigger>
+            
+            <TabsTrigger value="ready" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-green-900/50 data-[state=active]:text-green-100 text-emerald-400">
+              <Zap className="h-3 w-3" />
+              <span className="hidden sm:inline">Ready</span>
+              {counts.ready > 0 && (
+                <Badge className="ml-1 text-xs bg-green-600">
+                  {counts.ready}
+                </Badge>
+              )}
+            </TabsTrigger>
+            
+            <TabsTrigger value="new" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-emerald-800 data-[state=active]:text-emerald-100 text-emerald-400">
+              <Clock className="h-3 w-3" />
+              <span className="hidden sm:inline">Processing</span>
+              {counts.new > 0 && (
+                <Badge variant="secondary" className="ml-1 text-xs bg-emerald-700 text-emerald-100">
+                  {counts.new}
+                </Badge>
+              )}
+            </TabsTrigger>
+            
+            <TabsTrigger value="shipped" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-emerald-800 data-[state=active]:text-emerald-100 text-emerald-400">
+              <Truck className="h-3 w-3" />
+              <span className="hidden sm:inline">Shipped</span>
+              {counts.shipped > 0 && (
+                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-emerald-300">
+                  {counts.shipped}
+                </Badge>
+              )}
+            </TabsTrigger>
+            
+            <TabsTrigger value="delivered" className="flex items-center gap-1 whitespace-nowrap data-[state=active]:bg-emerald-800 data-[state=active]:text-emerald-100 text-emerald-400">
+              <CheckCircle className="h-3 w-3" />
+              <span className="hidden sm:inline">Delivered</span>
+              {counts.delivered > 0 && (
+                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-emerald-300">
+                  {counts.delivered}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Tab Content */}
         {['all', 'urgent', 'ready', 'new', 'shipped', 'delivered'].map((status) => (
@@ -554,23 +556,23 @@ const SellerOrders = () => {
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <Card key={i}>
+                  <Card key={i} className="bg-emerald-950/30">
                     <CardContent className="p-6">
                       <div className="animate-pulse">
-                        <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                        <div className="h-6 bg-emerald-800/50 rounded w-1/3 mb-4"></div>
+                        <div className="h-4 bg-emerald-800/50 rounded w-1/2 mb-2"></div>
+                        <div className="h-4 bg-emerald-800/50 rounded w-1/4"></div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : orders.length === 0 ? (
-              <Card>
+              <Card className="bg-emerald-950/30 border-emerald-700">
                 <CardContent className="p-12 text-center">
-                  <Package className="h-16 w-16 text-gray-400 mx-auto mb-6" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No orders found</h3>
-                  <p className="text-gray-500 max-w-md mx-auto">
+                  <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
+                  <p className="text-emerald-400 max-w-md mx-auto">
                     {status === 'all' && 'You have no orders yet. Once customers start buying, they\'ll appear here.'}
                     {status === 'urgent' && 'No urgent orders! All your orders are up to date.'}
                     {status === 'ready' && 'No orders ready to ship right now.'}
@@ -584,15 +586,15 @@ const SellerOrders = () => {
               <div className="space-y-4">
                 {/* Priority Banners */}
                 {status === 'urgent' && orders.filter(o => !o.buyer_contacted && o.status === 'processing').length > 0 && (
-                  <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+                  <Card className="border-red-600 bg-gradient-to-r from-red-950/50 to-orange-950/50">
                     <CardContent className="p-6">
                       <div className="flex items-center gap-4">
                         <div className="p-3 rounded-full bg-red-600">
                           <Flame className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-red-800 text-lg">🚨 Urgent Action Required</h4>
-                          <p className="text-red-700 mt-1">
+                          <h4 className="font-bold text-red-300 text-lg">🚨 Urgent Action Required</h4>
+                          <p className="text-red-400 mt-1">
                             You have {orders.filter(o => !o.buyer_contacted && o.status === 'processing').length} orders 
                             waiting for buyer contact. Quick response improves customer satisfaction!
                           </p>
@@ -603,15 +605,15 @@ const SellerOrders = () => {
                 )}
                 
                 {status === 'ready' && orders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length > 0 && (
-                  <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                  <Card className="border-green-600 bg-gradient-to-r from-green-950/50 to-emerald-950/50">
                     <CardContent className="p-6">
                       <div className="flex items-center gap-4">
                         <div className="p-3 rounded-full bg-green-600">
                           <Zap className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-green-800 text-lg">✅ Ready to Ship!</h4>
-                          <p className="text-green-700 mt-1">
+                          <h4 className="font-bold text-green-300 text-lg">✅ Ready to Ship!</h4>
+                          <p className="text-green-400 mt-1">
                             {orders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length} orders 
                             are confirmed and ready for shipping. Mark them as shipped once sent!
                           </p>
