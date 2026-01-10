@@ -38,6 +38,13 @@ const getDisplayCategory = (category) => {
   return "Other";
 };
 
+// Helper function to truncate description to 3 words
+const truncateToThreeWords = (text) => {
+  if (!text) return "";
+  const words = text.trim().split(/\s+/);
+  return words.slice(0, 3).join(' ') + (words.length > 3 ? '...' : '');
+};
+
 const ProductCard = ({ 
   product, 
   isOwner = false, 
@@ -259,24 +266,18 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Description - consistent 2-line limit */}
-        <p className="text-xs text-primary/70 dark:text-gray-300 line-clamp-2 mb-3">
-          {product.description || "No description available"}
+        {/* Description - truncated to 3 words */}
+        <p className="text-xs text-primary/70 dark:text-gray-300 mb-3">
+          {truncateToThreeWords(product.description) || "No description available"}
         </p>
         
-        {/* Tags section with icons */}
+        {/* Tags section - condition only */}
         <div className="mb-3">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-1">
-              <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400" />
-              <span className="text-xs text-primary/70 dark:text-gray-400">
-                {product.condition}
-              </span>
-            </div>
-            
-            <Badge variant="outline" className="text-xs">
-              {displayCategory}
-            </Badge>
+          <div className="flex items-center gap-1 mb-2">
+            <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400" />
+            <span className="text-xs text-primary/70 dark:text-gray-400">
+              {product.condition}
+            </span>
           </div>
           
           {product.location && (

@@ -1,12 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { User, MapPin, MessageCircle, Package, Heart, ShoppingBag, Plus, ShoppingCart, Settings, History, Crown } from 'lucide-react';
+import { User, MapPin, MessageCircle, Package, Heart, ShoppingBag, Plus, Settings, History, Save, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from '../components/SupabaseClient';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import { productToasts, wishlistToasts } from '../utils/toastConfig';
 import 'react-toastify/dist/ReactToastify.css';
 import ProductCard from './ProductCard';
@@ -24,8 +34,16 @@ const Profile = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isSeller, setIsSeller] = useState(false);
   const [activeTab, setActiveTab] = useState('');
-  const [isPro, setIsPro] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const location = useLocation();
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    campus_location: '',
+    phone: ''
+  });
 
   useEffect(() => {
     fetchUserData();
@@ -87,18 +105,15 @@ const Profile = () => {
         // Use the first profile if multiple exist
         profileInfo = profile[0];
         setIsSeller(profileInfo.is_seller === true);
-        
-        // Check if user is Pro
-        setIsPro(profileInfo.is_pro === true);
       } else {
         // No profile exists yet, create a default profile object
         profileInfo = {
           id: user.id,
           full_name: user.user_metadata?.full_name || 'User',
           campus_location: user.user_metadata?.campus_location || 'Not specified',
+          phone: '',
           created_at: new Date().toISOString(),
-          is_seller: user.user_metadata?.is_seller || false,
-          is_pro: false
+          is_seller: user.user_metadata?.is_seller || false
         };
         
         setIsSeller(profileInfo.is_seller === true);
@@ -132,6 +147,13 @@ const Profile = () => {
         email: user.email,
         listings: listingsCount.count || 0,
         wishlist: wishlistCount.count || 0
+      });
+
+      // Initialize edit form with current data
+      setEditForm({
+        full_name: profileInfo.full_name || '',
+        campus_location: profileInfo.campus_location || '',
+        phone: profileInfo.phone || ''
       });
     } catch (error) {
       console.error('Error in profile data flow:', error);
@@ -192,13 +214,13 @@ const Profile = () => {
       if (!user) return;
       
       const { data, error } = await supabase
-        .from('cart')  // Replace with your orders table if you have one
+        .from('cart')
         .select(`
           *,
           products (*)
         `)
         .eq('user_id', user.id)
-        .eq('status', 'completed')  // Adjust based on your data structure
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -207,6 +229,64 @@ const Profile = () => {
     } catch (error) {
       console.error('Error fetching orders:', error);
     }
+  };
+
+  const handleEditProfile = () => {
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setIsSaving(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
+      // Validate input
+      if (!editForm.full_name.trim()) {
+        toast.error('Name cannot be empty');
+        return;
+      }
+
+      // Update profile in database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.full_name.trim(),
+          campus_location: editForm.campus_location.trim(),
+          phone: editForm.phone.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setProfileData(prev => ({
+        ...prev,
+        full_name: editForm.full_name.trim(),
+        campus_location: editForm.campus_location.trim(),
+        phone: editForm.phone.trim()
+      }));
+
+      toast.success('Profile updated successfully!');
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   if (loading) {
@@ -248,6 +328,72 @@ const Profile = () => {
       <Navbar />
       <div className={`max-w-6xl mx-auto px-4 py-8 ${isMobile ? 'mt-12 mb-16' : ''}`}>
         <ToastContainer />
+        
+        {/* Edit Profile Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Update your profile information below
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="full_name">Full Name *</Label>
+                <Input
+                  id="full_name"
+                  name="full_name"
+                  value={editForm.full_name}
+                  onChange={handleInputChange}
+                  placeholder="Enter your full name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="campus_location">Campus Location</Label>
+                <Input
+                  id="campus_location"
+                  name="campus_location"
+                  value={editForm.campus_location}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Main Campus, East Campus"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={editForm.phone}
+                  onChange={handleInputChange}
+                  placeholder="e.g., +254 700 000000"
+                />
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isSaving}
+              >
+                <X className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveProfile}
+                disabled={isSaving}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Card className="mb-6">
           <CardContent className={`p-4 md:p-6 ${isMobile ? 'flex flex-col items-center' : ''}`}>
             <div className={`${isMobile ? 'flex flex-col items-center text-center' : 'flex items-start gap-6'}`}>
@@ -256,10 +402,16 @@ const Profile = () => {
               </div>
               <div className={`${isMobile ? 'text-center' : 'flex-1'}`}>
                 <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{profileData.full_name}</h1>
-                <div className={`${isMobile ? 'justify-center' : ''} flex items-center gap-2 text-gray-600 mb-4`}>
+                <div className={`${isMobile ? 'justify-center' : ''} flex items-center gap-2 text-gray-600 mb-2`}>
                   <MapPin className="w-4 h-4" />
                   <span>{profileData.campus_location}</span>
                 </div>
+                
+                {profileData.phone && (
+                  <div className="text-sm text-gray-600 mb-4">
+                    📞 {profileData.phone}
+                  </div>
+                )}
                 
                 {/* Different profile stats based on seller status */}
                 <div className={`${isMobile ? 'justify-center' : ''} flex gap-6 mb-4`}>
@@ -275,19 +427,23 @@ const Profile = () => {
                   </div>
                   <div className="text-center">
                     <div className="font-bold text-orange-600">
-                      {isSeller ? (isPro ? "Pro Seller" : "Seller") : "Buyer"}
+                      {isSeller ? "Seller" : "Buyer"}
                     </div>
                     <div className="text-sm text-gray-600">Account Type</div>
                   </div>
                 </div>
                 
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 mb-4">
                   Member since {new Date(profileData.created_at).toLocaleDateString()}
                 </div>
                 
                 {/* Quick actions */}
                 <div className="mt-4 space-x-2">
-                  <Button variant="outline" size={isMobile ? "sm" : "default"}>
+                  <Button 
+                    variant="outline" 
+                    size={isMobile ? "sm" : "default"}
+                    onClick={handleEditProfile}
+                  >
                     <Settings className="w-4 h-4 mr-1" /> Edit Profile
                   </Button>
                   
@@ -295,18 +451,6 @@ const Profile = () => {
                     <Button variant="outline" size={isMobile ? "sm" : "default"}>
                       Become a Seller
                     </Button>
-                  )}
-                                  
-                  {!isPro && (
-                    <Link to="/subscription">
-                      <Button 
-                        variant="default" 
-                        size={isMobile ? "sm" : "default"}
-                        className="bg-[#E7C65F] text-[#113b1e] hover:bg-[#E7C65F]/90 font-medium"
-                      >
-                        <Crown className="w-4 h-4 mr-1" /> Go Pro
-                      </Button>
-                    </Link>
                   )}
                 </div>
               </div>

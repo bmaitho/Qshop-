@@ -10,6 +10,22 @@ import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 import MessageDialog from './MessageDialog';
 
+// Helper function to determine if a string is a UUID
+const isUUID = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
+// Helper function to get display category name
+const getDisplayCategory = (category) => {
+  if (!category) return "Other";
+  if (typeof category === 'string') {
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  }
+  return "Other";
+};
+
 const ProductDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -161,6 +177,10 @@ const ProductDetails = () => {
     }
   };
 
+  // Get the display category, prioritizing display_category or properly formatted category
+  const displayCategory = product?.display_category || 
+    (isUUID(product?.category) ? "Other" : getDisplayCategory(product?.category));
+
   if (loading) {
     return (
       <>
@@ -238,11 +258,11 @@ const ProductDetails = () => {
               </p>
             </div>
 
-            {/* Category */}
+            {/* Category - Fixed to show proper display name */}
             {product.category && (
               <div>
                 <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
-                  {product.category}
+                  {displayCategory}
                 </Badge>
               </div>
             )}

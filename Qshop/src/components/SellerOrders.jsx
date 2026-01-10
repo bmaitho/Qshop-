@@ -542,7 +542,7 @@ const SellerOrders = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500 h-4 w-4" />
           <Input
-            placeholder="Search by order ID or product name..."
+            placeholder="Search by order ID"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 bg-emerald-950/50 border-emerald-700 text-gray-100 placeholder:text-emerald-600"
