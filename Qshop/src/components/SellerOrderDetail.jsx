@@ -87,6 +87,28 @@ const SellerOrderDetail = () => {
     }
   };
 
+
+  const handleConfirmBuyerAgreement = async () => {
+  try {
+    setUpdateInProgress(true);
+    
+    const { error } = await supabase
+      .from('order_items')
+      .update({ buyer_agreed: true })
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    toast.success('Buyer agreement confirmed! You can now ship the order.');
+    fetchOrderDetails(); // Refresh data
+    
+  } catch (error) {
+    console.error('Error updating buyer agreement:', error);
+    toast.error('Failed to confirm agreement');
+  } finally {
+    setUpdateInProgress(false);
+  }
+};
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
@@ -431,11 +453,27 @@ const SellerOrderDetail = () => {
               {sendingMessage ? 'Sending...' : 'Send Message'}
             </Button>
 
-            {orderItem.buyer_contacted && !orderItem.buyer_agreed && (
-              <p className="text-sm text-blue-600 text-center">
-                Waiting for buyer confirmation...
-              </p>
-            )}
+              {orderItem.buyer_contacted && !orderItem.buyer_agreed && (
+  <>
+    <p className="text-sm text-blue-600 text-center">
+      Waiting for buyer confirmation...
+    </p>
+    <div className="pt-2">
+      <p className="text-xs text-gray-600 mb-2 text-center">
+        Once the buyer agrees to pickup/delivery in messages:
+      </p>
+      <Button 
+        onClick={handleConfirmBuyerAgreement}
+        disabled={updateInProgress}
+        variant="outline"
+        className="w-full"
+      >
+        <CheckCircle className="h-4 w-4 mr-2" />
+        Confirm Buyer Has Agreed
+      </Button>
+    </div>
+  </>
+)}
           </CardContent>
         </Card>
       )}
