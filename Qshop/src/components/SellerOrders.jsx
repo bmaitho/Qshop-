@@ -378,61 +378,130 @@ const SellerOrders = () => {
   </div>
 )}
 
-            {/* Waiting for Response */}
-            {urgency.level === 'waiting' && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-blue-500">
-                    <Clock className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-blue-300">Waiting for Buyer</h4>
-                    <p className="text-sm text-blue-400">
-                      Message sent - waiting for buyer confirmation
-                    </p>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-400 text-blue-300 hover:bg-blue-950/50"
-                >
-                  View Details
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            )}
+         {/* Critical/High Urgency */}
+{(urgency.level === 'critical' || urgency.level === 'high') && (
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <div className={`p-2 rounded-full ${urgency.level === 'critical' ? 'bg-red-600' : 'bg-orange-500'}`}>
+        <Flame className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">
+          {urgency.level === 'critical' ? '🚨 URGENT: Contact Buyer Now!' : '⚡ High Priority Order'}
+        </h4>
+        <p className="text-sm text-yellow-300">
+          {urgency.level === 'critical' 
+            ? `This order is ${daysSince} days old and needs immediate attention!`
+            : `Order placed ${daysSince} days ago - contact buyer soon`
+          }
+        </p>
+      </div>
+    </div>
+    
+    {buyerUserId && (
+      <MessageDialog 
+        recipientId={buyerUserId}
+        productId={orderItem.product_id}
+        orderId={orderItem.order_id}
+        orderItemId={orderItem.id}
+        buttonText="Contact Now"
+        buttonVariant="default"
+        buttonSize="sm"
+        buttonClassName={`${urgency.level === 'critical' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-500 hover:bg-orange-600'} text-white font-medium`}
+        productName={orderItem.products?.name}
+      />
+    )}
+  </div>
+)}
 
-            {/* Normal/Shipped/Delivered */}
-            {['normal', 'shipped', 'delivered'].includes(urgency.level) && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-full bg-emerald-700">
-                    {getStatusIcon()}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-emerald-300 capitalize">{orderItem.status}</h4>
-                    <p className="text-sm text-emerald-400">
-                      {orderItem.status === 'delivered' ? 'Order completed successfully' :
-                       orderItem.status === 'shipped' ? 'Package in transit' :
-                       'New order - contact buyer to arrange shipping'}
-                    </p>
-                  </div>
-                </div>
-                
-                <Button
-                  onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
-                  variant="outline"
-                  size="sm"
-                  className="border-emerald-600 text-emerald-300 hover:bg-emerald-900/50"
-                >
-                  View Details
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            )}
+{/* Medium Urgency */}
+{urgency.level === 'medium' && (
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <div className="p-2 rounded-full bg-yellow-500">
+        <Timer className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">Contact Buyer Today</h4>
+        <p className="text-sm text-yellow-300">
+          Order from yesterday - reach out to arrange shipping
+        </p>
+      </div>
+    </div>
+    
+    {buyerUserId && (
+      <MessageDialog 
+        recipientId={buyerUserId}
+        productId={orderItem.product_id}
+        orderId={orderItem.order_id}
+        orderItemId={orderItem.id}
+        buttonText="Contact Buyer"
+        buttonVariant="default"
+        buttonSize="sm"
+        buttonClassName="bg-yellow-500 hover:bg-yellow-600 text-white"
+        productName={orderItem.products?.name}
+      />
+    )}
+  </div>
+)}
+
+
+
+{/* Waiting for Response */}
+{urgency.level === 'waiting' && (
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <div className="p-2 rounded-full bg-blue-500">
+        <Clock className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <h4 className="font-semibold text-white">Waiting for Buyer</h4>
+        <p className="text-sm text-yellow-300">
+          Message sent - waiting for buyer confirmation
+        </p>
+      </div>
+    </div>
+    
+    <Button
+      onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
+      variant="outline"
+      size="sm"
+      className="border-blue-400 text-blue-300 hover:bg-blue-950/50"
+    >
+      View Details
+      <ArrowRight className="h-4 w-4 ml-2" />
+    </Button>
+  </div>
+)}
+
+{/* Normal/Shipped/Delivered */}
+{['normal', 'shipped', 'delivered'].includes(urgency.level) && (
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <div className="p-2 rounded-full bg-emerald-700">
+        {getStatusIcon()}
+      </div>
+      <div>
+        <h4 className="font-semibold text-white capitalize">{orderItem.status}</h4>
+        <p className="text-sm text-yellow-300">
+          {orderItem.status === 'delivered' ? 'Order completed successfully' :
+           orderItem.status === 'shipped' ? 'Package in transit' :
+           'New order - contact buyer to arrange shipping'}
+        </p>
+      </div>
+    </div>
+    
+    <Button
+      onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
+      variant="outline"
+      size="sm"
+      className="border-emerald-600 text-emerald-300 hover:bg-emerald-900/50"
+    >
+      View Details
+      <ArrowRight className="h-4 w-4 ml-2" />
+    </Button>
+  </div>
+)}
           </div>
         </CardContent>
       </Card>
