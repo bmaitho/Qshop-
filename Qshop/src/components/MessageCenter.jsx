@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toastSuccess, toastError } from '../utils/toastConfig';
 import { MessageCircle, Send, User } from 'lucide-react';
+import MessageUniHiveDialog from '../components/MessageUniHiveDialog';
 
 const MessageCenter = () => {
   const [activeTab, setActiveTab] = useState('received');
@@ -152,72 +153,73 @@ const MessageCenter = () => {
   };
 
   const sendReply = async () => {
-  if (!replyText.trim() || !activeConversation || !currentUser || !currentUserProfile) return;
-  
-  try {
-    // ✅ NEW: Fetch order_item_id if this is an order-related conversation
-    let orderItemId = null;
-    if (activeConversation.orderId && activeConversation.productId) {
-      const { data: orderItem } = await supabase
-        .from('order_items')
-        .select('id')
-        .eq('order_id', activeConversation.orderId)
-        .eq('product_id', activeConversation.productId)
+    if (!replyText.trim() || !activeConversation || !currentUser || !currentUserProfile) return;
+    
+    try {
+      // ✅ NEW: Fetch order_item_id if this is an order-related conversation
+      let orderItemId = null;
+      if (activeConversation.orderId && activeConversation.productId) {
+        const { data: orderItem } = await supabase
+          .from('order_items')
+          .select('id')
+          .eq('order_id', activeConversation.orderId)
+          .eq('product_id', activeConversation.productId)
+          .maybeSingle();
+        
+        orderItemId = orderItem?.id || null;
+      }
+      
+      // Fetch the recipient profile...
+      const { data: recipientProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', activeConversation.otherUserId)
         .maybeSingle();
       
-      orderItemId = orderItem?.id || null;
-    }
-    
-    // Fetch the recipient profile...
-    const { data: recipientProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', activeConversation.otherUserId)
-      .maybeSingle();
-    
-    let recipientInfo = {
-      full_name: null,
-      email: null
-    };
-    
-    if (recipientProfile) {
-      recipientInfo = recipientProfile;
-    }
+      let recipientInfo = {
+        full_name: null,
+        email: null
+      };
       
-    const senderName = currentUserProfile.full_name || currentUser.email || currentUser.id || 'Unknown Sender';
-    const recipientName = recipientInfo.full_name || 
-                          recipientInfo.email || 
-                          activeConversation.otherUserName || 
-                          activeConversation.otherUserId || 
-                          'Unknown Recipient';
+      if (recipientProfile) {
+        recipientInfo = recipientProfile;
+      }
+        
+      const senderName = currentUserProfile.full_name || currentUser.email || currentUser.id || 'Unknown Sender';
+      const recipientName = recipientInfo.full_name || 
+                            recipientInfo.email || 
+                            activeConversation.otherUserName || 
+                            activeConversation.otherUserId || 
+                            'Unknown Recipient';
 
-    console.log('Sending reply with recipient name:', recipientName);
-    
-    // ✅ UPDATED: Now includes order_item_id
-    const { error: insertError } = await supabase
-      .from('messages')
-      .insert([{
-        sender_id: currentUser.id,
-        recipient_id: activeConversation.otherUserId,
-        product_id: activeConversation.productId,
-        order_id: activeConversation.orderId,
-        order_item_id: orderItemId,  // ✅ ADDED THIS LINE
-        message: replyText.trim(),
-        sender_name: senderName,
-        recipient_name: recipientName
-      }]);
+      console.log('Sending reply with recipient name:', recipientName);
+      
+      // ✅ UPDATED: Now includes order_item_id
+      const { error: insertError } = await supabase
+        .from('messages')
+        .insert([{
+          sender_id: currentUser.id,
+          recipient_id: activeConversation.otherUserId,
+          product_id: activeConversation.productId,
+          order_id: activeConversation.orderId,
+          order_item_id: orderItemId,
+          message: replyText.trim(),
+          sender_name: senderName,
+          recipient_name: recipientName
+        }]);
 
-    if (insertError) throw insertError;
-    
-    // Clear input and refresh conversation
-    setReplyText('');
-    fetchConversationMessages(activeConversation.otherUserId);
-    fetchMessages(activeTab);
-  } catch (error) {
-    console.error('Error sending message:', error);
-    toastError("Failed to send message");
-  }
-};
+      if (insertError) throw insertError;
+      
+      // Clear input and refresh conversation
+      setReplyText('');
+      fetchConversationMessages(activeConversation.otherUserId);
+      fetchMessages(activeTab);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toastError("Failed to send message");
+    }
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleString();
@@ -227,7 +229,18 @@ const MessageCenter = () => {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
       {/* Message List Panel */}
       <div className="md:col-span-1 bg-white dark:bg-gray-800 rounded-lg shadow border border-primary/10 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-primary/10 dark:border-gray-700">
+        {/* Header with Message UniHive Button */}
+        <div className="p-4 border-b border-primary/10 dark:border-gray-700 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-primary dark:text-gray-100">Messages</h2>
+            <MessageUniHiveDialog 
+              buttonText="Contact Us"
+              buttonVariant="outline"
+              buttonSize="sm"
+              buttonClassName="text-xs"
+            />
+          </div>
+          
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="received">Received</TabsTrigger>
