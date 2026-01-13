@@ -634,13 +634,13 @@ const SignUp = () => {
                 <Input
                   name="studentId"
                   type="text"
-                  placeholder="Student ID (Optional)"
+                  placeholder="Student ID (required)"
                   value={formData.studentId}
                   onChange={handleChange}
                   className={`text-gray-900 dark:text-white ${errors.studentId ? "border-red-500" : ""}`}
                 />
                 {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
-                <p className="text-xs text-muted-foreground mt-1">You can add this later in your profile</p>
+               
               </div>
             </TabsContent>
 
