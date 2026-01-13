@@ -766,7 +766,7 @@ const SignUp = () => {
             {/* Document Upload Section */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                {activeTab === 'student' ? 'Student ID Document' : 'Business License'} ()
+                {activeTab === 'student' ? 'Student ID Document' : 'Business License'} (required)
               </label>
               <div
                 className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
