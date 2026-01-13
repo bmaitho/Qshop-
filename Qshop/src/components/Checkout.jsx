@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, PhoneCall, MapPin, Truck, User } from 'lucide-react';
 import { supabase } from '../components/SupabaseClient';
@@ -29,11 +28,8 @@ const Checkout = () => {
   const [pollingActive, setPollingActive] = useState(false);
   const pollingInterval = useRef(null);
 
-  // NEW: Delivery options state
-  const [deliveryOption, setDeliveryOption] = useState('pickup'); // 'pickup' or 'delivery'
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryInstructions, setDeliveryInstructions] = useState('');
-  const [agreedToPickup, setAgreedToPickup] = useState(false);
+  // Delivery agreement state
+  const [agreedToDelivery, setAgreedToDelivery] = useState(false);
 
   // Clean up interval on unmount
   useEffect(() => {
@@ -166,13 +162,8 @@ const Checkout = () => {
       return;
     }
 
-    if (deliveryOption === 'pickup' && !agreedToPickup) {
-      toast.error('Please confirm pickup arrangements');
-      return;
-    }
-
-    if (deliveryOption === 'delivery' && !deliveryAddress.trim()) {
-      toast.error('Please provide a delivery address');
+    if (!agreedToDelivery) {
+      toast.error('Please confirm delivery arrangements');
       return;
     }
     
@@ -180,19 +171,17 @@ const Checkout = () => {
     setPaymentMessage('');
     
     try {
-      // Update order with delivery preferences
+      // Update order with delivery agreement
       const { error: updateError } = await supabase
         .from('orders')
         .update({
-          delivery_option: deliveryOption,
-          delivery_address: deliveryOption === 'delivery' ? deliveryAddress : null,
-          delivery_instructions: deliveryInstructions || null,
+          delivery_option: 'delivery',
           phone_number: phoneNumber
         })
         .eq('id', orderId);
 
       if (updateError) {
-        console.error('Error updating order with delivery info:', updateError);
+        console.error('Error updating order:', updateError);
       }
 
       const response = await initiateMpesaPayment(
@@ -297,7 +286,7 @@ const Checkout = () => {
       <div className="max-w-3xl mx-auto p-4 mt-12">
         <h1 className="text-2xl font-bold mb-6 text-primary dark:text-gray-100">Complete Your Payment</h1>
 
-        {/* ENHANCED: Order Summary with Location Info */}
+        {/* Order Summary with Location Info */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h2>
@@ -320,7 +309,7 @@ const Checkout = () => {
                         Quantity: {item.quantity} × KES {item.price_per_unit?.toLocaleString()}
                       </p>
                       
-                      {/* NEW: Location Information */}
+                      {/* Location Information */}
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                           <MapPin className="w-4 h-4 mr-1 text-gray-500" />
@@ -362,101 +351,30 @@ const Checkout = () => {
           </CardContent>
         </Card>
 
-        {/* NEW: Delivery Options */}
+        {/* Delivery Agreement */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Delivery Options</h2>
+            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Delivery Arrangement</h2>
             
-            <div className="space-y-4">
-              {/* Pickup Option */}
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="pickup"
-                    checked={deliveryOption === 'pickup'}
-                    onCheckedChange={() => setDeliveryOption('pickup')}
-                  />
-                  <div className="flex-1">
-                    <Label htmlFor="pickup" className="text-base font-medium text-primary dark:text-gray-100">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 mr-2" />
-                        Pickup from Seller
-                      </div>
-                    </Label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Arrange to collect the item(s) directly from the seller
-                    </p>
-                  </div>
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center space-x-3">
+                <Checkbox
+                  id="delivery-agreement"
+                  checked={agreedToDelivery}
+                  onCheckedChange={setAgreedToDelivery}
+                />
+                <div className="flex-1">
+                  <Label htmlFor="delivery-agreement" className="text-base font-medium text-primary dark:text-gray-100">
+                    <div className="flex items-center">
+                      <Truck className="w-4 h-4 mr-2" />
+                      Arrange Delivery with Seller
+                    </div>
+                  </Label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    I agree to coordinate delivery details directly with the seller after payment is completed.
+                    The seller will contact me to arrange delivery time and location.
+                  </p>
                 </div>
-                
-                {deliveryOption === 'pickup' && (
-                  <div className="mt-4 pl-7">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="pickup-agreement"
-                        checked={agreedToPickup}
-                        onCheckedChange={setAgreedToPickup}
-                      />
-                      <Label htmlFor="pickup-agreement" className="text-sm text-primary dark:text-gray-200">
-                        I will contact the seller to arrange pickup details
-                      </Label>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Delivery Option */}
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="delivery"
-                    checked={deliveryOption === 'delivery'}
-                    onCheckedChange={() => setDeliveryOption('delivery')}
-                  />
-                  <div className="flex-1">
-                    <Label htmlFor="delivery" className="text-base font-medium text-primary dark:text-gray-100">
-                      <div className="flex items-center">
-                        <Truck className="w-4 h-4 mr-2" />
-                        Arrange Delivery
-                      </div>
-                    </Label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Work with seller to arrange delivery (additional costs may apply)
-                    </p>
-                  </div>
-                </div>
-                
-                {deliveryOption === 'delivery' && (
-                  <div className="mt-4 pl-7 space-y-3">
-                    <div>
-                      <Label htmlFor="delivery-address" className="text-sm font-medium text-primary dark:text-gray-200">
-                        Delivery Address *
-                      </Label>
-                      <Textarea
-                        id="delivery-address"
-                        placeholder="Enter your full delivery address..."
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        className="mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                        rows={3}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="delivery-instructions" className="text-sm font-medium text-primary dark:text-gray-200">
-                        Special Instructions (Optional)
-                      </Label>
-                      <Textarea
-                        id="delivery-instructions"
-                        placeholder="Any special delivery instructions..."
-                        value={deliveryInstructions}
-                        onChange={(e) => setDeliveryInstructions(e.target.value)}
-                        className="mt-1 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </CardContent>

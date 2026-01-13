@@ -58,8 +58,213 @@ const OrderConfirmation = () => {
     }
   };
 
-  const printOrder = () => {
-    window.print();
+  const downloadReceipt = () => {
+    // Create a new window with the receipt content
+    const printWindow = window.open('', '_blank');
+    
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - Order #${orderId.substring(0, 8)}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 40px; 
+              max-width: 800px; 
+              margin: 0 auto;
+              line-height: 1.6;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+            }
+            .success-icon {
+              width: 60px;
+              height: 60px;
+              background: #22c55e;
+              border-radius: 50%;
+              margin: 0 auto 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 30px;
+            }
+            h1 { font-size: 28px; margin-bottom: 10px; }
+            .order-id { color: #666; font-size: 14px; }
+            .section { margin-bottom: 30px; }
+            .section-title { 
+              font-size: 18px; 
+              font-weight: bold; 
+              margin-bottom: 15px;
+              border-bottom: 1px solid #ddd;
+              padding-bottom: 5px;
+            }
+            .item { 
+              display: flex; 
+              justify-content: space-between; 
+              padding: 10px 0;
+              border-bottom: 1px solid #eee;
+            }
+            .item-details { flex: 1; }
+            .item-name { font-weight: 600; }
+            .item-quantity { color: #666; font-size: 14px; }
+            .totals { 
+              margin-top: 20px; 
+              padding-top: 20px;
+              border-top: 2px solid #333;
+            }
+            .total-row { 
+              display: flex; 
+              justify-content: space-between; 
+              margin-bottom: 8px;
+            }
+            .total-row.final { 
+              font-weight: bold; 
+              font-size: 18px;
+              margin-top: 10px;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 15px;
+            }
+            .info-item { margin-bottom: 10px; }
+            .info-label { 
+              color: #666; 
+              font-size: 14px; 
+              margin-bottom: 3px;
+            }
+            .info-value { font-weight: 500; }
+            .badge {
+              display: inline-block;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .badge-success {
+              background: #dcfce7;
+              color: #166534;
+            }
+            .badge-warning {
+              background: #fef3c7;
+              color: #92400e;
+            }
+            .badge-error {
+              background: #fee2e2;
+              color: #991b1b;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            @media print {
+              body { padding: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="success-icon">✓</div>
+            <h1>Order Confirmed</h1>
+            <p>Thank you for your purchase</p>
+            <p class="order-id">Order #${orderId.substring(0, 8)}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Order Summary</div>
+            ${orderItems.map(item => `
+              <div class="item">
+                <div class="item-details">
+                  <div class="item-name">${item.products?.name || 'Product'}</div>
+                  <div class="item-quantity">Quantity: ${item.quantity}</div>
+                </div>
+                <div class="item-price">KES ${item.subtotal?.toFixed(2)}</div>
+              </div>
+            `).join('')}
+            
+            <div class="totals">
+              <div class="total-row">
+                <span>Subtotal</span>
+                <span>KES ${order.amount?.toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>Delivery</span>
+                <span>KES 0.00</span>
+              </div>
+              <div class="total-row final">
+                <span>Total</span>
+                <span>KES ${order.amount?.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Payment Information</div>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-label">Payment Method</div>
+                <div class="info-value">M-Pesa</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Payment Status</div>
+                <div class="info-value">
+                  <span class="badge ${
+                    order.payment_status === 'completed' ? 'badge-success' :
+                    order.payment_status === 'pending' ? 'badge-warning' :
+                    'badge-error'
+                  }">
+                    ${order.payment_status === 'completed' ? 'Paid' :
+                      order.payment_status === 'pending' ? 'Pending' :
+                      'Failed'}
+                  </span>
+                </div>
+              </div>
+              ${order.mpesa_receipt ? `
+                <div class="info-item" style="grid-column: 1 / -1;">
+                  <div class="info-label">Transaction ID / Receipt</div>
+                  <div class="info-value">${order.mpesa_receipt}</div>
+                </div>
+              ` : ''}
+              <div class="info-item">
+                <div class="info-label">Date</div>
+                <div class="info-value">${formatDate(order.payment_date || order.created_at)}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">${order.phone_number || 'Not available'}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>This is a computer-generated receipt and does not require a signature.</p>
+            <p>For any inquiries, please contact our support team.</p>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() {
+                window.close();
+              }, 100);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
   };
 
   const copyReceiptNumber = () => {
@@ -275,10 +480,10 @@ const OrderConfirmation = () => {
           <Button 
             variant="outline" 
             className="flex-1"
-            onClick={printOrder}
+            onClick={downloadReceipt}
           >
             <Download className="mr-2 h-4 w-4" />
-            Print Receipt
+            Download Receipt
           </Button>
           <Link to="/studentmarketplace" className="flex-1">
             <Button className="w-full">

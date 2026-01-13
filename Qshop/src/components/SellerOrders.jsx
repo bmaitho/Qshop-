@@ -665,7 +665,7 @@ const SellerOrders = () => {
                           <h4 className="font-bold text-red-300 text-lg">🚨 Urgent Action Required</h4>
                           <p className="text-red-400 mt-1">
                             You have {orders.filter(o => !o.buyer_contacted && o.status === 'processing').length} orders 
-                            waiting for buyer contact. Quick response improves customer satisfaction!
+                            waiting for buyer contact. Quick response improves customer satisfaction and gets you paid instantly when the buyer confirms!
                           </p>
                         </div>
                       </div>

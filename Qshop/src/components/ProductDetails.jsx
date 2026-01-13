@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Heart, ShoppingCart, Plus, Minus, Zap, MapPin, User, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Heart, ShoppingCart, Plus, Minus, Zap, MapPin, User, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from '../context/CartContext';
@@ -9,6 +9,7 @@ import { supabase } from '../components/SupabaseClient';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 import MessageDialog from './MessageDialog';
+
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -34,6 +35,8 @@ const ProductDetails = () => {
   
   const [product, setProduct] = useState(null);
   const [seller, setSeller] = useState(null);
+  const [productImages, setProductImages] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -68,6 +71,24 @@ const ProductDetails = () => {
       
       setProduct(data);
       setSeller(data.profiles);
+
+      // Fetch product images
+      const { data: images, error: imagesError } = await supabase
+        .from('product_images')
+        .select('*')
+        .eq('product_id', id)
+        .order('display_order');
+
+      if (imagesError) {
+        console.error('Error fetching images:', imagesError);
+      }
+
+      if (images && images.length > 0) {
+        setProductImages(images);
+      } else if (data.image_url) {
+        // Fallback to single image_url if no images in product_images table
+        setProductImages([{ image_url: data.image_url, display_order: 0, is_primary: true }]);
+      }
     } catch (error) {
       console.error('Error fetching product:', error);
       toast.error('Failed to load product details');
@@ -100,7 +121,6 @@ const ProductDetails = () => {
     }
   };
 
-  // ✅ FIXED: Buy Now functionality with buyer_user_id
   const handleBuyNow = async () => {
     if (!product) return;
     
@@ -114,7 +134,6 @@ const ProductDetails = () => {
         return;
       }
 
-      // Create order directly without going through cart
       const orderData = {
         user_id: user.id,
         amount: product.price * quantity,
@@ -133,12 +152,11 @@ const ProductDetails = () => {
 
       const orderId = orderResult.id;
 
-      // ✅ FIXED: Create order item WITH buyer_user_id
       const orderItem = {
         order_id: orderId,
         product_id: product.id,
         seller_id: product.seller_id,
-        buyer_user_id: user.id,  // ← ADDED THIS LINE!
+        buyer_user_id: user.id,
         quantity: quantity,
         price_per_unit: product.price,
         subtotal: product.price * quantity,
@@ -151,7 +169,6 @@ const ProductDetails = () => {
 
       if (itemError) throw itemError;
 
-      // Navigate directly to checkout
       navigate(`/checkout/${orderId}`);
       
     } catch (error) {
@@ -177,7 +194,18 @@ const ProductDetails = () => {
     }
   };
 
-  // Get the display category, prioritizing display_category or properly formatted category
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === productImages.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? productImages.length - 1 : prev - 1
+    );
+  };
+
   const displayCategory = product?.display_category || 
     (isUUID(product?.category) ? "Other" : getDisplayCategory(product?.category));
 
@@ -208,11 +236,13 @@ const ProductDetails = () => {
     );
   }
 
+  const currentImage = productImages[currentImageIndex];
+  const hasMultipleImages = productImages.length > 1;
+
   return (
     <>
       <Navbar />
       <div className={`max-w-7xl mx-auto p-4 ${isMobile ? 'mt-12 mb-16' : 'mt-4'}`}>
-        {/* Back Button */}
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
@@ -223,16 +253,74 @@ const ProductDetails = () => {
         </Button>
 
         <div className={`${isMobile ? 'flex flex-col space-y-6' : 'grid grid-cols-1 md:grid-cols-2 gap-8'}`}>
-          {/* Product Image */}
+          {/* Image Carousel */}
           <div className="relative">
-            <div className="aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
-              <img
-                src={imageError ? 'https://via.placeholder.com/500?text=No+Image' : product.image_url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
+            <div className="aspect-square overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 relative">
+              {productImages.length > 0 ? (
+                <>
+                  <img
+                    src={imageError ? 'https://via.placeholder.com/500?text=No+Image' : currentImage?.image_url}
+                    alt={`${product.name} - Image ${currentImageIndex + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                  
+                  {/* Navigation Arrows */}
+                  {hasMultipleImages && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                        onClick={prevImage}
+                      >
+                        <ChevronLeft className="h-6 w-6" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full"
+                        onClick={nextImage}
+                      >
+                        <ChevronRight className="h-6 w-6" />
+                      </Button>
+
+                      {/* Image Counter */}
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                        {currentImageIndex + 1} / {productImages.length}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <p className="text-gray-400">No image available</p>
+                </div>
+              )}
             </div>
+            
+            {/* Thumbnail Navigation */}
+            {hasMultipleImages && (
+              <div className="mt-4 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2">
+                {productImages.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      index === currentImageIndex
+                        ? 'border-secondary scale-95'
+                        : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <img
+                      src={img.image_url}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
             
             {/* Status Badge */}
             {product.status === 'sold' && (
@@ -258,7 +346,6 @@ const ProductDetails = () => {
               </p>
             </div>
 
-            {/* Category - Fixed to show proper display name */}
             {product.category && (
               <div>
                 <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">
@@ -267,7 +354,6 @@ const ProductDetails = () => {
               </div>
             )}
 
-            {/* Description */}
             <div>
               <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">
                 Description
@@ -277,7 +363,6 @@ const ProductDetails = () => {
               </p>
             </div>
 
-            {/* Location */}
             {product.location && (
               <div className="flex items-center text-gray-600 dark:text-gray-300">
                 <MapPin className="h-5 w-5 mr-2" />
@@ -285,7 +370,6 @@ const ProductDetails = () => {
               </div>
             )}
 
-            {/* Seller Info */}
             {seller && (
               <div className="border-t border-primary/10 dark:border-gray-700 pt-4">
                 <h3 className="text-lg font-semibold mb-3 text-primary dark:text-gray-100">
@@ -308,7 +392,6 @@ const ProductDetails = () => {
                   </div>
                 </Link>
                 
-                {/* Message Seller Button */}
                 <MessageDialog 
                   recipientId={product.seller_id}
                   recipientName={seller.full_name || 'Seller'}
@@ -326,7 +409,6 @@ const ProductDetails = () => {
               </div>
             )}
 
-            {/* Quantity Selector */}
             <div>
               <h3 className="text-lg font-semibold mb-2 text-primary dark:text-gray-100">
                 Quantity
@@ -356,9 +438,7 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="space-y-3">
-              {/* Buy Now Button */}
               <Button
                 className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
                 onClick={handleBuyNow}
@@ -374,7 +454,6 @@ const ProductDetails = () => {
                 )}
               </Button>
 
-              {/* Add to Cart Button */}
               <Button
                 variant="outline"
                 className="w-full border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
@@ -391,7 +470,6 @@ const ProductDetails = () => {
                 )}
               </Button>
 
-              {/* Wishlist Button */}
               <Button
                 variant="outline"
                 className={`w-full border-primary/20 dark:border-gray-600 hover:bg-primary/5 dark:hover:bg-gray-700 ${
@@ -410,7 +488,6 @@ const ProductDetails = () => {
               </Button>
             </div>
 
-            {/* Stock Status Message */}
             {product.status === 'sold' && (
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-blue-700 dark:text-blue-300 text-center font-medium">

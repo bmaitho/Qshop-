@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from "react-hook-form";
-import { ImagePlus, Camera, X, Upload, Plus } from 'lucide-react';
+import { ImagePlus, Camera, X, Upload, Plus, GripVertical } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,12 +70,13 @@ const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
 
 const AddProductForm = ({ onSuccess }) => {
   const [uploading, setUploading] = useState(false);
-  const [imageFile, setImageFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [categories, setCategories] = useState([]);
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState(null);
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
@@ -182,16 +183,63 @@ const AddProductForm = ({ onSuccess }) => {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        console.error('Please upload an image file');
-        return;
-      }
-      setImageFile(file);
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
+    const files = Array.from(e.target.files || []);
+    addFiles(files);
+  };
+
+  const addFiles = (files) => {
+    const validImageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (validImageFiles.length !== files.length) {
+      console.error('Please upload image files only');
     }
+
+    if (validImageFiles.length === 0) return;
+
+    const remainingSlots = 8 - previewUrls.length;
+    if (validImageFiles.length > remainingSlots) {
+      console.log(`Maximum 8 images allowed. Only adding first ${remainingSlots} images.`);
+      validImageFiles.splice(remainingSlots);
+    }
+
+    const newPreviews = validImageFiles.map(file => URL.createObjectURL(file));
+    
+    setImageFiles(prev => [...prev, ...validImageFiles]);
+    setPreviewUrls(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeImage = (index) => {
+    URL.revokeObjectURL(previewUrls[index]);
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragStart = (index) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newFiles = [...imageFiles];
+    const newPreviews = [...previewUrls];
+    
+    const draggedFile = newFiles[draggedIndex];
+    const draggedPreview = newPreviews[draggedIndex];
+    
+    newFiles.splice(draggedIndex, 1);
+    newPreviews.splice(draggedIndex, 1);
+    newFiles.splice(index, 0, draggedFile);
+    newPreviews.splice(index, 0, draggedPreview);
+    
+    setImageFiles(newFiles);
+    setPreviewUrls(newPreviews);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
   };
 
   const handleDragEnter = (e) => {
@@ -206,7 +254,7 @@ const AddProductForm = ({ onSuccess }) => {
     setIsDragging(false);
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOverZone = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isDragging) setIsDragging(true);
@@ -217,38 +265,39 @@ const AddProductForm = ({ onSuccess }) => {
     e.stopPropagation();
     setIsDragging(false);
     
-    const files = e.dataTransfer.files;
-    if (files?.length) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        handleFileChange({ target: { files } });
-      } else {
-        console.error('Please upload an image file');
-      }
-    }
+    const files = Array.from(e.dataTransfer.files);
+    addFiles(files);
   };
 
-  const uploadImage = async () => {
-    if (!imageFile) return null;
+  const uploadImages = async () => {
+    if (imageFiles.length === 0) return [];
     
     try {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const uploadPromises = imageFiles.map(async (file, index) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, imageFile);
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
 
-      return publicUrl;
+        return {
+          url: publicUrl,
+          order: index,
+          isPrimary: index === 0
+        };
+      });
+
+      return await Promise.all(uploadPromises);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error uploading images:', error);
       throw error;
     }
   };
@@ -263,9 +312,9 @@ const AddProductForm = ({ onSuccess }) => {
         return;
       }
 
-      let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await uploadImage();
+      let uploadedImages = [];
+      if (imageFiles.length > 0) {
+        uploadedImages = await uploadImages();
       }
 
       const { data: profile } = await supabase
@@ -280,22 +329,42 @@ const AddProductForm = ({ onSuccess }) => {
         description: data.description,
         category: data.category,
         condition: data.condition,
-        image_url: imageUrl,
+        image_url: uploadedImages.length > 0 ? uploadedImages[0].url : null,
         seller_id: user.id,
         status: 'active',
         location: profile?.campus_location || 'Unknown'
       };
 
-      const { error } = await supabase
+      const { data: product, error } = await supabase
         .from('products')
-        .insert([productData]);
+        .insert([productData])
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Insert multiple images into product_images table
+      if (uploadedImages.length > 0) {
+        const imageRecords = uploadedImages.map(img => ({
+          product_id: product.id,
+          image_url: img.url,
+          display_order: img.order,
+          is_primary: img.isPrimary
+        }));
+
+        const { error: imagesError } = await supabase
+          .from('product_images')
+          .insert(imageRecords);
+
+        if (imagesError) {
+          console.error('Error saving images:', imagesError);
+        }
+      }
+
       console.log('Product added successfully');
       reset();
-      setImageFile(null);
-      setPreviewUrl(null);
+      setImageFiles([]);
+      setPreviewUrls([]);
       onSuccess?.();
     } catch (error) {
       console.error('Error adding product:', error);
@@ -422,46 +491,78 @@ const AddProductForm = ({ onSuccess }) => {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Product Image</Label>
+            <Label className="text-sm font-medium">
+              Product Images {previewUrls.length > 0 && `(${previewUrls.length}/8)`}
+            </Label>
+            
+            {previewUrls.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
+                {previewUrls.map((url, index) => (
+                  <div
+                    key={index}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`relative group cursor-move rounded-lg overflow-hidden border-2 ${
+                      index === 0 ? 'border-secondary' : 'border-border'
+                    } ${draggedIndex === index ? 'opacity-50' : ''}`}
+                  >
+                    <div className="aspect-square">
+                      <img 
+                        src={url} 
+                        alt={`Preview ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    
+                    {index === 0 && (
+                      <div className="absolute top-1 left-1 bg-secondary text-primary text-xs px-2 py-0.5 rounded">
+                        Primary
+                      </div>
+                    )}
+                    
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="h-7 w-7 rounded-full"
+                        onClick={() => removeImage(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    
+                    <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                      <GripVertical className="h-3 w-3" />
+                      Drag
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div
               className={`border-2 ${
                 isDragging 
                   ? 'border-ring bg-ring/5' 
-                  : previewUrl 
+                  : previewUrls.length > 0
                     ? 'border-ring/50' 
                     : 'border-dashed border-input'
-              } rounded-lg transition-colors ${!previewUrl ? 'p-4 md:p-6' : 'p-2'}`}
+              } rounded-lg transition-colors ${previewUrls.length === 0 ? 'p-4 md:p-6' : 'p-4'}`}
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
-              onDragOver={handleDragOver}
+              onDragOver={handleDragOverZone}
               onDrop={handleDrop}
             >
-              {previewUrl ? (
-                <div className="relative">
-                  <img 
-                    src={previewUrl} 
-                    alt="Product preview" 
-                    className="w-full h-48 md:h-64 object-contain rounded"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                    onClick={() => {
-                      setImageFile(null);
-                      setPreviewUrl(null);
-                    }}
-                    aria-label="Remove image"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
+              {previewUrls.length < 8 && (
                 <div className="text-center">
                   <ImagePlus className="mx-auto h-10 w-10 md:h-12 md:w-12 text-muted-foreground" />
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Drag and drop an image, or use the options below
+                    {previewUrls.length === 0 
+                      ? 'Drag and drop images, or use the options below'
+                      : 'Add more images (drag to reorder)'}
                   </p>
                   <div className="flex flex-col sm:flex-row justify-center mt-4 space-y-2 sm:space-y-0 sm:space-x-3">
                     <Button 
@@ -490,6 +591,7 @@ const AddProductForm = ({ onSuccess }) => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -502,6 +604,12 @@ const AddProductForm = ({ onSuccess }) => {
                 className="hidden"
               />
             </div>
+            
+            {previewUrls.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                First image will be the primary image. Drag to reorder.
+              </p>
+            )}
           </div>
 
           {/* Desktop button - inline with form */}
