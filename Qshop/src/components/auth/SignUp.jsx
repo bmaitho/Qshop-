@@ -42,6 +42,10 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef(null);
   
+  // Terms and Privacy Policy state
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  
   // Form data with all necessary fields for both student and wholesaler
   const [formData, setFormData] = useState({
     // Common fields
@@ -166,6 +170,14 @@ const SignUp = () => {
     const phoneRegex = /^[0-9+\-\s()]+$/;
     if (formData.phone && !phoneRegex.test(formData.phone)) {
       newErrors.phone = "Please enter a valid phone number";
+    }
+
+    // Terms and Privacy validation
+    if (!acceptedTerms) {
+      newErrors.acceptedTerms = "You must accept the Terms and Conditions";
+    }
+    if (!acceptedPrivacy) {
+      newErrors.acceptedPrivacy = "You must accept the Privacy Policy";
     }
 
     // Account type specific validations - MAKE OPTIONAL FOR NOW
@@ -812,6 +824,67 @@ const SignUp = () => {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Terms and Privacy Policy Checkboxes */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    if (errors.acceptedTerms) {
+                      setErrors(prev => ({ ...prev, acceptedTerms: '' }));
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#e7c65f] focus:ring-[#e7c65f]"
+                />
+                <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
+                  I agree to the{' '}
+                  <a
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#e7c65f] hover:underline font-medium"
+                  >
+                    Terms and Conditions
+                  </a>
+                </label>
+              </div>
+              {errors.acceptedTerms && (
+                <p className="text-red-500 text-xs ml-6">{errors.acceptedTerms}</p>
+              )}
+
+              <div className="flex items-start space-x-2">
+                <input
+                  type="checkbox"
+                  id="acceptPrivacy"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => {
+                    setAcceptedPrivacy(e.target.checked);
+                    if (errors.acceptedPrivacy) {
+                      setErrors(prev => ({ ...prev, acceptedPrivacy: '' }));
+                    }
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#e7c65f] focus:ring-[#e7c65f]"
+                />
+                <label htmlFor="acceptPrivacy" className="text-sm text-gray-700 dark:text-gray-300">
+                  I agree to the{' '}
+                  <a
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#e7c65f] hover:underline font-medium"
+                  >
+                    Privacy Policy
+                  </a>
+                </label>
+              </div>
+              {errors.acceptedPrivacy && (
+                <p className="text-red-500 text-xs ml-6">{errors.acceptedPrivacy}</p>
+              )}
             </div>
 
             <Button 
