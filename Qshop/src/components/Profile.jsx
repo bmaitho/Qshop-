@@ -439,19 +439,42 @@ const Profile = () => {
                 
                 {/* Quick actions */}
                 <div className="mt-4 space-x-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size={isMobile ? "sm" : "default"}
                     onClick={handleEditProfile}
                   >
                     <Settings className="w-4 h-4 mr-1" /> Edit Profile
                   </Button>
-                  
+
                   {!isSeller && (
                     <Button variant="outline" size={isMobile ? "sm" : "default"}>
                       Become a Seller
                     </Button>
                   )}
+                </div>
+
+                {/* Legal Documents Links */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-wrap gap-3 justify-center text-sm">
+                    <a
+                      href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 hover:underline font-medium"
+                    >
+                      Terms & Conditions
+                    </a>
+                    <span className="text-gray-400">•</span>
+                    <a
+                      href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 hover:underline font-medium"
+                    >
+                      Privacy Policy
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

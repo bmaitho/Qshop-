@@ -819,7 +819,7 @@ const SignUp = () => {
                       Click or drag to upload {activeTab === 'student' ? 'student ID' : 'business license'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      PNG, JPG or PDF up to 10MB (Optional - you can upload later)
+                      PNG, JPG or PDF up to 10MB 
                     </p>
                   </div>
                 )}
