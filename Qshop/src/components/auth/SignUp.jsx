@@ -25,6 +25,9 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 // Email service for confirmation emails
 import { emailApiService } from '../../Services/emailApiService';
 
+// Campus location selector component
+import CampusLocationSelector from '../CampusLocationSelector';
+
 const SignUp = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -609,27 +612,40 @@ const SignUp = () => {
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
             </div>
 
-            <div>
-              <Select 
-                value={formData.campusLocation} 
-                onValueChange={(value) => handleSelectChange('campusLocation', value)}
-              >
-                <SelectTrigger className={errors.campusLocation ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select Campus Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {loadingCampuses ? (
-                    <SelectItem value="loading" disabled>Loading...</SelectItem>
-                  ) : (
-                    campusLocations.map((location) => (
-                      <SelectItem key={location.id} value={location.name}>
-                        {location.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {errors.campusLocation && <p className="text-red-500 text-sm mt-1">{errors.campusLocation}</p>}
+            {/* Campus Location - NEW SEARCHABLE VERSION */}
+            <div className="space-y-2">
+              <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground">
+                Campus/School <span className="text-red-500">*</span>
+              </label>
+
+              <CampusLocationSelector
+                value={formData.campusLocation}
+                onChange={(e) => {
+                  // Handle both direct calls and from the selector
+                  if (e.target) {
+                    handleChange(e);
+                  } else {
+                    // If called with just the location object
+                    handleChange({
+                      target: {
+                        name: 'campusLocation',
+                        value: e.name
+                      }
+                    });
+                    setFormData(prev => ({
+                      ...prev,
+                      campusLocationId: e.id
+                    }));
+                  }
+                }}
+                campusLocations={campusLocations}
+                error={errors.campusLocation}
+                disabled={submitting || loadingCampuses}
+              />
+
+              {loadingCampuses && (
+                <p className="text-sm text-gray-500">Loading schools...</p>
+              )}
             </div>
 
             {/* Student-specific fields */}
