@@ -31,34 +31,79 @@ router.post('/seller-order-notification', sendSellerOrderNotification);
 
 router.post('/resend-order-notification', async (req, res) => {
   try {
-    const { checkoutRequestId } = req.body;
+    const { checkoutRequestId, orderId } = req.body;
     
-    console.log('🔍 Looking for order:', checkoutRequestId);
-    
-    // Find order
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('checkout_request_id', checkoutRequestId)
-      .single();
-    
-    if (!orders) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!checkoutRequestId && !orderId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Either checkoutRequestId or orderId is required'
+      });
     }
     
-    // Get order items with CORRECTED seller_id
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select(`*, products(*, seller_id)`)
-      .eq('order_id', orders.id);
+    console.log('🔍 Looking for order...');
     
-    // Get buyer
-    const { data: buyer } = await supabase
+    // Find order
+    let query = supabase.from('orders').select('*');
+    
+    if (checkoutRequestId) {
+      query = query.eq('checkout_request_id', checkoutRequestId);
+    } else {
+      query = query.eq('id', orderId);
+    }
+    
+    const { data: orders, error: orderError } = await query;
+    
+    if (orderError || !orders || orders.length === 0) {
+      console.error('Order not found:', orderError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Order not found' 
+      });
+    }
+    
+    const order = orders[0];
+    console.log('✅ Found order:', order.id);
+    console.log('   Buyer ID:', order.buyer_user_id);
+    console.log('   Amount:', order.amount);
+    
+    // Get order items with products
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        products (
+          *,
+          seller_id
+        )
+      `)
+      .eq('order_id', order.id);
+    
+    if (itemsError || !orderItems || orderItems.length === 0) {
+      console.error('No order items found:', itemsError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'No order items found' 
+      });
+    }
+    
+    console.log(`✅ Found ${orderItems.length} order item(s)`);
+    
+    // Get buyer profile - CRITICAL!
+    console.log('🔍 Fetching buyer profile...');
+    const { data: buyerProfile, error: buyerError } = await supabase
       .from('profiles')
-      .select('full_name, email')
-      .eq('id', orders.buyer_user_id)
+      .select('full_name, email, phone')
+      .eq('id', order.buyer_user_id)
       .single();
     
+    if (buyerError) {
+      console.error('Error fetching buyer:', buyerError);
+    }
+    
+    console.log('✅ Buyer:', buyerProfile?.full_name || 'Unknown');
+    console.log('   Email:', buyerProfile?.email || 'N/A');
+    
+    // Import Resend and templates
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
     
@@ -69,82 +114,136 @@ router.post('/resend-order-notification', async (req, res) => {
     
     const results = [];
     
-    // Send emails to each seller
+    // Send email to each seller
     for (const item of orderItems) {
       try {
-        const { data: seller } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', item.products.seller_id)
-          .single();
+        console.log(`\n📦 Processing order item: ${item.id}`);
         
-        if (!seller?.email) {
-          results.push({ orderItemId: item.id, success: false, error: 'No seller email' });
+        const sellerId = item.products?.seller_id;
+        
+        if (!sellerId) {
+          console.error('❌ No seller ID for item');
+          results.push({ 
+            orderItemId: item.id, 
+            success: false, 
+            error: 'No seller ID' 
+          });
           continue;
         }
         
-        const APP_URL = process.env.APP_URL || 'https://unihive.shop';
-        const orderUrl = `${APP_URL}/seller/orders/${item.id}`;
+        console.log('🔍 Fetching seller profile...');
+        const { data: sellerProfile, error: sellerError } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', sellerId)
+          .single();
         
+        if (sellerError || !sellerProfile?.email) {
+          console.error('❌ Seller not found or no email:', sellerError);
+          results.push({ 
+            orderItemId: item.id, 
+            success: false, 
+            error: 'Seller not found or no email' 
+          });
+          continue;
+        }
+        
+        console.log('✅ Seller:', sellerProfile.full_name);
+        console.log('   Email:', sellerProfile.email);
+        
+        // Get product images
         const productImages = item.products?.product_images;
         const firstImage = Array.isArray(productImages) && productImages.length > 0 
           ? productImages[0] 
           : null;
         
+        console.log('📦 Product:', item.products?.product_name);
+        console.log('   Quantity:', item.quantity);
+        console.log('   Price per unit:', item.price_per_unit);
+        console.log('   Total price:', item.total_price);
+        console.log('   Image:', firstImage ? 'Yes' : 'No');
+        
+        // Construct order URL
+        const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+        const orderUrl = `${APP_URL}/seller/orders/${item.id}`;
+        
+        // Prepare order details with REAL data
         const orderDetails = {
-          orderId: orders.id,
+          orderId: order.id,
           orderItemId: item.id,
           productName: item.products?.product_name || 'Product',
           productImage: firstImage,
           quantity: item.quantity || 1,
-          totalAmount: item.total_price || 0,
-          buyerName: buyer?.full_name || 'Customer',
-          buyerEmail: buyer?.email || '',
+          totalAmount: item.total_price || item.price_per_unit || 0,
+          buyerName: buyerProfile?.full_name || 'Customer',
+          buyerEmail: buyerProfile?.email || '',
           orderUrl
         };
         
+        console.log('\n📧 Email data being sent:');
+        console.log('   To:', sellerProfile.email);
+        console.log('   Seller name:', sellerProfile.full_name || 'Seller');
+        console.log('   Product:', orderDetails.productName);
+        console.log('   Quantity:', orderDetails.quantity);
+        console.log('   Total Amount: KSh', orderDetails.totalAmount);
+        console.log('   Buyer:', orderDetails.buyerName);
+        console.log('   Buyer Email:', orderDetails.buyerEmail);
+        
+        // Send the email
         const { data, error } = await resend.emails.send({
           from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>',
-          to: seller.email,
+          to: sellerProfile.email,
           subject: `🎉 New Order #${item.id.substring(0, 8)} - ${orderDetails.productName}`,
-          html: sellerOrderNotificationTemplate(seller.full_name, orderDetails),
-          text: sellerOrderNotificationText(seller.full_name, orderDetails),
+          html: sellerOrderNotificationTemplate(sellerProfile.full_name || 'Seller', orderDetails),
+          text: sellerOrderNotificationText(sellerProfile.full_name || 'Seller', orderDetails),
         });
         
         if (error) {
-          results.push({ orderItemId: item.id, sellerEmail: seller.email, success: false, error });
+          console.error('❌ Email send failed:', error);
+          results.push({ 
+            orderItemId: item.id, 
+            sellerEmail: sellerProfile.email, 
+            success: false, 
+            error: error 
+          });
         } else {
-          results.push({ orderItemId: item.id, sellerEmail: seller.email, success: true, emailId: data.id });
+          console.log('✅ Email sent! ID:', data.id);
+          results.push({ 
+            orderItemId: item.id, 
+            sellerEmail: sellerProfile.email, 
+            success: true, 
+            emailId: data.id 
+          });
         }
         
-      } catch (error) {
-        results.push({ orderItemId: item.id, success: false, error: error.message });
+      } catch (itemError) {
+        console.error('❌ Error processing item:', itemError);
+        results.push({ 
+          orderItemId: item.id, 
+          success: false, 
+          error: itemError.message 
+        });
       }
     }
     
     const successCount = results.filter(r => r.success).length;
+    console.log(`\n📊 Summary: ${successCount} of ${orderItems.length} emails sent`);
     
     return res.json({
-      success: true,
+      success: successCount > 0,
       message: `Sent ${successCount} of ${orderItems.length} emails`,
-      orderId: orders.id,
+      orderId: order.id,
       results
     });
     
   } catch (error) {
+    console.error('❌ Fatal error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
-});
-// Health check route to verify the email service is running
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
-    service: 'email',
-    timestamp: new Date().toISOString()
-  });
 });
 
 export default router;
