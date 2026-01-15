@@ -29,6 +29,8 @@ router.post('/password-reset', rateLimiter(), sendPasswordResetEmail);
 // This will be called when a new order is placed
 router.post('/seller-order-notification', sendSellerOrderNotification);
 
+
+
 router.post('/resend-order-notification', async (req, res) => {
   try {
     const { checkoutRequestId, orderId } = req.body;
@@ -63,8 +65,7 @@ router.post('/resend-order-notification', async (req, res) => {
     
     const order = orders[0];
     console.log('✅ Found order:', order.id);
-    console.log('   Buyer ID:', order.buyer_user_id);
-    console.log('   Amount:', order.amount);
+    console.log('   Total Amount:', order.amount);
     
     // Get order items with products
     const { data: orderItems, error: itemsError } = await supabase
@@ -88,20 +89,32 @@ router.post('/resend-order-notification', async (req, res) => {
     
     console.log(`✅ Found ${orderItems.length} order item(s)`);
     
-    // Get buyer profile - CRITICAL!
-    console.log('🔍 Fetching buyer profile...');
-    const { data: buyerProfile, error: buyerError } = await supabase
-      .from('profiles')
-      .select('full_name, email, phone')
-      .eq('id', order.buyer_user_id)
-      .single();
+    // ✅ FIX: Get buyer from order_items, not orders table
+    const firstItem = orderItems[0];
+    const buyerUserId = firstItem.buyer_user_id;
     
-    if (buyerError) {
-      console.error('Error fetching buyer:', buyerError);
+    console.log('🔍 Fetching buyer profile from order_items...');
+    console.log('   Buyer ID:', buyerUserId);
+    
+    let buyerProfile = null;
+    
+    if (buyerUserId) {
+      const { data: buyer, error: buyerError } = await supabase
+        .from('profiles')
+        .select('full_name, email, phone')
+        .eq('id', buyerUserId)
+        .single();
+      
+      if (buyerError) {
+        console.error('Error fetching buyer:', buyerError);
+      } else {
+        buyerProfile = buyer;
+        console.log('✅ Buyer:', buyer.full_name);
+        console.log('   Email:', buyer.email);
+      }
+    } else {
+      console.warn('⚠️ No buyer_user_id in order_items');
     }
-    
-    console.log('✅ Buyer:', buyerProfile?.full_name || 'Unknown');
-    console.log('   Email:', buyerProfile?.email || 'N/A');
     
     // Import Resend and templates
     const { Resend } = await import('resend');
@@ -151,13 +164,14 @@ router.post('/resend-order-notification', async (req, res) => {
         console.log('✅ Seller:', sellerProfile.full_name);
         console.log('   Email:', sellerProfile.email);
         
-        // Get product images
+        // Get product details
+        const productName = item.products?.product_name || item.products?.name || 'Product';
         const productImages = item.products?.product_images;
         const firstImage = Array.isArray(productImages) && productImages.length > 0 
           ? productImages[0] 
           : null;
         
-        console.log('📦 Product:', item.products?.product_name);
+        console.log('📦 Product:', productName);
         console.log('   Quantity:', item.quantity);
         console.log('   Price per unit:', item.price_per_unit);
         console.log('   Total price:', item.total_price);
@@ -171,7 +185,7 @@ router.post('/resend-order-notification', async (req, res) => {
         const orderDetails = {
           orderId: order.id,
           orderItemId: item.id,
-          productName: item.products?.product_name || 'Product',
+          productName: productName,
           productImage: firstImage,
           quantity: item.quantity || 1,
           totalAmount: item.total_price || item.price_per_unit || 0,
@@ -180,12 +194,12 @@ router.post('/resend-order-notification', async (req, res) => {
           orderUrl
         };
         
-        console.log('\n📧 Email data being sent:');
+        console.log('\n📧 Email data:');
         console.log('   To:', sellerProfile.email);
         console.log('   Seller name:', sellerProfile.full_name || 'Seller');
         console.log('   Product:', orderDetails.productName);
         console.log('   Quantity:', orderDetails.quantity);
-        console.log('   Total Amount: KSh', orderDetails.totalAmount);
+        console.log('   Total: KSh', orderDetails.totalAmount);
         console.log('   Buyer:', orderDetails.buyerName);
         console.log('   Buyer Email:', orderDetails.buyerEmail);
         
