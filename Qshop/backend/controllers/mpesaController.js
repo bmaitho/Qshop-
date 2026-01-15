@@ -247,24 +247,26 @@ export const handleCallback = async (req, res) => {
               .update({ status: 'processing' })
               .eq('order_id', order.id);
 
-            // ✅ NEW: Send email notifications to sellers for each order item
+            // ✅ CORRECTED: Send email notifications to sellers for each order item
             try {
-              // Fetch all order items for this order with product and seller details
+              console.log('🔍 Fetching order items for email notifications...');
+              
+              // ✅ FIX: Use correct column name 'seller_id' instead of 'seller_user_id'
               const { data: orderItems, error: itemsError } = await supabase
                 .from('order_items')
                 .select(`
                   *,
                   products (
                     *,
-                    seller_user_id
+                    seller_id
                   )
                 `)
                 .eq('order_id', order.id);
 
               if (itemsError) {
-                console.error('Error fetching order items:', itemsError);
+                console.error('❌ Error fetching order items:', itemsError);
               } else if (orderItems && orderItems.length > 0) {
-                console.log(`Found ${orderItems.length} order items to notify sellers about`);
+                console.log(`✅ Found ${orderItems.length} order items to notify sellers about`);
 
                 // Fetch buyer profile
                 const { data: buyerProfile } = await supabase
@@ -273,15 +275,20 @@ export const handleCallback = async (req, res) => {
                   .eq('id', order.buyer_user_id)
                   .single();
 
+                console.log(`📧 Buyer info: ${buyerProfile?.full_name || 'Unknown'} (${buyerProfile?.email || 'N/A'})`);
+
                 // Send notification to each seller
                 for (const item of orderItems) {
                   try {
-                    const sellerId = item.products?.seller_user_id;
+                    // ✅ FIX: Access seller_id from products object
+                    const sellerId = item.products?.seller_id;
                     
                     if (!sellerId) {
-                      console.warn(`No seller ID found for order item ${item.id}`);
+                      console.warn(`⚠️ No seller ID found for order item ${item.id}`);
                       continue;
                     }
+
+                    console.log(`🔍 Fetching seller profile for ID: ${sellerId}`);
 
                     // Fetch seller profile
                     const { data: sellerProfile, error: sellerError } = await supabase
@@ -291,9 +298,17 @@ export const handleCallback = async (req, res) => {
                       .single();
 
                     if (sellerError || !sellerProfile?.email) {
-                      console.error(`Error fetching seller profile for ${sellerId}:`, sellerError);
+                      console.error(`❌ Error fetching seller profile for ${sellerId}:`, sellerError);
                       continue;
                     }
+
+                    console.log(`✅ Found seller: ${sellerProfile.full_name} (${sellerProfile.email})`);
+
+                    // Get product images array (Supabase stores as JSONB array)
+                    const productImages = item.products?.product_images;
+                    const firstImage = Array.isArray(productImages) && productImages.length > 0 
+                      ? productImages[0] 
+                      : null;
 
                     // Prepare email data
                     const emailData = {
@@ -302,17 +317,19 @@ export const handleCallback = async (req, res) => {
                       orderId: order.id,
                       orderItemId: item.id,
                       productName: item.products?.product_name || 'Product',
-                      productImage: item.products?.product_images?.[0] || null,
+                      productImage: firstImage,
                       quantity: item.quantity || 1,
                       totalAmount: item.total_price || 0,
                       buyerName: buyerProfile?.full_name || 'Customer',
                       buyerEmail: buyerProfile?.email || ''
                     };
 
+                    console.log(`📧 Preparing to send email to: ${sellerProfile.email}`);
+                    console.log(`   Product: ${emailData.productName}`);
+                    console.log(`   Amount: KSh ${emailData.totalAmount}`);
+
                     // Send email via your backend API
                     const backendUrl = process.env.API_URL || 'http://localhost:5000';
-                    
-                    console.log(`Sending order notification to seller: ${sellerProfile.email}`);
                     
                     const emailResponse = await axios.post(
                       `${backendUrl}/api/email/seller-order-notification`,
@@ -320,7 +337,8 @@ export const handleCallback = async (req, res) => {
                       {
                         headers: {
                           'Content-Type': 'application/json'
-                        }
+                        },
+                        timeout: 10000 // 10 second timeout
                       }
                     );
 
@@ -331,20 +349,23 @@ export const handleCallback = async (req, res) => {
                     }
 
                   } catch (emailError) {
-                    console.error(`Error sending email for order item ${item.id}:`, emailError.message);
+                    console.error(`❌ Error sending email for order item ${item.id}:`, emailError.message);
                     // Continue with other items even if one fails
                   }
                 }
 
-                console.log('Finished sending seller notifications');
+                console.log('✅ Finished sending seller notifications');
+              } else {
+                console.warn('⚠️ No order items found for this order');
               }
             } catch (notificationError) {
-              console.error('Error in seller notification process:', notificationError);
-              // Don't fail the callback if email fails
+              console.error('❌ Error in seller notification process:', notificationError);
+              // Don't fail the callback if email fails - payment was successful
             }
           }
         } else {
           // Payment failed
+          console.log(`Payment failed for order ${order.id}: ${ResultDesc}`);
           await supabase
             .from('orders')
             .update({
