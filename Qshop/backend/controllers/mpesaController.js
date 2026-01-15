@@ -233,7 +233,6 @@ export const handleCallback = async (req, res) => {
               order_status: 'processing',
               mpesa_receipt: mpesaReceiptNumber,
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
-              
             })
             .eq('id', order.id);
             
@@ -242,11 +241,107 @@ export const handleCallback = async (req, res) => {
           } else {
             console.log(`Order ${order.id} marked as paid successfully`);
             
-            // Also update order items status
+            // Update order items status
             await supabase
               .from('order_items')
               .update({ status: 'processing' })
               .eq('order_id', order.id);
+
+            // ✅ NEW: Send email notifications to sellers for each order item
+            try {
+              // Fetch all order items for this order with product and seller details
+              const { data: orderItems, error: itemsError } = await supabase
+                .from('order_items')
+                .select(`
+                  *,
+                  products (
+                    *,
+                    seller_user_id
+                  )
+                `)
+                .eq('order_id', order.id);
+
+              if (itemsError) {
+                console.error('Error fetching order items:', itemsError);
+              } else if (orderItems && orderItems.length > 0) {
+                console.log(`Found ${orderItems.length} order items to notify sellers about`);
+
+                // Fetch buyer profile
+                const { data: buyerProfile } = await supabase
+                  .from('profiles')
+                  .select('full_name, email')
+                  .eq('id', order.buyer_user_id)
+                  .single();
+
+                // Send notification to each seller
+                for (const item of orderItems) {
+                  try {
+                    const sellerId = item.products?.seller_user_id;
+                    
+                    if (!sellerId) {
+                      console.warn(`No seller ID found for order item ${item.id}`);
+                      continue;
+                    }
+
+                    // Fetch seller profile
+                    const { data: sellerProfile, error: sellerError } = await supabase
+                      .from('profiles')
+                      .select('full_name, email')
+                      .eq('id', sellerId)
+                      .single();
+
+                    if (sellerError || !sellerProfile?.email) {
+                      console.error(`Error fetching seller profile for ${sellerId}:`, sellerError);
+                      continue;
+                    }
+
+                    // Prepare email data
+                    const emailData = {
+                      sellerEmail: sellerProfile.email,
+                      sellerName: sellerProfile.full_name || 'Seller',
+                      orderId: order.id,
+                      orderItemId: item.id,
+                      productName: item.products?.product_name || 'Product',
+                      productImage: item.products?.product_images?.[0] || null,
+                      quantity: item.quantity || 1,
+                      totalAmount: item.total_price || 0,
+                      buyerName: buyerProfile?.full_name || 'Customer',
+                      buyerEmail: buyerProfile?.email || ''
+                    };
+
+                    // Send email via your backend API
+                    const backendUrl = process.env.API_URL || 'http://localhost:5000';
+                    
+                    console.log(`Sending order notification to seller: ${sellerProfile.email}`);
+                    
+                    const emailResponse = await axios.post(
+                      `${backendUrl}/api/email/seller-order-notification`,
+                      emailData,
+                      {
+                        headers: {
+                          'Content-Type': 'application/json'
+                        }
+                      }
+                    );
+
+                    if (emailResponse.data.success) {
+                      console.log(`✅ Email sent successfully to ${sellerProfile.email}`);
+                    } else {
+                      console.error(`❌ Email failed for ${sellerProfile.email}:`, emailResponse.data.error);
+                    }
+
+                  } catch (emailError) {
+                    console.error(`Error sending email for order item ${item.id}:`, emailError.message);
+                    // Continue with other items even if one fails
+                  }
+                }
+
+                console.log('Finished sending seller notifications');
+              }
+            } catch (notificationError) {
+              console.error('Error in seller notification process:', notificationError);
+              // Don't fail the callback if email fails
+            }
           }
         } else {
           // Payment failed

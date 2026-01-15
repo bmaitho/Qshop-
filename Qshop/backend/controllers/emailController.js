@@ -8,7 +8,9 @@ import {
   welcomeEmailTemplate,
   welcomeEmailText,
   passwordResetEmailTemplate,
-  passwordResetEmailText
+  passwordResetEmailText,
+  sellerOrderNotificationTemplate,
+  sellerOrderNotificationText
 } from '../utils/emailTemplates.js';
 
 // Load environment variables
@@ -84,7 +86,6 @@ export const sendConfirmationEmail = async (req, res) => {
     // Log success for debugging
     console.log('Confirmation email sent:', data.id);
     
-    // FIX: Complete the success message (was previously cut off as "Confirmatio")
     return res.status(200).json({
       success: true,
       message: 'Confirmation email sent successfully',
@@ -256,7 +257,6 @@ export const resendConfirmationEmail = async (req, res) => {
     }
     
     // Check if the user exists and is not already confirmed
-    // Note: This requires admin privileges in Supabase
     const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
     
     if (userError) {
@@ -296,12 +296,6 @@ export const resendConfirmationEmail = async (req, res) => {
       }
     });
     
-    console.log('Token generation result:', { 
-      success: !tokenError, 
-      hasData: !!tokenData,
-      actionLinkExists: !!tokenData?.properties?.action_link 
-    });
-    
     if (tokenError) {
       console.error('Error generating confirmation token:', tokenError);
       return res.status(500).json({
@@ -310,31 +304,24 @@ export const resendConfirmationEmail = async (req, res) => {
       });
     }
     
-    // Extract the token from the generated URL - FIX the token extraction
+    // Extract the token from the generated URL
     const actionLink = tokenData.properties.action_link;
-    console.log('Generated action link:', actionLink);
-    
-    // Parse the URL to extract the confirmation token properly
     let token;
+    
     try {
       const url = new URL(actionLink);
-      // Try multiple ways to extract the token
       if (url.hash) {
-        // Check for confirmation_token in hash
         const hashParams = new URLSearchParams(url.hash.substring(1));
         token = hashParams.get('confirmation_token') || hashParams.get('token');
       }
       
       if (!token) {
-        // If not in hash, check query params
         token = url.searchParams.get('confirmation_token') || url.searchParams.get('token');
       }
       
       if (!token) {
         throw new Error('Could not extract confirmation token from URL');
       }
-      
-      console.log('Extracted token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
     } catch (urlError) {
       console.error('Error parsing action link:', urlError);
       return res.status(500).json({
@@ -363,6 +350,82 @@ export const resendConfirmationEmail = async (req, res) => {
     return result;
   } catch (error) {
     console.error('Error in resendConfirmationEmail:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * NEW: Send order notification email to seller
+ */
+export const sendSellerOrderNotification = async (req, res) => {
+  try {
+    const { 
+      sellerEmail, 
+      sellerName,
+      orderId,
+      orderItemId,
+      productName,
+      productImage,
+      quantity,
+      totalAmount,
+      buyerName,
+      buyerEmail
+    } = req.body;
+    
+    // Validate required fields
+    if (!sellerEmail || !orderItemId || !productName || !totalAmount) {
+      return res.status(400).json({
+        success: false,
+        error: 'Seller email, order item ID, product name, and total amount are required'
+      });
+    }
+    
+    // Construct order URL
+    const orderUrl = `${APP_URL}/seller/orders/${orderItemId}`;
+    
+    // Prepare order details for template
+    const orderDetails = {
+      orderId: orderId || orderItemId,
+      orderItemId,
+      productName,
+      productImage: productImage || null,
+      quantity: quantity || 1,
+      totalAmount,
+      buyerName: buyerName || 'Customer',
+      buyerEmail: buyerEmail || '',
+      orderUrl
+    };
+    
+    // Send email using Resend
+    const { data, error } = await resend.emails.send({
+      from: SENDER_EMAIL,
+      to: sellerEmail,
+      subject: `🎉 New Order #${orderItemId.substring(0, 8)} - ${productName}`,
+      html: sellerOrderNotificationTemplate(sellerName, orderDetails),
+      text: sellerOrderNotificationText(sellerName, orderDetails),
+    });
+    
+    if (error) {
+      console.error('Resend API error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send seller order notification'
+      });
+    }
+    
+    // Log success for debugging
+    console.log('Seller order notification sent:', data.id);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Seller order notification sent successfully',
+      data: { id: data.id }
+    });
+  } catch (error) {
+    console.error('Error in sendSellerOrderNotification:', error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error'
