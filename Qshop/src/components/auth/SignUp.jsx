@@ -388,16 +388,8 @@ const SignUp = () => {
           }
         }
         
-        // Send confirmation email using Resend - FIXED VERSION
-        try {
-          await emailApiService.sendConfirmationEmail(
-            formData.email,
-            formData.fullName
-          );
-        } catch (emailError) {
-          console.error('Error sending confirmation email:', emailError);
-          toast.warning("Account created, but there was an issue sending the custom confirmation email. Please check your inbox for the default confirmation email.");
-        }
+        // ✅ REMOVED CUSTOM EMAIL SENDING - Supabase handles this automatically
+        // The confirmation email is sent by Supabase with the correct token
       }
     } catch (error) {
       console.error('Sign up error:', error);
