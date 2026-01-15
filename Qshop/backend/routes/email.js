@@ -8,6 +8,7 @@ import {
   sendSellerOrderNotification
 } from '../controllers/emailController.js';
 import { verifyAuth, rateLimiter } from '../middleware/authMiddleware.js';
+import { supabase } from '../utils/supabaseClient.js';
 
 const router = express.Router();
 
