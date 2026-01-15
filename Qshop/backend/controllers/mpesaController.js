@@ -187,35 +187,36 @@ export const initiateSTKPush = async (req, res) => {
 
 /**
  * Handle the callback from M-Pesa after a payment attempt
+ * FIXED VERSION - Gets buyer from order_items and sends seller emails
  */
 export const handleCallback = async (req, res) => {
   try {
     // Log the full callback for debugging
     console.log('M-Pesa callback received:', JSON.stringify(req.body));
-    
+
     // Safaricom sends the result in the Body property
     const callbackData = req.body.Body?.stkCallback || req.body;
-    
+
     // Check if this is a successful transaction
     if (callbackData.ResultCode !== undefined) {
       const { ResultCode, ResultDesc, CallbackMetadata, CheckoutRequestID } = callbackData;
-      
+
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
       console.log(`Looking for order with CheckoutRequestID: ${CheckoutRequestID}`);
-      
+
       // Find the order by the CheckoutRequestID
       const { data: orders, error: orderError } = await supabase
         .from('orders')
         .select('*')
         .eq('checkout_request_id', CheckoutRequestID);
-      
+
       if (orderError) {
         console.error('Error finding order by checkout request ID:', orderError);
       } else if (!orders || orders.length === 0) {
         console.error(`No order found with CheckoutRequestID: ${CheckoutRequestID}`);
       } else {
         const order = orders[0];
-        
+
         // Update order based on the result code (0 means success)
         if (ResultCode === 0 && CallbackMetadata) {
           // Extract payment details from the callback
@@ -224,7 +225,7 @@ export const handleCallback = async (req, res) => {
           const transactionDate = items.find(item => item.Name === 'TransactionDate')?.Value;
           const phoneNumber = items.find(item => item.Name === 'PhoneNumber')?.Value;
           const amount = items.find(item => item.Name === 'Amount')?.Value;
-          
+
           // Update order with payment details
           const { error: updateError } = await supabase
             .from('orders')
@@ -235,23 +236,23 @@ export const handleCallback = async (req, res) => {
               phone_number: phoneNumber ? phoneNumber.toString() : order.phone_number,
             })
             .eq('id', order.id);
-            
+
           if (updateError) {
             console.error('Error updating order after successful payment:', updateError);
           } else {
-            console.log(`Order ${order.id} marked as paid successfully`);
-            
+            console.log(`✅ Order ${order.id} marked as paid successfully`);
+
             // Update order items status
             await supabase
               .from('order_items')
               .update({ status: 'processing' })
               .eq('order_id', order.id);
 
-            // ✅ CORRECTED: Send email notifications to sellers for each order item
+            // ✅ SEND EMAIL NOTIFICATIONS TO SELLERS
             try {
-              console.log('🔍 Fetching order items for email notifications...');
-              
-              // ✅ FIX: Use correct column name 'seller_id' instead of 'seller_user_id'
+              console.log('📧 Starting seller email notification process...');
+
+              // Fetch order items with products - CORRECTED seller_id reference
               const { data: orderItems, error: itemsError } = await supabase
                 .from('order_items')
                 .select(`
@@ -266,29 +267,60 @@ export const handleCallback = async (req, res) => {
               if (itemsError) {
                 console.error('❌ Error fetching order items:', itemsError);
               } else if (orderItems && orderItems.length > 0) {
-                console.log(`✅ Found ${orderItems.length} order items to notify sellers about`);
+                console.log(`✅ Found ${orderItems.length} order item(s) to notify sellers about`);
 
-                // Fetch buyer profile
-                const { data: buyerProfile } = await supabase
-                  .from('profiles')
-                  .select('full_name, email')
-                  .eq('id', order.buyer_user_id)
-                  .single();
+                // ✅ FIX: Get buyer from order_items (not orders table)
+                const firstItem = orderItems[0];
+                const buyerUserId = firstItem.buyer_user_id;
 
-                console.log(`📧 Buyer info: ${buyerProfile?.full_name || 'Unknown'} (${buyerProfile?.email || 'N/A'})`);
+                console.log(`🔍 Fetching buyer profile from order_items...`);
+                console.log(`   Buyer ID: ${buyerUserId}`);
+
+                let buyerProfile = null;
+
+                if (buyerUserId) {
+                  const { data: buyer, error: buyerError } = await supabase
+                    .from('profiles')
+                    .select('full_name, email, phone')
+                    .eq('id', buyerUserId)
+                    .single();
+
+                  if (buyerError) {
+                    console.error('⚠️ Error fetching buyer profile:', buyerError);
+                  } else {
+                    buyerProfile = buyer;
+                    console.log(`✅ Buyer: ${buyer.full_name || 'Unknown'} (${buyer.email || 'N/A'})`);
+                  }
+                } else {
+                  console.warn('⚠️ No buyer_user_id found in order_items');
+                }
+
+                // Import Resend and email templates
+                const { Resend } = await import('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+
+                const {
+                  sellerOrderNotificationTemplate,
+                  sellerOrderNotificationText
+                } = await import('../utils/emailTemplates.js');
 
                 // Send notification to each seller
+                let emailsSent = 0;
+                let emailsFailed = 0;
+
                 for (const item of orderItems) {
                   try {
-                    // ✅ FIX: Access seller_id from products object
+                    // ✅ FIX: Access seller_id from products object (not seller_user_id)
                     const sellerId = item.products?.seller_id;
-                    
+
                     if (!sellerId) {
                       console.warn(`⚠️ No seller ID found for order item ${item.id}`);
+                      emailsFailed++;
                       continue;
                     }
 
-                    console.log(`🔍 Fetching seller profile for ID: ${sellerId}`);
+                    console.log(`\n🔍 Processing order item ${item.id}`);
+                    console.log(`   Fetching seller profile for ID: ${sellerId}`);
 
                     // Fetch seller profile
                     const { data: sellerProfile, error: sellerError } = await supabase
@@ -299,62 +331,72 @@ export const handleCallback = async (req, res) => {
 
                     if (sellerError || !sellerProfile?.email) {
                       console.error(`❌ Error fetching seller profile for ${sellerId}:`, sellerError);
+                      emailsFailed++;
                       continue;
                     }
 
-                    console.log(`✅ Found seller: ${sellerProfile.full_name} (${sellerProfile.email})`);
+                    console.log(`✅ Found seller: ${sellerProfile.full_name || 'Seller'} (${sellerProfile.email})`);
 
-                    // Get product images array (Supabase stores as JSONB array)
+                    // Get product details
+                    const productName = item.products?.product_name || item.products?.name || 'Product';
                     const productImages = item.products?.product_images;
-                    const firstImage = Array.isArray(productImages) && productImages.length > 0 
-                      ? productImages[0] 
+                    const firstImage = Array.isArray(productImages) && productImages.length > 0
+                      ? productImages[0]
                       : null;
 
+                    console.log(`📦 Product: ${productName}`);
+                    console.log(`   Quantity: ${item.quantity}`);
+                    console.log(`   Total: KSh ${item.total_price || item.price_per_unit}`);
+
+                    // Construct order URL
+                    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+                    const orderUrl = `${APP_URL}/seller/orders/${item.id}`;
+
                     // Prepare email data
-                    const emailData = {
-                      sellerEmail: sellerProfile.email,
-                      sellerName: sellerProfile.full_name || 'Seller',
+                    const orderDetails = {
                       orderId: order.id,
                       orderItemId: item.id,
-                      productName: item.products?.product_name || 'Product',
+                      productName: productName,
                       productImage: firstImage,
                       quantity: item.quantity || 1,
-                      totalAmount: item.total_price || 0,
+                      totalAmount: item.total_price || item.price_per_unit || 0,
                       buyerName: buyerProfile?.full_name || 'Customer',
-                      buyerEmail: buyerProfile?.email || ''
+                      buyerEmail: buyerProfile?.email || '',
+                      orderUrl
                     };
 
-                    console.log(`📧 Preparing to send email to: ${sellerProfile.email}`);
-                    console.log(`   Product: ${emailData.productName}`);
-                    console.log(`   Amount: KSh ${emailData.totalAmount}`);
+                    console.log(`📧 Sending email to: ${sellerProfile.email}`);
 
-                    // Send email via your backend API
-                    const backendUrl = process.env.API_URL || 'http://localhost:5000';
-                    
-                    const emailResponse = await axios.post(
-                      `${backendUrl}/api/email/seller-order-notification`,
-                      emailData,
-                      {
-                        headers: {
-                          'Content-Type': 'application/json'
-                        },
-                        timeout: 10000 // 10 second timeout
-                      }
-                    );
+                    // Send email using Resend
+                    const { data: emailData, error: emailError } = await resend.emails.send({
+                      from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>',
+                      to: sellerProfile.email,
+                      subject: `🎉 New Order #${item.id.substring(0, 8)} - ${productName}`,
+                      html: sellerOrderNotificationTemplate(sellerProfile.full_name || 'Seller', orderDetails),
+                      text: sellerOrderNotificationText(sellerProfile.full_name || 'Seller', orderDetails),
+                    });
 
-                    if (emailResponse.data.success) {
-                      console.log(`✅ Email sent successfully to ${sellerProfile.email}`);
+                    if (emailError) {
+                      console.error(`❌ Email failed for ${sellerProfile.email}:`, emailError);
+                      emailsFailed++;
                     } else {
-                      console.error(`❌ Email failed for ${sellerProfile.email}:`, emailResponse.data.error);
+                      console.log(`✅ Email sent successfully to ${sellerProfile.email}`);
+                      console.log(`   Email ID: ${emailData.id}`);
+                      emailsSent++;
                     }
 
                   } catch (emailError) {
                     console.error(`❌ Error sending email for order item ${item.id}:`, emailError.message);
+                    emailsFailed++;
                     // Continue with other items even if one fails
                   }
                 }
 
-                console.log('✅ Finished sending seller notifications');
+                console.log(`\n📊 Email notification summary:`);
+                console.log(`   ✅ Sent: ${emailsSent}`);
+                console.log(`   ❌ Failed: ${emailsFailed}`);
+                console.log(`   📦 Total items: ${orderItems.length}`);
+
               } else {
                 console.warn('⚠️ No order items found for this order');
               }
@@ -365,7 +407,7 @@ export const handleCallback = async (req, res) => {
           }
         } else {
           // Payment failed
-          console.log(`Payment failed for order ${order.id}: ${ResultDesc}`);
+          console.log(`❌ Payment failed for order ${order.id}: ${ResultDesc}`);
           await supabase
             .from('orders')
             .update({
@@ -380,7 +422,7 @@ export const handleCallback = async (req, res) => {
     // Always respond with success to M-Pesa
     res.status(200).json({ ResultCode: 0, ResultDesc: "Success" });
   } catch (error) {
-    console.error('Error processing M-Pesa callback:', error);
+    console.error('❌ Error processing M-Pesa callback:', error);
     res.status(200).json({ ResultCode: 0, ResultDesc: "Callback acknowledged" });
   }
 };
