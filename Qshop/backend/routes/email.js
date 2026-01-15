@@ -27,101 +27,112 @@ router.post('/password-reset', rateLimiter(), sendPasswordResetEmail);
 // This will be called when a new order is placed
 router.post('/seller-order-notification', sendSellerOrderNotification);
 
-
-
-
-// Add this route to your existing email router
-// backend/routes/email.js
-// ADD THIS SIMPLE TEST ROUTE
-
-router.post('/test-send-now', async (req, res) => {
+router.post('/resend-order-notification', async (req, res) => {
   try {
-    console.log('🧪 TEST: Sending email directly...');
+    const { checkoutRequestId } = req.body;
     
-    // Your actual data from the order
-    const emailData = {
-      sellerEmail: 'tulleyteyez@gmail.com',
-      sellerName: 'Seller',
-      orderId: '78ca44d0-4e16-44e5-8424-0f2bde0b9f05',
-      orderItemId: 'ace4033f-6142-4ad1-97d0-3327296e758e',
-      productName: 'Test Product',
-      productImage: null,
-      quantity: 1,
-      totalAmount: 1000,
-      buyerName: 'Test Buyer',
-      buyerEmail: 'buyer@test.com'
-    };
+    console.log('🔍 Looking for order:', checkoutRequestId);
     
-    console.log('📧 Email data:', emailData);
+    // Find order
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('checkout_request_id', checkoutRequestId)
+      .single();
     
-    // Import and use Resend directly
+    if (!orders) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Get order items with CORRECTED seller_id
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select(`*, products(*, seller_id)`)
+      .eq('order_id', orders.id);
+    
+    // Get buyer
+    const { data: buyer } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', orders.buyer_user_id)
+      .single();
+    
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    console.log('🔑 API Key present:', !!process.env.RESEND_API_KEY);
-    console.log('📤 Attempting to send...');
+    const { 
+      sellerOrderNotificationTemplate, 
+      sellerOrderNotificationText 
+    } = await import('../utils/emailTemplates.js');
     
-    // Import your email template
-    const { sellerOrderNotificationTemplate, sellerOrderNotificationText } = await import('../utils/emailTemplates.js');
+    const results = [];
     
-    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
-    const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <support@unihive.store>';
-    
-    const orderUrl = `${APP_URL}/seller/orders/${emailData.orderItemId}`;
-    
-    const orderDetails = {
-      orderId: emailData.orderId,
-      orderItemId: emailData.orderItemId,
-      productName: emailData.productName,
-      productImage: emailData.productImage,
-      quantity: emailData.quantity,
-      totalAmount: emailData.totalAmount,
-      buyerName: emailData.buyerName,
-      buyerEmail: emailData.buyerEmail,
-      orderUrl
-    };
-    
-    console.log('📝 Generating email templates...');
-    
-    const htmlContent = sellerOrderNotificationTemplate(emailData.sellerName, orderDetails);
-    const textContent = sellerOrderNotificationText(emailData.sellerName, orderDetails);
-    
-    console.log('✅ Templates generated');
-    console.log('📨 Calling Resend API...');
-    
-    const { data, error } = await resend.emails.send({
-      from: SENDER_EMAIL,
-      to: emailData.sellerEmail,
-      subject: `🎉 New Order #${emailData.orderItemId.substring(0, 8)} - ${emailData.productName}`,
-      html: htmlContent,
-      text: textContent,
-    });
-    
-    if (error) {
-      console.error('❌ Resend API error:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Resend API failed',
-        details: error
-      });
+    // Send emails to each seller
+    for (const item of orderItems) {
+      try {
+        const { data: seller } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', item.products.seller_id)
+          .single();
+        
+        if (!seller?.email) {
+          results.push({ orderItemId: item.id, success: false, error: 'No seller email' });
+          continue;
+        }
+        
+        const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+        const orderUrl = `${APP_URL}/seller/orders/${item.id}`;
+        
+        const productImages = item.products?.product_images;
+        const firstImage = Array.isArray(productImages) && productImages.length > 0 
+          ? productImages[0] 
+          : null;
+        
+        const orderDetails = {
+          orderId: orders.id,
+          orderItemId: item.id,
+          productName: item.products?.product_name || 'Product',
+          productImage: firstImage,
+          quantity: item.quantity || 1,
+          totalAmount: item.total_price || 0,
+          buyerName: buyer?.full_name || 'Customer',
+          buyerEmail: buyer?.email || '',
+          orderUrl
+        };
+        
+        const { data, error } = await resend.emails.send({
+          from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>',
+          to: seller.email,
+          subject: `🎉 New Order #${item.id.substring(0, 8)} - ${orderDetails.productName}`,
+          html: sellerOrderNotificationTemplate(seller.full_name, orderDetails),
+          text: sellerOrderNotificationText(seller.full_name, orderDetails),
+        });
+        
+        if (error) {
+          results.push({ orderItemId: item.id, sellerEmail: seller.email, success: false, error });
+        } else {
+          results.push({ orderItemId: item.id, sellerEmail: seller.email, success: true, emailId: data.id });
+        }
+        
+      } catch (error) {
+        results.push({ orderItemId: item.id, success: false, error: error.message });
+      }
     }
     
-    console.log('✅ Email sent successfully!');
-    console.log('📬 Email ID:', data.id);
+    const successCount = results.filter(r => r.success).length;
     
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: 'Email sent successfully!',
-      emailId: data.id,
-      sentTo: emailData.sellerEmail
+      message: `Sent ${successCount} of ${orderItems.length} emails`,
+      orderId: orders.id,
+      results
     });
     
   } catch (error) {
-    console.error('❌ Fatal error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      error: error.message
     });
   }
 });
