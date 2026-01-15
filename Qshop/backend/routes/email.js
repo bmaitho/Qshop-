@@ -27,151 +27,101 @@ router.post('/password-reset', rateLimiter(), sendPasswordResetEmail);
 // This will be called when a new order is placed
 router.post('/seller-order-notification', sendSellerOrderNotification);
 
-// Add this import at the top if not already there
-import { supabase } from '../supabaseClient.js';
+
+
 
 // Add this route to your existing email router
-router.post('/resend-order-notification', async (req, res) => {
+// backend/routes/email.js
+// ADD THIS SIMPLE TEST ROUTE
+
+router.post('/test-send-now', async (req, res) => {
   try {
-    const { checkoutRequestId, orderId } = req.body;
+    console.log('🧪 TEST: Sending email directly...');
     
-    if (!checkoutRequestId && !orderId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Either checkoutRequestId or orderId is required'
-      });
-    }
+    // Your actual data from the order
+    const emailData = {
+      sellerEmail: 'tulleyteyez@gmail.com',
+      sellerName: 'Seller',
+      orderId: '78ca44d0-4e16-44e5-8424-0f2bde0b9f05',
+      orderItemId: 'ace4033f-6142-4ad1-97d0-3327296e758e',
+      productName: 'Test Product',
+      productImage: null,
+      quantity: 1,
+      totalAmount: 1000,
+      buyerName: 'Test Buyer',
+      buyerEmail: 'buyer@test.com'
+    };
     
-    console.log('🔍 Manual email resend requested...');
+    console.log('📧 Email data:', emailData);
     
-    // Find the order
-    let query = supabase.from('orders').select('*');
+    // Import and use Resend directly
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
     
-    if (checkoutRequestId) {
-      query = query.eq('checkout_request_id', checkoutRequestId);
-    } else {
-      query = query.eq('id', orderId);
-    }
+    console.log('🔑 API Key present:', !!process.env.RESEND_API_KEY);
+    console.log('📤 Attempting to send...');
     
-    const { data: orders, error: orderError } = await query;
+    // Import your email template
+    const { sellerOrderNotificationTemplate, sellerOrderNotificationText } = await import('../utils/emailTemplates.js');
     
-    if (orderError || !orders || orders.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
-    }
+    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+    const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <support@unihive.store>';
     
-    const order = orders[0];
+    const orderUrl = `${APP_URL}/seller/orders/${emailData.orderItemId}`;
     
-    // Fetch order items with CORRECTED seller_id reference
-    const { data: orderItems, error: itemsError } = await supabase
-      .from('order_items')
-      .select(`
-        *,
-        products (
-          *,
-          seller_id
-        )
-      `)
-      .eq('order_id', order.id);
+    const orderDetails = {
+      orderId: emailData.orderId,
+      orderItemId: emailData.orderItemId,
+      productName: emailData.productName,
+      productImage: emailData.productImage,
+      quantity: emailData.quantity,
+      totalAmount: emailData.totalAmount,
+      buyerName: emailData.buyerName,
+      buyerEmail: emailData.buyerEmail,
+      orderUrl
+    };
     
-    if (itemsError || !orderItems || orderItems.length === 0) {
+    console.log('📝 Generating email templates...');
+    
+    const htmlContent = sellerOrderNotificationTemplate(emailData.sellerName, orderDetails);
+    const textContent = sellerOrderNotificationText(emailData.sellerName, orderDetails);
+    
+    console.log('✅ Templates generated');
+    console.log('📨 Calling Resend API...');
+    
+    const { data, error } = await resend.emails.send({
+      from: SENDER_EMAIL,
+      to: emailData.sellerEmail,
+      subject: `🎉 New Order #${emailData.orderItemId.substring(0, 8)} - ${emailData.productName}`,
+      html: htmlContent,
+      text: textContent,
+    });
+    
+    if (error) {
+      console.error('❌ Resend API error:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to fetch order items'
+        error: 'Resend API failed',
+        details: error
       });
     }
     
-    // Fetch buyer profile
-    const { data: buyerProfile } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', order.buyer_user_id)
-      .single();
-    
-    // Send emails to sellers
-    const results = [];
-    
-    for (const item of orderItems) {
-      try {
-        const sellerId = item.products?.seller_id; // CORRECTED
-        
-        if (!sellerId) {
-          results.push({ orderItemId: item.id, success: false, error: 'No seller ID' });
-          continue;
-        }
-        
-        const { data: sellerProfile } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', sellerId)
-          .single();
-        
-        if (!sellerProfile?.email) {
-          results.push({ orderItemId: item.id, success: false, error: 'No seller email' });
-          continue;
-        }
-        
-        // Get product images
-        const productImages = item.products?.product_images;
-        const firstImage = Array.isArray(productImages) && productImages.length > 0 
-          ? productImages[0] 
-          : null;
-        
-        const emailData = {
-          sellerEmail: sellerProfile.email,
-          sellerName: sellerProfile.full_name || 'Seller',
-          orderId: order.id,
-          orderItemId: item.id,
-          productName: item.products?.product_name || 'Product',
-          productImage: firstImage,
-          quantity: item.quantity || 1,
-          totalAmount: item.total_price || 0,
-          buyerName: buyerProfile?.full_name || 'Customer',
-          buyerEmail: buyerProfile?.email || ''
-        };
-        
-        // Call the email controller
-        const { sendSellerOrderNotification } = await import('../controllers/emailController.js');
-        
-        const mockReq = { body: emailData };
-        let emailSuccess = false;
-        
-        const mockRes = {
-          status: (code) => ({
-            json: (data) => {
-              emailSuccess = code === 200 && data.success;
-            }
-          })
-        };
-        
-        await sendSellerOrderNotification(mockReq, mockRes);
-        
-        results.push({ 
-          orderItemId: item.id, 
-          sellerEmail: sellerProfile.email,
-          success: emailSuccess 
-        });
-        
-      } catch (error) {
-        results.push({ orderItemId: item.id, success: false, error: error.message });
-      }
-    }
-    
-    const successCount = results.filter(r => r.success).length;
+    console.log('✅ Email sent successfully!');
+    console.log('📬 Email ID:', data.id);
     
     return res.status(200).json({
       success: true,
-      message: `Sent ${successCount} of ${orderItems.length} emails`,
-      orderId: order.id,
-      results
+      message: 'Email sent successfully!',
+      emailId: data.id,
+      sentTo: emailData.sellerEmail
     });
     
   } catch (error) {
+    console.error('❌ Fatal error:', error);
     return res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
   }
 });
