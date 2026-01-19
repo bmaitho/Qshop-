@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /checkout
+Disallow: /orders
+Disallow: /messages
+
+Sitemap: https://unihive.shop/sitemap.xml
