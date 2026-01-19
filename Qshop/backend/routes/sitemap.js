@@ -1,5 +1,5 @@
-const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
+import express from 'express';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
@@ -80,4 +80,4 @@ router.get('/sitemap.xml', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

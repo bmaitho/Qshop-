@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mpesaRoutes from './routes/mpesa.js';
 import emailRoutes from './routes/email.js';
+import sitemapRoutes from './routes/sitemap.js';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use('/', sitemapRoutes);
 
 // Welcome route
 app.get('/', (req, res) => {
