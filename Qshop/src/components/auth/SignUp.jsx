@@ -654,7 +654,7 @@ const SignUp = () => {
                 <Input
                   name="studentId"
                   type="text"
-                  placeholder="Student ID (required)"
+                  placeholder="Student ID/National ID (required)"
                   value={formData.studentId}
                   onChange={handleChange}
                   className={`text-gray-900 dark:text-white ${errors.studentId ? "border-red-500" : ""}`}
