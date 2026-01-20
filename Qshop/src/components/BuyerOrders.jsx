@@ -42,7 +42,7 @@ const BuyerOrders = () => {
 
       const backendUrl = import.meta.env.VITE_API_URL;
       const response = await fetch(
-        `${backendUrl}/api/buyer-orders?status=${statusFilter}`,
+        `${backendUrl}/buyer-orders?status=${statusFilter}`,
         {
           headers: {
             'Authorization': `Bearer ${user.access_token}`
