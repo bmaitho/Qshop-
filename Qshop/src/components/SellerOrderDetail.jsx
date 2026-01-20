@@ -21,7 +21,9 @@ import {
   Phone,
   MapPin,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  Star
 } from 'lucide-react';
 import { getDisplayInfo } from '../utils/communicationUtils';
 
@@ -511,6 +513,92 @@ const SellerOrderDetail = () => {
               <p className="text-sm text-green-700">
                 Payment {orderItem.payment_status === 'completed' ? 'completed' : 'processing'}
               </p>
+            </div>
+          )}
+
+          {/* Buyer Confirmation Status */}
+          {orderItem.status === 'delivered' && (
+            <div className="mt-4 p-4 rounded-lg border">
+              {!orderItem.buyer_confirmed ? (
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-amber-600" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-900 dark:text-amber-200">
+                      Awaiting Buyer Confirmation
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Payment will be released once the buyer confirms delivery
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-green-900 dark:text-green-200">
+                        Delivery Confirmed by Buyer
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Confirmed on {new Date(orderItem.buyer_confirmed_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Display Rating */}
+                  {orderItem.buyer_rating && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm font-medium mb-2">Buyer Rating:</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${
+                                star <= orderItem.buyer_rating
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm font-semibold">
+                          {orderItem.buyer_rating} / 5
+                        </span>
+                      </div>
+
+                      {/* Display Review */}
+                      {orderItem.buyer_review && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium mb-1">Review:</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 italic">
+                            "{orderItem.buyer_review}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Payment Status */}
+                  {orderItem.payment_status && (
+                    <div className="pt-3 border-t">
+                      <p className="text-sm font-medium mb-1">Payment Status:</p>
+                      <Badge className={
+                        orderItem.payment_status === 'completed'
+                          ? 'bg-green-100 text-green-800'
+                          : orderItem.payment_status === 'processing'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }>
+                        {orderItem.payment_status === 'completed' && 'Payment Sent'}
+                        {orderItem.payment_status === 'processing' && 'Processing Payment'}
+                        {orderItem.payment_status === 'pending' && 'Payment Pending'}
+                        {!['completed', 'processing', 'pending'].includes(orderItem.payment_status) && orderItem.payment_status}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

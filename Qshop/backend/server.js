@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import mpesaRoutes from './routes/mpesa.js';
 import emailRoutes from './routes/email.js';
 import sitemapRoutes from './routes/sitemap.js';
+import buyerOrdersRoutes from './routes/buyerOrders.js'; // ← NEW: Import buyer orders routes
 
 dotenv.config();
 
@@ -103,6 +104,7 @@ app.get('/', (req, res) => {
               <li>/api/health - Server health check</li>
               <li>/api/mpesa/* - M-Pesa payment endpoints</li>
               <li>/api/email/* - Email service endpoints</li>
+              <li>/api/buyer-orders/* - Buyer order management endpoints</li>
             </ul>
           </div>
           <p>Environment: ${process.env.NODE_ENV || 'development'}</p>
@@ -117,10 +119,12 @@ app.get('/', (req, res) => {
 // API routes
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/buyer-orders', buyerOrdersRoutes); // ← NEW: Add buyer orders routes
 
 // Apply CORS options to preflight requests
 app.options('/api/mpesa/*', cors(corsOptions));
 app.options('/api/email/*', cors(corsOptions));
+app.options('/api/buyer-orders/*', cors(corsOptions)); // ← NEW: CORS for buyer orders
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -129,7 +133,8 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
     services: {
       mpesa: 'available',
-      email: 'available'
+      email: 'available',
+      buyerOrders: 'available' // ← NEW: Add to health check
     },
     version: '1.0.0',
     timestamp: new Date().toISOString()

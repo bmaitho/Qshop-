@@ -28,7 +28,7 @@ import OrderDetails from './components/OrderDetails';
 import WholesalerCodes from './components/admin/WholesalerCodes';
 import SubscriptionPage from './components/SubscriptionPage';
 import SellerOrderDetail from './components/SellerOrderDetail';
-
+import BuyerOrders from './components/BuyerOrders';
 const App = () => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +101,7 @@ const App = () => {
       <Route path="/seller/:id" element={<SellerProfile />} />
       <Route path="/subscription" element={<SubscriptionPage />} />
       <Route path="/admin/codes" element={<WholesalerCodes />} />
+       <Route path="/my-orders" element={<BuyerOrders />} />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );

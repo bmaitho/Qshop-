@@ -37,13 +37,13 @@ const SignUp = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [emailSent, setEmailSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const fileInputRef = useRef(null);
   
   // File upload state for wholesaler
   const [documentFile, setDocumentFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const fileInputRef = useRef(null);
   
   // Terms and Privacy Policy state
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -56,8 +56,8 @@ const SignUp = () => {
     email: '',
     password: '',
     phone: '',
-    campusLocation: '',
-    campusLocationId: null,
+    campusLocation: '', // Only for students
+    campusLocationId: null, // Only for students
     accountType: 'student', // 'student' or 'wholesaler'
     
     // Student-specific fields
@@ -90,8 +90,11 @@ const SignUp = () => {
   }, []);
 
   useEffect(() => {
-    fetchCampusLocations();
-  }, []);
+    // Only fetch campus locations for students
+    if (activeTab === 'student') {
+      fetchCampusLocations();
+    }
+  }, [activeTab]);
 
   const fetchCampusLocations = async () => {
     try {
@@ -161,7 +164,11 @@ const SignUp = () => {
     if (!formData.password) newErrors.password = "Password is required";
     if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
-    if (!formData.campusLocation) newErrors.campusLocation = "Campus location is required";
+    
+    // Campus location is ONLY required for students
+    if (formData.accountType === 'student' && !formData.campusLocation) {
+      newErrors.campusLocation = "Campus location is required";
+    }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -183,21 +190,13 @@ const SignUp = () => {
       newErrors.acceptedPrivacy = "You must accept the Privacy Policy";
     }
 
-    // Account type specific validations - MAKE OPTIONAL FOR NOW
+    // Account type specific validations
     if (formData.accountType === 'student') {
       // Student ID is optional for now
-      // if (!formData.studentId.trim()) newErrors.studentId = "Student ID is required";
     }
 
     if (formData.accountType === 'wholesaler') {
       // Make all wholesaler fields optional for now - can be filled later
-      // if (!formData.businessName.trim()) newErrors.businessName = "Business name is required";
-      // if (!formData.businessLicenseNumber.trim()) newErrors.businessLicenseNumber = "Business license number is required";
-      // if (!formData.businessAddress.trim()) newErrors.businessAddress = "Business address is required";
-      // if (!formData.businessPhone.trim()) newErrors.businessPhone = "Business phone is required";
-      // if (!formData.businessEmail.trim()) newErrors.businessEmail = "Business email is required";
-      // if (!formData.wholesalerCode.trim()) newErrors.wholesalerCode = "Access code is required";
-      
       // Business email validation only if provided
       if (formData.businessEmail && !emailRegex.test(formData.businessEmail)) {
         newErrors.businessEmail = "Please enter a valid business email address";
@@ -296,7 +295,6 @@ const SignUp = () => {
           
           if (codeError || !codeData) {
             toast.warning("Wholesaler code not found or already used. You can update this later in your profile.");
-            // Don't fail the signup - just warn
           }
         } catch (codeError) {
           console.error('Code verification error (non-critical):', codeError);
@@ -304,19 +302,21 @@ const SignUp = () => {
         }
       }
 
-      // Prepare metadata for Supabase - EXACTLY what your database trigger expects
+      // Prepare metadata for Supabase
       const metadata = {
         full_name: formData.fullName,
         phone: formData.phone,
-        campus_location: formData.campusLocation,
-        is_seller: formData.accountType === 'wholesaler', // Simple mapping
-        // These extra fields will be ignored by your trigger but stored in raw_user_meta_data
-        campus_location_id: formData.campusLocationId ? parseInt(formData.campusLocationId) : null,
+        // Only include campus location for students
+        campus_location: formData.accountType === 'student' ? formData.campusLocation : null,
+        is_seller: formData.accountType === 'wholesaler',
+        campus_location_id: formData.accountType === 'student' && formData.campusLocationId 
+          ? parseInt(formData.campusLocationId) 
+          : null,
         account_type: formData.accountType,
         student_id: formData.accountType === 'student' ? formData.studentId : null,
         business_name: formData.accountType === 'wholesaler' ? formData.businessName : null,
         business_license_number: formData.accountType === 'wholesaler' ? formData.businessLicenseNumber : null,
-        email: formData.email // Include email in metadata for completeness
+        email: formData.email
       };
 
       // Create user with Supabase Auth
@@ -391,8 +391,9 @@ const SignUp = () => {
           }
         }
         
-        // ✅ REMOVED CUSTOM EMAIL SENDING - Supabase handles this automatically
-        // The confirmation email is sent by Supabase with the correct token
+        // Show success message
+        setEmailSent(true);
+        toast.success("Account created successfully! Please check your email to verify your account.");
       }
     } catch (error) {
       console.error('Sign up error:', error);
@@ -400,55 +401,33 @@ const SignUp = () => {
       if (userCreated) {
         toast.warning("Your account was created, but we encountered some issues. Please check your email for the confirmation link.");
         setEmailSent(true);
-        setSubmitting(false);
-        return;
+      } else {
+        toast.error(error.message || "An error occurred during sign up");
       }
-      
-      let errorMessage = 'Failed to create account';
-      
-      if (error.message?.includes('password')) {
-        errorMessage = error.message;
-      } else if (error.message?.includes('email')) {
-        errorMessage = 'This email is already registered';
-        setErrors(prev => ({
-          ...prev,
-          email: "This email is already registered"
-        }));
-      } else if (error.status === 422) {
-        errorMessage = 'Invalid email or password format';
-      } else if (error.status === 429) {
-        errorMessage = 'Too many requests. Please try again later.';
-      } else if (error.status === 500 || error.status === 522) {
-        errorMessage = 'Server error. Please try again later.';
-      }
-      
-      toast.error(errorMessage);
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    setEmailSent(true);
-    setSubmitting(false);
-    toast.success("Account created successfully! Please check your email for the confirmation link.");
   };
 
-  // Show email confirmation screen
+  // Show confirmation screen if email sent
   if (emailSent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background dark:bg-background p-4">
         <div className="w-full max-w-md bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
           <div className="text-center">
-            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
-              <Mail className="w-6 h-6 text-green-600 dark:text-green-400" />
+            <div className="mb-6">
+              <Mail className="w-16 h-16 mx-auto text-primary" />
             </div>
             
-            <h2 className="text-xl font-bold mb-2 text-foreground dark:text-foreground">Check Your Email</h2>
+            <h2 className="text-2xl font-bold text-foreground dark:text-foreground mb-4">
+              Check Your Email
+            </h2>
             
-            <Alert className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-blue-800 dark:text-blue-200">Verification Required</AlertTitle>
-              <AlertDescription className="text-blue-700 dark:text-blue-300">
-                We've sent a confirmation email to <strong>{formData.email}</strong>.
+            <Alert className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Verification Required</AlertTitle>
+              <AlertDescription>
+                We've sent a confirmation email to <strong>{formData.email}</strong>. 
                 Please click the link in the email to verify your account.
               </AlertDescription>
             </Alert>
@@ -529,8 +508,8 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background dark:bg-background p-4">
-      <div className="w-full max-w-md bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border">
+    <div className="min-h-screen flex items-start md:items-center justify-center bg-background dark:bg-background p-4 py-8 overflow-y-auto">
+      <div className={`w-full ${activeTab === 'wholesaler' ? 'max-w-2xl' : 'max-w-md'} bg-card dark:bg-card p-6 rounded-lg shadow-md border border-border dark:border-border my-auto`}>
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-foreground dark:text-foreground mb-2">
             Create Account
@@ -592,12 +571,13 @@ const SignUp = () => {
                 className={`text-gray-900 dark:text-white ${errors.password ? "border-red-500" : ""}`}
               />
               <button
-  type="button"
-  onClick={() => setShowPassword(!showPassword)}
-  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
->
-  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-         </button>
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
             </div>
 
             <div>
@@ -612,55 +592,54 @@ const SignUp = () => {
               {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
             </div>
 
-            {/* Campus Location - NEW SEARCHABLE VERSION */}
-            <div className="space-y-2">
-              <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground">
-                Campus/School <span className="text-red-500">*</span>
-              </label>
-
-              <CampusLocationSelector
-                value={formData.campusLocation}
-                onChange={(e) => {
-                  // Handle both direct calls and from the selector
-                  if (e.target) {
-                    handleChange(e);
-                  } else {
-                    // If called with just the location object
-                    handleChange({
-                      target: {
-                        name: 'campusLocation',
-                        value: e.name
-                      }
-                    });
-                    setFormData(prev => ({
-                      ...prev,
-                      campusLocationId: e.id
-                    }));
-                  }
-                }}
-                campusLocations={campusLocations}
-                error={errors.campusLocation}
-                disabled={submitting || loadingCampuses}
-              />
-
-              {loadingCampuses && (
-                <p className="text-sm text-gray-500">Loading schools...</p>
-              )}
-            </div>
-
             {/* Student-specific fields */}
             <TabsContent value="student" className="space-y-4 mt-0">
+              {/* Campus Location - ONLY FOR STUDENTS */}
+              <div className="space-y-2">
+                <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground">
+                  Campus/School <span className="text-red-500">*</span>
+                </label>
+
+                <CampusLocationSelector
+                  value={formData.campusLocation}
+                  onChange={(e) => {
+                    // Handle both direct calls and from the selector
+                    if (e.target) {
+                      handleChange(e);
+                    } else {
+                      // If called with just the location object
+                      handleChange({
+                        target: {
+                          name: 'campusLocation',
+                          value: e.name
+                        }
+                      });
+                      setFormData(prev => ({
+                        ...prev,
+                        campusLocationId: e.id
+                      }));
+                    }
+                  }}
+                  campusLocations={campusLocations}
+                  error={errors.campusLocation}
+                  disabled={submitting || loadingCampuses}
+                />
+
+                {loadingCampuses && (
+                  <p className="text-sm text-gray-500">Loading schools...</p>
+                )}
+              </div>
+
               <div>
                 <Input
                   name="studentId"
                   type="text"
-                  placeholder="Student ID/National ID (required)"
+                  placeholder="Student ID/National ID (Optional)"
                   value={formData.studentId}
                   onChange={handleChange}
                   className={`text-gray-900 dark:text-white ${errors.studentId ? "border-red-500" : ""}`}
                 />
                 {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
-               
               </div>
             </TabsContent>
 
@@ -774,85 +753,85 @@ const SignUp = () => {
             {/* Document Upload Section */}
             <div>
               <label className="block text-sm font-medium mb-2">
-                {activeTab === 'student' ? 'Student ID Document' : 'Business License'} (required)
+                {activeTab === 'student' ? 'Student ID or National ID (Optional)' : 'Business License (Optional)'}
               </label>
+              
               <div
-                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-                  ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}
-                  ${documentFile ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : ''}
-                `}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
+                className={`
+                  border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
+                  ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-300 dark:border-gray-700'}
+                  hover:border-primary hover:bg-primary/5
+                `}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                
-                {documentFile ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-center space-x-2">
-                      <Upload className="w-5 h-5 text-green-600" />
-                      <span className="text-sm text-green-700 dark:text-green-300">
-                        {documentFile.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFile();
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {previewUrl && (
-                      <img
-                        src={previewUrl}
-                        alt="Preview"
-                        className="mx-auto mt-2 max-h-20 object-cover rounded"
-                      />
-                    )}
+                {previewUrl ? (
+                  <div className="relative">
+                    <img src={previewUrl} alt="Preview" className="max-h-40 mx-auto rounded" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile();
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : documentFile ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Upload className="w-5 h-5 text-primary" />
+                    <span className="text-sm">{documentFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeFile();
+                      }}
+                      className="text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <ImagePlus className="w-8 h-8 mx-auto text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Click or drag to upload {activeTab === 'student' ? 'student ID' : 'business license'}
+                  <div>
+                    <ImagePlus className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Drag and drop or click to upload
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      PNG, JPG or PDF up to 10MB 
+                    <p className="text-xs text-gray-500 mt-1">
+                      PNG, JPG, PDF (Max 5MB)
                     </p>
                   </div>
                 )}
               </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
             </div>
 
-            {/* Terms and Privacy Policy Checkboxes */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-start space-x-2">
+            {/* Terms and Conditions */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
                   id="acceptTerms"
                   checked={acceptedTerms}
-                  onChange={(e) => {
-                    setAcceptedTerms(e.target.checked);
-                    if (errors.acceptedTerms) {
-                      setErrors(prev => ({ ...prev, acceptedTerms: '' }));
-                    }
-                  }}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#e7c65f] focus:ring-[#e7c65f]"
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-[#e7c65f] focus:ring-[#e7c65f]"
                 />
                 <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs"
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20_%20CONDITIONS.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgXyBDT05ESVRJT05TLnBkZiIsImlhdCI6MTczNjU5OTQ2OCwiZXhwIjoxODM5NjcxNDY4fQ.i84Iy7zWpLGfINDfmcvVmXTgjLZJz4uPh7GCb55YgB8"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
@@ -865,23 +844,18 @@ const SignUp = () => {
                 <p className="text-red-500 text-xs ml-6">{errors.acceptedTerms}</p>
               )}
 
-              <div className="flex items-start space-x-2">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
                   id="acceptPrivacy"
                   checked={acceptedPrivacy}
-                  onChange={(e) => {
-                    setAcceptedPrivacy(e.target.checked);
-                    if (errors.acceptedPrivacy) {
-                      setErrors(prev => ({ ...prev, acceptedPrivacy: '' }));
-                    }
-                  }}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 text-[#e7c65f] focus:ring-[#e7c65f]"
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-[#e7c65f] focus:ring-[#e7c65f]"
                 />
                 <label htmlFor="acceptPrivacy" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzM2MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"

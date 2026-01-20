@@ -359,13 +359,13 @@ export const checkB2CStatus = async (req, res) => {
 };
 
 /**
- * Automatic payment to seller when order is delivered
- * ✅ FIXED: Fetches order and order_item separately to avoid FK ambiguity
+ * Automatic payment to seller when order is delivered AND buyer confirms
+ * ✅ UPDATED: Now checks buyer_confirmed flag before processing payment
  */
 export const processSellerPayment = async (orderItemId) => {
   try {
     console.log(`Processing automatic payment for order item: ${orderItemId}`);
-    
+
     // ✅ STEP 1: Fetch order_item with products only (no orders join)
     const { data: orderItem, error: orderItemError } = await supabase
       .from('order_items')
@@ -375,29 +375,38 @@ export const processSellerPayment = async (orderItemId) => {
       `)
       .eq('id', orderItemId)
       .single();
-      
+
     if (orderItemError) {
       throw new Error(`Error fetching order item: ${orderItemError.message}`);
     }
-    
+
     if (!orderItem) {
       throw new Error(`Order item not found: ${orderItemId}`);
     }
-    
+
+    // ✅ NEW: Check if buyer has confirmed delivery
+    if (!orderItem.buyer_confirmed) {
+      console.log(`Order item ${orderItemId} not yet confirmed by buyer. Payment on hold.`);
+      return {
+        success: false,
+        message: 'Waiting for buyer to confirm delivery before processing payment'
+      };
+    }
+
     // ✅ STEP 2: Fetch order separately to avoid FK ambiguity
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', orderItem.order_id)
       .single();
-      
+
     if (orderError) {
       throw new Error(`Error fetching order: ${orderError.message}`);
     }
-    
+
     // ✅ STEP 3: Attach order to orderItem for compatibility with existing code
     orderItem.orders = order;
-    
+
     // Check if payment to seller is already processed
     if (orderItem.payment_status === 'completed' || orderItem.payment_status === 'processing') {
       console.log(`Seller payment for order item ${orderItemId} already processed`);
@@ -406,7 +415,7 @@ export const processSellerPayment = async (orderItemId) => {
         message: 'Payment already processed'
       };
     }
-    
+
     // Check if the order has been paid by the customer
     if (order.payment_status !== 'completed') {
       console.log(`Order ${orderItem.order_id} not yet paid by customer`);
@@ -415,7 +424,16 @@ export const processSellerPayment = async (orderItemId) => {
         message: 'Order not yet paid by customer'
       };
     }
-    
+
+    // Check if order is marked as delivered
+    if (orderItem.status !== 'delivered') {
+      console.log(`Order item ${orderItemId} not yet marked as delivered`);
+      return {
+        success: false,
+        message: 'Order not yet delivered'
+      };
+    }
+
     // Get the seller phone number
     const { data: sellerProfile, error: sellerError } = await supabase
       .from('profiles')
@@ -441,7 +459,9 @@ export const processSellerPayment = async (orderItemId) => {
       sellerFee: commission.sellerFee,
       sellerPayout: commission.totalSellerPayout,
       platformProfit: commission.totalPlatformProfit,
-      quantity: quantity
+      quantity: quantity,
+      buyerConfirmed: orderItem.buyer_confirmed,
+      buyerRating: orderItem.buyer_rating || 'Not rated'
     });
     
     // Call the B2C API with the correct payout amount
