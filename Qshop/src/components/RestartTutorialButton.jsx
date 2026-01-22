@@ -5,9 +5,11 @@ import { HelpCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
-// Local storage keys for tutorial state
+// Local storage keys - MUST match TutorialWrapper
 const TUTORIAL_COMPLETED_KEY = 'unihive_tutorial_completed';
 const TUTORIAL_PROGRESS_KEY = 'unihive_tutorial_progress';
+const MYSHOP_INTRO_COMPLETED_KEY = 'unihive_myshop_intro_completed';
+const ORDERS_TUTORIAL_PENDING_KEY = 'unihive_orders_tutorial_pending';
 
 // Create the context
 export const TutorialContext = createContext({
@@ -48,17 +50,26 @@ export const TutorialProvider = ({ children }) => {
   
   const restartTutorial = () => {
     try {
-      // Reset tutorial status in local storage
+      console.log('🔄 Restarting tutorial...');
+      
+      // Clear ALL tutorial-related localStorage keys
       localStorage.removeItem(TUTORIAL_COMPLETED_KEY);
       localStorage.removeItem(TUTORIAL_PROGRESS_KEY);
+      localStorage.removeItem(MYSHOP_INTRO_COMPLETED_KEY);
+      localStorage.removeItem(ORDERS_TUTORIAL_PENDING_KEY);
       
+      // Set as new user to trigger tutorial
+      localStorage.setItem('isNewUser', 'true');
+      
+      // Activate tutorial
       setIsTutorialActive(true);
-      toast.success("Tutorial will restart on the home page");
       
-      // First navigate to the home page where tutorial starts
-      navigate('/home');
+      toast.success("Tutorial will restart at MyShop");
       
-      // Then reload after a short delay to ensure navigation completes
+      // Navigate to MyShop where tutorial starts
+      navigate('/myshop');
+      
+      // Reload after navigation to ensure clean state
       setTimeout(() => {
         window.location.reload();
       }, 500);

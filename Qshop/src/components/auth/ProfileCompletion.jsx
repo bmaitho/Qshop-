@@ -49,8 +49,8 @@ const ProfileCompletion = ({ token }) => {
 
         // If profile exists and has campus_location, user can skip this step
         if (profile && profile.campus_location && profile.full_name) {
-          // Profile is already complete, redirect to home
-          navigate('/home');
+          // Profile is already complete, redirect to shop
+          navigate('/myshop');
           return;
         }
 
@@ -165,9 +165,9 @@ const ProfileCompletion = ({ token }) => {
         position: "top-right",
         autoClose: 3000,
       });
-      
-      // Redirect to home page
-      navigate('/home');
+
+      // Redirect to shop page to start tutorial
+      navigate('/myshop');
     } catch (error) {
       console.error('Profile update error:', error);
       toast.error('Failed to update profile information', {
