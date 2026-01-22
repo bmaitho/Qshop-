@@ -165,7 +165,7 @@ const ShopCard = ({ shop }) => {
             />
             {/* Overlay with brand name */}
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 flex items-center justify-center">
-              <h2 className="text-white text-2xl font-bold">
+              <h2 className="text-white/70 text-2xl font-bold">
                 {(shop.shop_name || 'Shop').toUpperCase()}
               </h2>
             </div>
