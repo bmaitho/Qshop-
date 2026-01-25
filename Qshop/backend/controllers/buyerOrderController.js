@@ -1,18 +1,33 @@
-// backend/controllers/buyerOrderController.js
+// backend/controllers/buyerOrderController.js - FIXED VERSION
 import { supabase } from '../supabaseClient.js';
 import { processSellerPayment } from './mpesaB2CController.js';
 
 /**
  * Get buyer's order history
+ * FIXED: Now properly extracts token from Authorization header
  */
 export const getBuyerOrders = async (req, res) => {
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // ✅ FIX: Get token from Authorization header
+    const authHeader = req.headers.authorization;
     
-    if (userError || !user) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
-        error: 'Unauthorized' 
+        error: 'Unauthorized - No token provided' 
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // ✅ FIX: Pass token to getUser
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('User verification error:', userError);
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Unauthorized - Invalid token' 
       });
     }
     
@@ -66,7 +81,7 @@ export const getBuyerOrders = async (req, res) => {
 
 /**
  * Confirm order delivery and optionally rate the seller
- * This triggers payment to the seller
+ * FIXED: Now properly extracts token from Authorization header
  */
 export const confirmOrderDelivery = async (req, res) => {
   try {
@@ -88,13 +103,26 @@ export const confirmOrderDelivery = async (req, res) => {
       });
     }
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // ✅ FIX: Get token from Authorization header
+    const authHeader = req.headers.authorization;
     
-    if (userError || !user) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
-        error: 'Unauthorized' 
+        error: 'Unauthorized - No token provided' 
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // ✅ FIX: Pass token to getUser
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('User verification error:', userError);
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Unauthorized - Invalid token' 
       });
     }
     
@@ -199,6 +227,7 @@ export const confirmOrderDelivery = async (req, res) => {
 
 /**
  * Update rating for a confirmed order
+ * FIXED: Now properly extracts token from Authorization header
  */
 export const updateOrderRating = async (req, res) => {
   try {
@@ -220,13 +249,26 @@ export const updateOrderRating = async (req, res) => {
       });
     }
     
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // ✅ FIX: Get token from Authorization header
+    const authHeader = req.headers.authorization;
     
-    if (userError || !user) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
-        error: 'Unauthorized' 
+        error: 'Unauthorized - No token provided' 
+      });
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // ✅ FIX: Pass token to getUser
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      console.error('User verification error:', userError);
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Unauthorized - Invalid token' 
       });
     }
     

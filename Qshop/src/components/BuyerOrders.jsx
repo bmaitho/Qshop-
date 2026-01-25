@@ -34,18 +34,22 @@ const BuyerOrders = () => {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // ✅ FIX: Get session to access the access_token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('No session found:', sessionError);
         navigate('/auth');
         return;
       }
 
       const backendUrl = import.meta.env.VITE_API_URL;
+      // Note: VITE_API_URL already includes /api, so we don't add it again
       const response = await fetch(
         `${backendUrl}/buyer-orders?status=${statusFilter}`,
         {
           headers: {
-            'Authorization': `Bearer ${user.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           }
         }
       );
@@ -69,8 +73,9 @@ const BuyerOrders = () => {
     try {
       setConfirmingOrder(orderItemId);
       
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // ✅ FIX: Get session to access the access_token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
       const backendUrl = import.meta.env.VITE_API_URL;
       
@@ -82,13 +87,14 @@ const BuyerOrders = () => {
         }
       }
 
+      // Note: VITE_API_URL already includes /api
       const response = await fetch(
         `${backendUrl}/buyer-orders/${orderItemId}/confirm`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify(body)
         }
@@ -120,18 +126,20 @@ const BuyerOrders = () => {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      // ✅ FIX: Get session to access the access_token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
       const backendUrl = import.meta.env.VITE_API_URL;
       
+      // Note: VITE_API_URL already includes /api
       const response = await fetch(
         `${backendUrl}/buyer-orders/${orderItemId}/rating`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${user.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
             rating,
@@ -192,23 +200,31 @@ const BuyerOrders = () => {
     const [hover, setHover] = useState(0);
 
     return (
-      <div className="flex gap-1">
+      <div className="flex gap-1 sm:gap-2 items-center justify-center sm:justify-start">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
             type="button"
             disabled={readonly}
-            onClick={() => !readonly && onChange(star)}
+            onClick={() => !readonly && onChange?.(star)}
             onMouseEnter={() => !readonly && setHover(star)}
             onMouseLeave={() => !readonly && setHover(0)}
-            className={`transition-colors ${readonly ? 'cursor-default' : 'cursor-pointer'}`}
+            className={`
+              transition-all duration-200
+              ${readonly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}
+              touch-manipulation
+              p-1 sm:p-2
+            `}
           >
             <Star
-              className={`h-6 w-6 ${
-                star <= (hover || value)
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'text-gray-300'
-              }`}
+              className={`
+                h-8 w-8 sm:h-10 sm:w-10
+                ${
+                  star <= (hover || value)
+                    ? 'fill-yellow-400 text-yellow-400'
+                    : 'text-gray-300'
+                }
+              `}
             />
           </button>
         ))}
@@ -367,20 +383,20 @@ const BuyerOrders = () => {
                   )}
                 </div>
 
-                {/* Rating Modal */}
+                {/* Rating Modal - Mobile Optimized */}
                 {ratingOrder === order.id && (
-                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <h4 className="font-semibold mb-3">
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 max-w-full sm:max-w-md mx-auto">
+                    <h4 className="font-semibold mb-4 text-center sm:text-left text-base sm:text-lg">
                       {order.buyer_confirmed ? 'Update Your Rating' : 'Confirm Delivery & Rate Seller'}
                     </h4>
-                    
+
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">
+                        <label className="block text-sm font-medium mb-3 text-center sm:text-left">
                           Rating *
                         </label>
-                        <StarRating 
-                          value={rating} 
+                        <StarRating
+                          value={rating}
                           onChange={setRating}
                         />
                       </div>
@@ -392,13 +408,14 @@ const BuyerOrders = () => {
                         <textarea
                           value={review}
                           onChange={(e) => setReview(e.target.value)}
-                          placeholder="Share your experience with this seller..."
-                          className="w-full p-2 border rounded-lg resize-none"
+                          placeholder="Share your experience..."
+                          className="w-full p-3 border rounded-lg resize-none text-base focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600"
                           rows="3"
                         />
                       </div>
 
-                      <div className="flex gap-2">
+                      {/* Action Buttons - Stacked on mobile */}
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         <Button
                           onClick={() => {
                             if (order.buyer_confirmed) {
@@ -408,13 +425,17 @@ const BuyerOrders = () => {
                             }
                           }}
                           disabled={confirmingOrder === order.id || rating === 0}
+                          className="w-full sm:flex-1 h-12 text-base"
                         >
                           {confirmingOrder === order.id ? (
                             <>Processing...</>
                           ) : order.buyer_confirmed ? (
                             'Update Rating'
                           ) : (
-                            'Confirm & Submit Rating'
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Confirm & Submit
+                            </>
                           )}
                         </Button>
                         <Button
@@ -424,10 +445,17 @@ const BuyerOrders = () => {
                             setRating(0);
                             setReview('');
                           }}
+                          className="w-full sm:w-auto h-12 text-base"
                         >
                           Cancel
                         </Button>
                       </div>
+
+                      {!order.buyer_confirmed && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 text-center sm:text-left">
+                          By confirming, you acknowledge receiving this item and payment will be released to the seller.
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
