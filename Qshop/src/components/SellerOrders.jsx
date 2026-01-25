@@ -122,16 +122,16 @@ const SellerOrders = () => {
       return;
     }
 
-    // Search by order ID, product name, or item ID
-    const query = searchQuery.toLowerCase().trim();
+    // Remove # if user included it, convert to lowercase
+    const query = searchQuery.toLowerCase().trim().replace(/^#/, '');
+
     const results = orders.filter(orderItem => {
-      // Search by order ID (partial match)
-      const orderIdMatch = orderItem.order_id?.toLowerCase().includes(query);
+      // Search by order ID (remove # from order_id as well for comparison)
+      const orderIdClean = (orderItem.order_id || '').toLowerCase().replace(/^#/, '');
+      const orderIdMatch = orderIdClean.includes(query);
 
-      // Search by product name
+      // Also search by product name and item ID (secondary options)
       const productNameMatch = orderItem.products?.name?.toLowerCase().includes(query);
-
-      // Search by order item ID (for direct order item lookup)
       const itemIdMatch = orderItem.id?.toLowerCase().includes(query);
 
       return orderIdMatch || productNameMatch || itemIdMatch;
