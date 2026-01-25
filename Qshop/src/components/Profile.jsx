@@ -212,20 +212,27 @@ const Profile = () => {
       console.log('Fetching orders...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('cart')
+
+      // Query the ORDERS table, not the cart table
+      // Use !fk_order_items_order_id to specify which foreign key to avoid ambiguity
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
         .select(`
           *,
-          products (*)
+          order_items!fk_order_items_order_id (
+            *,
+            products (*),
+            profiles:seller_id (*)
+          )
         `)
         .eq('user_id', user.id)
-        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      console.log('Orders data:', data);
-      setUserOrders(data || []);
+      if (ordersError) throw ordersError;
+
+      console.log('Orders data:', ordersData);
+      setUserOrders(ordersData || []);
+
     } catch (error) {
       console.error('Error fetching orders:', error);
     }

@@ -40,6 +40,7 @@ import {
 
 const SellerOrders = () => {
   const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,16 +99,45 @@ const SellerOrders = () => {
       // Sort orders by priority
       const sortedOrders = sortOrdersByPriority(ordersData);
       setOrders(sortedOrders);
+      setFilteredOrders(sortedOrders);
     } catch (error) {
       console.error('Error fetching seller orders:', error);
     } finally {
       setLoading(false);
     }
   };
-  
+
+  // Sync filteredOrders when search query or orders change
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredOrders(orders);
+    }
+  }, [searchQuery, orders]);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    // Implement search logic here if needed
+
+    if (!searchQuery.trim()) {
+      setFilteredOrders(orders);
+      return;
+    }
+
+    // Search by order ID, product name, or item ID
+    const query = searchQuery.toLowerCase().trim();
+    const results = orders.filter(orderItem => {
+      // Search by order ID (partial match)
+      const orderIdMatch = orderItem.order_id?.toLowerCase().includes(query);
+
+      // Search by product name
+      const productNameMatch = orderItem.products?.name?.toLowerCase().includes(query);
+
+      // Search by order item ID (for direct order item lookup)
+      const itemIdMatch = orderItem.id?.toLowerCase().includes(query);
+
+      return orderIdMatch || productNameMatch || itemIdMatch;
+    });
+
+    setFilteredOrders(results);
   };
   
   const getTabCounts = () => {
@@ -475,15 +505,29 @@ const SellerOrders = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500 h-4 w-4" />
           <Input
-            placeholder="Search by order ID"
+            placeholder="Search by order ID, product name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 bg-emerald-950/50 border-emerald-700 text-gray-100 placeholder:text-emerald-600"
           />
         </div>
         <Button type="submit" variant="outline" className="border-emerald-700 text-emerald-300 hover:bg-emerald-900/50">
+          <Search className="h-4 w-4 mr-2" />
           Search
         </Button>
+        {searchQuery && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setSearchQuery('');
+              setFilteredOrders(orders);
+            }}
+            className="text-emerald-300 hover:bg-emerald-900/50"
+          >
+            Clear
+          </Button>
+        )}
       </form>
 
       {/* Smart Tabs - Mobile Responsive - FIXED COLOR CONTRAST */}
@@ -593,25 +637,48 @@ const SellerOrders = () => {
                   </Card>
                 ))}
               </div>
-            ) : orders.length === 0 ? (
-              <Card className="bg-emerald-950/30 border-emerald-700">
-                <CardContent className="p-12 text-center">
-                  <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
-                  <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
-                  <p className="text-emerald-400 max-w-md mx-auto">
-                    {status === 'all' && 'You have no orders yet. Once customers start buying, they\'ll appear here.'}
-                    {status === 'urgent' && 'No urgent orders! All your orders are up to date.'}
-                    {status === 'ready' && 'No orders ready to ship right now.'}
-                    {status === 'new' && 'No new orders to process at the moment.'}
-                    {status === 'shipped' && 'No shipped orders currently.'}
-                    {status === 'delivered' && 'No delivered orders yet.'}
-                  </p>
-                </CardContent>
-              </Card>
+            ) : filteredOrders.length === 0 ? (
+              searchQuery ? (
+                // Show "no search results" message
+                <Card className="bg-emerald-950/30 border-emerald-700">
+                  <CardContent className="p-12 text-center">
+                    <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
+                    <p className="text-emerald-400 max-w-md mx-auto mb-4">
+                      No orders match "{searchQuery}"
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setFilteredOrders(orders);
+                      }}
+                      className="bg-emerald-700 hover:bg-emerald-600"
+                    >
+                      Clear Search
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                // Show "no orders at all" message
+                <Card className="bg-emerald-950/30 border-emerald-700">
+                  <CardContent className="p-12 text-center">
+                    <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
+                    <p className="text-emerald-400 max-w-md mx-auto">
+                      {status === 'all' && 'You have no orders yet. Once customers start buying, they\'ll appear here.'}
+                      {status === 'urgent' && 'No urgent orders! All your orders are up to date.'}
+                      {status === 'ready' && 'No orders ready to ship right now.'}
+                      {status === 'new' && 'No new orders to process at the moment.'}
+                      {status === 'shipped' && 'No shipped orders currently.'}
+                      {status === 'delivered' && 'No delivered orders yet.'}
+                    </p>
+                  </CardContent>
+                </Card>
+              )
             ) : (
               <div className="space-y-4">
                 {/* Priority Banners */}
-                {status === 'urgent' && orders.filter(o => !o.buyer_contacted && o.status === 'processing').length > 0 && (
+                {status === 'urgent' && filteredOrders.filter(o => !o.buyer_contacted && o.status === 'processing').length > 0 && (
                   <Card className="border-red-600 bg-gradient-to-r from-red-950/50 to-orange-950/50">
                     <CardContent className="p-6">
                       <div className="flex items-center gap-4">
@@ -619,9 +686,9 @@ const SellerOrders = () => {
                           <Flame className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-red-300 text-lg">🚨 Urgent Action Required</h4>
+                          <h4 className="font-bold text-red-300 text-lg">Urgent Action Required</h4>
                           <p className="text-red-400 mt-1">
-                            You have {orders.filter(o => !o.buyer_contacted && o.status === 'processing').length} orders 
+                            You have {filteredOrders.filter(o => !o.buyer_contacted && o.status === 'processing').length} orders
                             waiting for buyer contact. Quick response improves customer satisfaction and gets you paid instantly when the buyer confirms!
                           </p>
                         </div>
@@ -629,8 +696,8 @@ const SellerOrders = () => {
                     </CardContent>
                   </Card>
                 )}
-                
-                {status === 'ready' && orders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length > 0 && (
+
+                {status === 'ready' && filteredOrders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length > 0 && (
                   <Card className="border-green-600 bg-gradient-to-r from-green-950/50 to-emerald-950/50">
                     <CardContent className="p-6">
                       <div className="flex items-center gap-4">
@@ -638,9 +705,9 @@ const SellerOrders = () => {
                           <Zap className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-green-300 text-lg">✅ Ready to Ship!</h4>
+                          <h4 className="font-bold text-green-300 text-lg">Ready to Ship!</h4>
                           <p className="text-green-400 mt-1">
-                            {orders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length} orders 
+                            {filteredOrders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length} orders
                             are confirmed and ready for shipping. Mark them as shipped once sent!
                           </p>
                         </div>
@@ -648,10 +715,10 @@ const SellerOrders = () => {
                     </CardContent>
                   </Card>
                 )}
-                
+
                 {/* Orders List */}
                 <div className="space-y-4">
-                  {orders.map(renderOrderCard)}
+                  {filteredOrders.map(renderOrderCard)}
                 </div>
               </div>
             )}
