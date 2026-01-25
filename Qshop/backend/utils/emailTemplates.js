@@ -659,3 +659,195 @@ Questions? Contact us at support@unihive.store
 © ${new Date().getFullYear()} UniHive. All rights reserved.
   `;
 };
+// NEW EMAIL TEMPLATES for Order Delivered Notification
+// Add these to backend/utils/emailTemplates.js
+
+/**
+ * HTML template for buyer order delivered notification
+ */
+export const orderDeliveredEmailTemplate = (buyerName, orderDetails) => {
+  const {
+    orderId,
+    orderItemId,
+    productName,
+    productImage,
+    quantity,
+    totalAmount,
+    sellerName,
+    orderUrl
+  } = orderDetails;
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Delivered - UniHive</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin-top: 40px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      background-color: #10B981;
+      color: white;
+      padding: 20px;
+      border-radius: 8px 8px 0 0;
+    }
+    .header h1 {
+      font-size: 24px;
+      margin: 0;
+    }
+    .badge {
+      display: inline-block;
+      background-color: #059669;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .content {
+      padding: 20px;
+    }
+    .order-info {
+      background-color: #f9fafb;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .order-info p {
+      margin: 8px 0;
+      font-size: 14px;
+    }
+    .product-image {
+      max-width: 200px;
+      border-radius: 8px;
+      margin: 20px auto;
+      display: block;
+    }
+    .button-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background-color: #10B981;
+      color: white !important;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .button:hover {
+      background-color: #059669;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .highlight {
+      color: #10B981;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📦 Your Order Has Been Delivered!</h1>
+      <div class="badge">Order #${orderId || orderItemId.substring(0, 8)}</div>
+    </div>
+    
+    <div class="content">
+      <p>Hi <strong>${buyerName || 'Customer'}</strong>,</p>
+      
+      <p>Great news! Your order has been marked as <span class="highlight">delivered</span> by the seller.</p>
+      
+      ${productImage ? `<img src="${productImage}" alt="${productName}" class="product-image">` : ''}
+      
+      <div class="order-info">
+        <p><strong>Product:</strong> ${productName}</p>
+        <p><strong>Quantity:</strong> ${quantity}</p>
+        <p><strong>Total Amount:</strong> KSh ${totalAmount.toFixed(2)}</p>
+        ${sellerName ? `<p><strong>Seller:</strong> ${sellerName}</p>` : ''}
+      </div>
+      
+      <p>Please confirm that you've received your order and rate your experience with the seller:</p>
+      
+      <div class="button-container">
+        <a href="${orderUrl}" class="button">Confirm Receipt & Rate Seller</a>
+      </div>
+      
+      <p style="font-size: 14px; color: #6b7280;">
+        Your feedback helps us maintain quality on the UniHive marketplace!
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} UniHive. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+};
+
+/**
+ * Text version of order delivered email
+ */
+export const orderDeliveredEmailText = (buyerName, orderDetails) => {
+  const {
+    orderId,
+    orderItemId,
+    productName,
+    quantity,
+    totalAmount,
+    sellerName,
+    orderUrl
+  } = orderDetails;
+
+  return `
+Hi ${buyerName || 'Customer'},
+
+Your Order Has Been Delivered!
+
+Order #${orderId || orderItemId.substring(0, 8)} has been marked as delivered by the seller.
+
+Order Details:
+- Product: ${productName}
+- Quantity: ${quantity}
+- Total Amount: KSh ${totalAmount.toFixed(2)}
+${sellerName ? `- Seller: ${sellerName}` : ''}
+
+Please confirm that you've received your order and rate your experience:
+
+${orderUrl}
+
+Your feedback helps us maintain quality on the UniHive marketplace!
+
+© ${new Date().getFullYear()} UniHive. All rights reserved.
+  `;
+};
