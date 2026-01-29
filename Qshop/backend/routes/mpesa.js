@@ -96,10 +96,10 @@ router.post('/orders/calculate-commission', async (req, res) => {
 });
 
 /**
+ * ✅ DATABASE-CONSISTENT EMAIL FIX
  * POST /api/mpesa/orders/trigger-payment/:orderItemId
- * Manually trigger payment for a specific order item
- * Called by SellerOrderDetail.jsx when order is marked as delivered
- * NOW WITH EMAIL NOTIFICATION TO BUYER
+ *
+ * This version is fully aligned with the actual database schema
  */
 router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
   try {
@@ -112,111 +112,222 @@ router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
       });
     }
 
-    console.log(`Manually triggering payment for order item: ${orderItemId}`);
+    console.log(`\n========================================`);
+    console.log(`ORDER MARKED AS DELIVERED`);
+    console.log(`Order Item ID: ${orderItemId}`);
+    console.log(`========================================\n`);
 
-    // Process the seller payment (this function already calculates commission)
-    const result = await processSellerPayment(orderItemId);
+    // ============================================
+    // STEP 1: CHECK PAYMENT STATUS
+    // ============================================
+    console.log('💰 Checking payment status...');
+    const paymentResult = await processSellerPayment(orderItemId);
+    console.log(`💰 Payment: ${paymentResult.success ? 'Processed' : paymentResult.message}`);
 
-    // Send email notification to buyer
+    // ============================================
+    // STEP 2: SEND EMAIL TO BUYER
+    // ============================================
+    console.log('\n📧 ========== SENDING EMAIL TO BUYER ==========\n');
+
+    let emailSuccess = false;
+    let emailErrorMessage = null;
+
     try {
-      console.log('📧 Sending delivered notification email to buyer...');
-
-      // Fetch order item with all details
+      // 2.1: Fetch order item
+      console.log('📧 Step 1: Fetching order_items record...');
       const { data: orderItem, error: itemError } = await supabase
         .from('order_items')
-        .select(`
-          *,
-          products(*),
-          orders(*)
-        `)
+        .select('*')
         .eq('id', orderItemId)
         .single();
 
-      if (!itemError && orderItem) {
-        // Get buyer profile
-        const { data: buyerProfile, error: buyerError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', orderItem.buyer_user_id)
-          .single();
+      if (itemError) {
+        throw new Error(`Failed to fetch order_items: ${itemError.message}`);
+      }
 
-        // Get seller profile for display in email
-        const { data: sellerProfile, error: sellerError } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', orderItem.seller_id)
-          .single();
+      if (!orderItem) {
+        throw new Error('Order item not found');
+      }
 
-        if (!buyerError && buyerProfile?.email) {
-          // Import email templates and Resend
-          const { Resend } = await import('resend');
-          const resend = new Resend(process.env.RESEND_API_KEY);
+      console.log('✅ Order item fetched');
+      console.log(`   buyer_user_id: ${orderItem.buyer_user_id}`);
+      console.log(`   seller_id: ${orderItem.seller_id}`);
+      console.log(`   product_id: ${orderItem.product_id}`);
+      console.log(`   order_id: ${orderItem.order_id}`);
+      console.log(`   quantity: ${orderItem.quantity}`);
+      console.log(`   subtotal: ${orderItem.subtotal}`);
 
-          const {
-            orderDeliveredEmailTemplate,
-            orderDeliveredEmailText
-          } = await import('../utils/emailTemplates.js');
+      // 2.2: Fetch buyer profile
+      console.log('\n📧 Step 2: Fetching buyer profile...');
+      const { data: buyerProfile, error: buyerError } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', orderItem.buyer_user_id)
+        .single();
 
-          const APP_URL = process.env.APP_URL || 'https://unihive.shop';
-          const orderUrl = `${APP_URL}/orders/${orderItemId}`;
+      if (buyerError) {
+        throw new Error(`Failed to fetch buyer profile: ${buyerError.message}`);
+      }
 
-          // Prepare email data
-          const productImages = orderItem.products?.product_images;
-          const firstImage = Array.isArray(productImages) && productImages.length > 0
-            ? productImages[0]
-            : null;
+      if (!buyerProfile || !buyerProfile.email) {
+        throw new Error('Buyer profile not found or email missing');
+      }
 
-          const emailData = {
-            orderId: orderItem.order_id,
-            orderItemId: orderItem.id,
-            productName: orderItem.products?.name || orderItem.products?.product_name || 'Product',
-            productImage: firstImage,
-            quantity: orderItem.quantity || 1,
-            totalAmount: orderItem.total_price || orderItem.subtotal || 0,
-            sellerName: sellerProfile?.full_name || 'Seller',
-            orderUrl
-          };
+      console.log('✅ Buyer profile fetched');
+      console.log(`   Name: ${buyerProfile.full_name}`);
+      console.log(`   Email: ${buyerProfile.email}`);
 
-          console.log('📧 Sending email to:', buyerProfile.email);
-          console.log('   Order:', emailData.productName);
-          console.log('   Amount: KSh', emailData.totalAmount);
+      // 2.3: Fetch seller profile
+      console.log('\n📧 Step 3: Fetching seller profile...');
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', orderItem.seller_id)
+        .single();
 
-          // Send the email
-          const { data: emailResponse, error: emailError } = await resend.emails.send({
-            from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>',
-            to: buyerProfile.email,
-            subject: `📦 Your Order #${orderItem.order_id.substring(0, 8)} Has Been Delivered!`,
-            html: orderDeliveredEmailTemplate(buyerProfile.full_name, emailData),
-            text: orderDeliveredEmailText(buyerProfile.full_name, emailData),
-          });
+      console.log(`   Seller: ${sellerProfile?.full_name || 'Seller'}`);
 
-          if (emailError) {
-            console.error('❌ Email send failed:', emailError);
-          } else {
-            console.log('✅ Delivered notification email sent!', emailResponse.id);
-          }
+      // 2.4: Fetch product details
+      console.log('\n📧 Step 4: Fetching product details...');
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('id, name, description, price')
+        .eq('id', orderItem.product_id)
+        .single();
+
+      if (productError) {
+        console.warn('⚠️ Could not fetch product:', productError.message);
+      } else {
+        console.log('✅ Product fetched:', product.name);
+      }
+
+      // 2.5: Fetch product images from separate table
+      console.log('\n📧 Step 5: Fetching product images...');
+      const { data: productImages, error: imagesError } = await supabase
+        .from('product_images')
+        .select('image_url')
+        .eq('product_id', orderItem.product_id)
+        .order('display_order', { ascending: true });
+
+      const firstImage = productImages && productImages.length > 0
+        ? productImages[0].image_url
+        : null;
+
+      if (imagesError) {
+        console.warn('⚠️ Could not fetch images:', imagesError.message);
+      } else {
+        console.log(`   Found ${productImages?.length || 0} image(s)`);
+        if (firstImage) {
+          console.log(`   First image: ${firstImage.substring(0, 50)}...`);
         }
       }
+
+      // 2.6: Check environment
+      console.log('\n📧 Step 6: Checking environment...');
+      if (!process.env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY not set!');
+      }
+      console.log('✅ RESEND_API_KEY exists');
+      console.log(`   EMAIL_FROM: ${process.env.EMAIL_FROM || 'Using default'}`);
+
+      // 2.7: Import Resend
+      console.log('\n📧 Step 7: Importing Resend...');
+      const { Resend } = await import('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      console.log('✅ Resend initialized');
+
+      // 2.8: Import email templates
+      console.log('\n📧 Step 8: Importing email templates...');
+      const {
+        orderDeliveredEmailTemplate,
+        orderDeliveredEmailText
+      } = await import('../utils/emailTemplates.js');
+      console.log('✅ Templates imported');
+
+      // 2.9: Prepare email data
+      console.log('\n📧 Step 9: Preparing email data...');
+      const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+      const orderUrl = `${APP_URL}/orders/${orderItemId}`;
+
+      const emailData = {
+        orderId: orderItem.order_id,
+        orderItemId: orderItem.id,
+        productName: product?.name || 'Product',  // ✅ FIXED: Use 'name' not 'product_name'
+        productImage: firstImage,                  // ✅ FIXED: From separate table
+        quantity: orderItem.quantity || 1,
+        totalAmount: orderItem.subtotal || 0,      // ✅ FIXED: Use 'subtotal'
+        sellerName: sellerProfile?.full_name || 'Seller',
+        orderUrl
+      };
+
+      console.log('✅ Email data prepared:');
+      console.log(`   Product: ${emailData.productName}`);
+      console.log(`   Quantity: ${emailData.quantity}`);
+      console.log(`   Amount: KSh ${emailData.totalAmount}`);
+      console.log(`   URL: ${orderUrl}`);
+
+      // 2.10: Send email
+      console.log('\n📧 Step 10: Sending email...');
+      const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+      const subject = `📦 Your Order #${orderItem.order_id.substring(0, 8)} Has Been Delivered!`;
+
+      console.log(`   FROM: ${fromAddress}`);
+      console.log(`   TO: ${buyerProfile.email}`);
+      console.log(`   SUBJECT: ${subject}`);
+
+      const { data: emailResponse, error: emailSendError } = await resend.emails.send({
+        from: fromAddress,
+        to: buyerProfile.email,
+        subject: subject,
+        html: orderDeliveredEmailTemplate(buyerProfile.full_name, emailData),
+        text: orderDeliveredEmailText(buyerProfile.full_name, emailData),
+      });
+
+      if (emailSendError) {
+        console.error('\n❌ Resend API error:');
+        console.error(JSON.stringify(emailSendError, null, 2));
+        throw new Error(`Resend error: ${JSON.stringify(emailSendError)}`);
+      }
+
+      emailSuccess = true;
+      console.log('\n✅✅✅ EMAIL SENT SUCCESSFULLY! ✅✅✅');
+      console.log(`   Email ID: ${emailResponse.id}`);
+      console.log('   Check Resend dashboard for delivery status\n');
+
     } catch (emailError) {
-      console.error('Error sending delivered notification:', emailError);
-      // Don't fail the payment if email fails
+      emailSuccess = false;
+      emailErrorMessage = emailError.message;
+
+      console.error('\n❌❌❌ EMAIL FAILED! ❌❌❌');
+      console.error(`   Error: ${emailError.message}`);
+      console.error(`   Stack:`, emailError.stack);
     }
 
-    if (result.success) {
-      return res.status(200).json({
-        success: true,
-        message: 'Payment processing initiated and buyer notified',
-        data: result
-      });
-    } else {
-      return res.status(400).json({
-        success: false,
-        error: result.message || 'Payment processing failed',
-        data: result
-      });
-    }
+    // ============================================
+    // STEP 3: RETURN RESPONSE
+    // ============================================
+    console.log(`========================================`);
+    console.log(`FINAL RESULT:`);
+    console.log(`  Payment: ${paymentResult.success ? '✅ Processed' : '⏳ On Hold'}`);
+    console.log(`  Email: ${emailSuccess ? '✅ Sent' : '❌ Failed'}`);
+    console.log(`========================================\n`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Order marked as delivered' + (emailSuccess ? ' and buyer notified' : ''),
+      data: {
+        payment: paymentResult,
+        email: {
+          sent: emailSuccess,
+          error: emailErrorMessage
+        }
+      }
+    });
+
   } catch (error) {
-    console.error('Error in triggerOrderItemPayment:', error);
+    console.error('\n❌ FATAL ERROR:', error.message);
+    console.error('Stack:', error.stack);
+
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
