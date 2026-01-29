@@ -387,7 +387,7 @@ const AddProductForm = ({ onSuccess }) => {
         </Button>
       </div>
 
-      <div className="w-full max-w-4xl mx-auto px-4 py-0 md:py-6 md:px-6 overflow-y-auto" style={{ maxHeight: '85vh' }}>
+      <div className="w-full max-w-4xl mx-auto px-4 py-0 md:py-6 md:px-6 overflow-y-auto pb-40 md:pb-8" style={{ maxHeight: '85vh' }}>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">Product Name</Label>
