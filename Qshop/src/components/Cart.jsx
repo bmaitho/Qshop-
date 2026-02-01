@@ -1,3 +1,5 @@
+// src/components/Cart.jsx
+// ✅ FIXED VERSION - Now properly calculates and charges buyer fees
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, CreditCard, Heart } from 'lucide-react';
@@ -25,6 +27,7 @@ const Cart = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [imageErrors, setImageErrors] = useState({});
   const [movingToWishlist, setMovingToWishlist] = useState({});
+  const [cartWithFees, setCartWithFees] = useState(null); // ✅ NEW: Store calculated fees
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +38,60 @@ const Cart = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ✅ NEW: Calculate commission fees whenever cart changes
+  useEffect(() => {
+    calculateCartFees();
+  }, [cart]);
+
+  const calculateCartFees = async () => {
+    if (cart.length === 0) {
+      setCartWithFees(null);
+      return;
+    }
+
+    try {
+      const backendUrl = import.meta.env.VITE_API_URL;
+      
+      const itemsWithCommission = await Promise.all(
+        cart.map(async (item) => {
+          try {
+            const response = await fetch(`${backendUrl}/mpesa/orders/calculate-commission`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pricePerUnit: item.products.price,
+                quantity: item.quantity
+              })
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              return { ...item, commission: result.commission };
+            }
+          } catch (error) {
+            console.error('Error calculating commission for item:', error);
+          }
+          return item;
+        })
+      );
+
+      const subtotal = itemsWithCommission.reduce((sum, item) => 
+        sum + (item.commission?.totalProductPrice || (item.products.price * item.quantity)), 0
+      );
+      
+      const totalBuyerFees = itemsWithCommission.reduce((sum, item) => 
+        sum + ((item.commission?.buyerFee || 0) * item.quantity), 0
+      );
+      
+      const grandTotal = subtotal + totalBuyerFees;
+
+      setCartWithFees({ items: itemsWithCommission, subtotal, totalBuyerFees, grandTotal });
+    } catch (error) {
+      console.error('Error calculating fees:', error);
+      setCartWithFees({ items: cart, subtotal: total, totalBuyerFees: 0, grandTotal: total });
+    }
+  };
 
   const handleImageError = (productId) => {
     setImageErrors(prev => ({
@@ -58,10 +115,10 @@ const Cart = () => {
         return;
       }
 
-      // Create order without clearing cart - let Supabase generate the UUID
+      // ✅ FIXED: Create order with correct total INCLUDING buyer fees
       const orderData = {
         user_id: user.id,
-        amount: total,
+        amount: cartWithFees?.grandTotal || total, // ✅ NOW INCLUDES BUYER FEES!
         payment_status: 'pending',
         order_status: 'pending_payment',
         created_at: new Date().toISOString()
@@ -77,12 +134,12 @@ const Cart = () => {
 
       const orderId = orderResult.id;
 
-      // ✅ FIXED: Create order items WITH buyer_user_id
+      // Create order items WITH buyer_user_id
       const orderItems = cart.map(item => ({
         order_id: orderId,
         product_id: item.products.id,
         seller_id: item.products.seller_id,
-        buyer_user_id: user.id,  // ← ADDED THIS LINE!
+        buyer_user_id: user.id,
         quantity: item.quantity,
         price_per_unit: item.products.price,
         subtotal: item.products.price * item.quantity,
@@ -96,7 +153,6 @@ const Cart = () => {
       if (itemsError) throw itemsError;
 
       // Navigate to checkout WITHOUT clearing cart
-      // Cart will only be cleared after successful payment
       navigate(`/checkout/${orderId}`);
       
     } catch (error) {
@@ -107,39 +163,27 @@ const Cart = () => {
     }
   };
 
-  // Enhanced quantity update with better UX
   const handleQuantityUpdate = (productId, newQuantity) => {
-    // Prevent going below 1
     if (newQuantity < 1) return;
-    
-    // Optional: Add maximum quantity limit
     if (newQuantity > 99) {
       toast.warning('Maximum quantity is 99');
       return;
     }
-    
     updateQuantity(productId, newQuantity);
   };
 
-  // Move item from cart to wishlist
   const handleMoveToWishlist = async (item) => {
     try {
       setMovingToWishlist(prev => ({ ...prev, [item.products.id]: true }));
       
-      // Check if already in wishlist
       if (isInWishlist(item.products.id)) {
         toast.info(`${item.products.name} is already in your wishlist`);
-        // Still remove from cart
         removeFromCart(item.products.id, item.products.name);
         return;
       }
       
-      // Add to wishlist
       await addToWishlist(item.products);
-      
-      // Remove from cart
       removeFromCart(item.products.id, item.products.name);
-      
       toast.success(`${item.products.name} moved to wishlist`);
       
     } catch (error) {
@@ -219,7 +263,7 @@ const Cart = () => {
                     </div>
                   </div>
 
-                  {/* Quantity and Actions */}
+                  {/* Desktop Layout */}
                   {!isMobile && (
                     <div className="flex items-center space-x-4">
                       {/* Quantity Controls */}
@@ -336,7 +380,7 @@ const Cart = () => {
             })}
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - ✅ FIXED WITH FEES */}
           <div className={`${isMobile ? 'order-first' : ''}`}>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 p-6 border border-primary/10 dark:border-gray-700 sticky top-4">
               <h3 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h3>
@@ -344,8 +388,17 @@ const Cart = () => {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-primary dark:text-gray-300">
                   <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span>KES {total.toFixed(2)}</span>
+                  <span>KES {(cartWithFees?.subtotal || total).toFixed(2)}</span>
                 </div>
+                
+                {/* ✅ NEW: Show platform fees */}
+                {cartWithFees && cartWithFees.totalBuyerFees > 0 && (
+                  <div className="flex justify-between text-primary dark:text-gray-300">
+                    <span>Platform Fee</span>
+                    <span>KES {cartWithFees.totalBuyerFees.toFixed(2)}</span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between text-primary dark:text-gray-300">
                   <span>Delivery</span>
                   <span>Free</span>
@@ -353,7 +406,7 @@ const Cart = () => {
                 <div className="border-t border-primary/10 dark:border-gray-700 pt-2">
                   <div className="flex justify-between font-bold text-lg text-primary dark:text-gray-100">
                     <span>Total</span>
-                    <span>KES {total.toFixed(2)}</span>
+                    <span>KES {(cartWithFees?.grandTotal || total).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
