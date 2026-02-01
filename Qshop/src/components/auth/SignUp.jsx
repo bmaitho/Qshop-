@@ -830,8 +830,8 @@ const SignUp = () => {
                 />
                 <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
-                  <a
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20_%20CONDITIONS.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgXyBDT05ESVRJT05TLnBkZiIsImlhdCI6MTczNjU5OTQ2OCwiZXhwIjoxODM5NjcxNDY4fQ.i84Iy7zWpLGfINDfmcvVmXTgjLZJz4uPh7GCb55YgB8"
+                  <a   
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
@@ -855,7 +855,7 @@ const SignUp = () => {
                 <label htmlFor="acceptPrivacy" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzM2MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
