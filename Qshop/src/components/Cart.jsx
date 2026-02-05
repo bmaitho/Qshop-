@@ -400,8 +400,7 @@ const Cart = () => {
                 )}
                 
                 <div className="flex justify-between text-primary dark:text-gray-300">
-                  <span>Delivery</span>
-                  <span>Free</span>
+                  
                 </div>
                 <div className="border-t border-primary/10 dark:border-gray-700 pt-2">
                   <div className="flex justify-between font-bold text-lg text-primary dark:text-gray-100">
