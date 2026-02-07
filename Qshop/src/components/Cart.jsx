@@ -1,5 +1,3 @@
-// src/components/Cart.jsx
-// ✅ FIXED VERSION - Now properly calculates and charges buyer fees
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingCart, ArrowLeft, CreditCard, Heart } from 'lucide-react';
@@ -27,7 +25,6 @@ const Cart = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [imageErrors, setImageErrors] = useState({});
   const [movingToWishlist, setMovingToWishlist] = useState({});
-  const [cartWithFees, setCartWithFees] = useState(null); // ✅ NEW: Store calculated fees
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,60 +35,6 @@ const Cart = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // ✅ NEW: Calculate commission fees whenever cart changes
-  useEffect(() => {
-    calculateCartFees();
-  }, [cart]);
-
-  const calculateCartFees = async () => {
-    if (cart.length === 0) {
-      setCartWithFees(null);
-      return;
-    }
-
-    try {
-      const backendUrl = import.meta.env.VITE_API_URL;
-      
-      const itemsWithCommission = await Promise.all(
-        cart.map(async (item) => {
-          try {
-            const response = await fetch(`${backendUrl}/mpesa/orders/calculate-commission`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                pricePerUnit: item.products.price,
-                quantity: item.quantity
-              })
-            });
-
-            if (response.ok) {
-              const result = await response.json();
-              return { ...item, commission: result.commission };
-            }
-          } catch (error) {
-            console.error('Error calculating commission for item:', error);
-          }
-          return item;
-        })
-      );
-
-      const subtotal = itemsWithCommission.reduce((sum, item) => 
-        sum + (item.commission?.totalProductPrice || (item.products.price * item.quantity)), 0
-      );
-      
-      const totalBuyerFees = itemsWithCommission.reduce((sum, item) => 
-        sum + ((item.commission?.buyerFee || 0) * item.quantity), 0
-      );
-      
-      const grandTotal = subtotal + totalBuyerFees;
-
-      setCartWithFees({ items: itemsWithCommission, subtotal, totalBuyerFees, grandTotal });
-    } catch (error) {
-      console.error('Error calculating fees:', error);
-      setCartWithFees({ items: cart, subtotal: total, totalBuyerFees: 0, grandTotal: total });
-    }
-  };
 
   const handleImageError = (productId) => {
     setImageErrors(prev => ({
@@ -115,44 +58,84 @@ const Cart = () => {
         return;
       }
 
-      // ✅ FIXED: Create order with correct total INCLUDING buyer fees
-      const orderData = {
-        user_id: user.id,
-        amount: cartWithFees?.grandTotal || total, // ✅ NOW INCLUDES BUYER FEES!
-        payment_status: 'pending',
-        order_status: 'pending_payment',
-        created_at: new Date().toISOString()
-      };
-
-      const { data: orderResult, error: orderError } = await supabase
+      // ✅ STEP 1: Cancel stale pending orders (older than 30 minutes)
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      await supabase
         .from('orders')
-        .insert([orderData])
-        .select()
-        .single();
+        .update({ 
+          order_status: 'cancelled', 
+          payment_status: 'cancelled' 
+        })
+        .eq('user_id', user.id)
+        .eq('payment_status', 'pending')
+        .lt('created_at', thirtyMinutesAgo);
 
-      if (orderError) throw orderError;
+      // ✅ STEP 2: Check for existing recent pending orders
+      const { data: existingOrders } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('user_id', user.id)
+        .eq('payment_status', 'pending')
+        .gte('created_at', thirtyMinutesAgo)
+        .order('created_at', { ascending: false });
 
-      const orderId = orderResult.id;
+      // ✅ STEP 3: Check if any existing order matches current cart
+      const cartProductIds = cart.map(item => item.products.id).sort().join(',');
+      const matchingOrder = existingOrders?.find(order => {
+        const orderProductIds = order.order_items
+          .map(item => item.product_id)
+          .sort()
+          .join(',');
+        return orderProductIds === cartProductIds;
+      });
 
-      // Create order items WITH buyer_user_id
-      const orderItems = cart.map(item => ({
-        order_id: orderId,
-        product_id: item.products.id,
-        seller_id: item.products.seller_id,
-        buyer_user_id: user.id,
-        quantity: item.quantity,
-        price_per_unit: item.products.price,
-        subtotal: item.products.price * item.quantity,
-        status: 'pending_payment'
-      }));
+      let orderId;
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      if (matchingOrder) {
+        // ✅ REUSE existing pending order
+        orderId = matchingOrder.id;
+        console.log('♻️ Reusing existing pending order:', orderId);
+        toast.info('Resuming your pending order');
+      } else {
+        // ✅ CREATE new order
+        const orderData = {
+          user_id: user.id,
+          amount: total,
+          payment_status: 'pending',
+          order_status: 'pending_payment',
+          created_at: new Date().toISOString()
+        };
 
-      if (itemsError) throw itemsError;
+        const { data: orderResult, error: orderError } = await supabase
+          .from('orders')
+          .insert([orderData])
+          .select()
+          .single();
 
-      // Navigate to checkout WITHOUT clearing cart
+        if (orderError) throw orderError;
+        orderId = orderResult.id;
+
+        // Create order items with buyer_user_id
+        const orderItems = cart.map(item => ({
+          order_id: orderId,
+          product_id: item.products.id,
+          seller_id: item.products.seller_id,
+          buyer_user_id: user.id,
+          quantity: item.quantity,
+          price_per_unit: item.products.price,
+          subtotal: item.products.price * item.quantity,
+          status: 'pending_payment'
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+        console.log('✅ Created new order:', orderId);
+      }
+
+      // Navigate to checkout (cart cleared after successful payment)
       navigate(`/checkout/${orderId}`);
       
     } catch (error) {
@@ -165,10 +148,12 @@ const Cart = () => {
 
   const handleQuantityUpdate = (productId, newQuantity) => {
     if (newQuantity < 1) return;
+    
     if (newQuantity > 99) {
       toast.warning('Maximum quantity is 99');
       return;
     }
+    
     updateQuantity(productId, newQuantity);
   };
 
@@ -218,7 +203,6 @@ const Cart = () => {
       <div className={`max-w-7xl mx-auto p-4 ${isMobile ? 'mt-12 mb-16' : ''}`}>
         <ToastContainer />
         
-        {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold text-primary dark:text-gray-100`}>
             Shopping Cart ({cart.length} items)
@@ -226,7 +210,6 @@ const Cart = () => {
         </div>
 
         <div className={`${isMobile ? 'space-y-4' : 'grid grid-cols-1 lg:grid-cols-3 gap-8'}`}>
-          {/* Cart Items */}
           <div className={`${isMobile ? '' : 'lg:col-span-2'} space-y-4`}>
             {cart.map((item) => {
               if (!item?.products) return null;
@@ -242,145 +225,110 @@ const Cart = () => {
                     <div className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} overflow-hidden rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0`}>
                       <img 
                         src={imageErrors[productId] ? 
-                          'https://via.placeholder.com/150?text=No+Image' : 
-                          item.products.image_url
+                          'https://via.placeholder.com/100?text=No+Image' : 
+                          item.products.image_url || 'https://via.placeholder.com/100?text=No+Image'
                         }
                         alt={item.products.name}
                         className="w-full h-full object-cover"
                         onError={() => handleImageError(productId)}
                       />
                     </div>
-
-                    <div className="flex-1">
-                      <Link to={`/product/${productId}`}>
-                        <h3 className="font-semibold text-primary dark:text-gray-100 hover:underline">
-                          {item.products.name}
-                        </h3>
-                      </Link>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        KES {item.products.price?.toFixed(2)}
-                      </p>
+                    
+                    <div className={`flex-1 ${isMobile ? 'flex flex-col' : ''}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-primary dark:text-gray-100 mb-1">
+                            {item.products.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            KES {item.products.price.toFixed(2)} each
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Desktop Layout */}
-                  {!isMobile && (
-                    <div className="flex items-center space-x-4">
-                      {/* Quantity Controls */}
-                      <div className="flex items-center border border-primary/20 dark:border-gray-600 rounded">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary dark:text-gray-300"
-                          onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="px-4 text-primary dark:text-gray-100">{item.quantity}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-primary dark:text-gray-300"
-                          onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {/* Subtotal */}
-                      <p className="font-semibold min-w-[100px] text-right text-primary dark:text-gray-100">
-                        KES {(item.products.price * item.quantity).toFixed(2)}
-                      </p>
-
-                      {/* Wishlist button */}
+                  <div className={`flex ${isMobile ? 'justify-between items-center w-full' : 'items-center space-x-4'}`}>
+                    <div className="flex items-center space-x-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
+                        className="h-8 w-8 dark:hover:bg-gray-600"
+                        onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
+                        disabled={item.quantity <= 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium text-primary dark:text-gray-100">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 dark:hover:bg-gray-600"
+                        onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
+                        disabled={item.quantity >= 99}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <p className={`font-bold text-primary dark:text-gray-100 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                        KES {(item.products.price * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove from cart?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove "{item.products.name}" from your cart?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <Button variant="outline">Cancel</Button>
+                            <Button 
+                              variant="destructive"
+                              onClick={() => removeFromCart(productId, item.products.name)}
+                            >
+                              Remove
+                            </Button>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`${
+                          isInWishlist(productId)
+                            ? 'text-red-500 hover:text-red-700'
+                            : 'text-gray-400 hover:text-red-500'
+                        } hover:bg-red-50 dark:hover:bg-red-900/20`}
                         onClick={() => handleMoveToWishlist(item)}
                         disabled={isMoving}
                       >
-                        <Heart className={`h-4 w-4 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                      </Button>
-                      
-                      {/* Remove button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                        onClick={() => removeFromCart(productId, item.products.name)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
+                        <Heart className={`h-5 w-5 ${isInWishlist(productId) ? 'fill-current' : ''}`} />
                       </Button>
                     </div>
-                  )}
-
-                  {/* Mobile Layout */}
-                  {isMobile && (
-                    <div className="space-y-3">
-                      {/* Quantity Controls */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Quantity:</span>
-                        <div className="flex items-center border border-primary/20 dark:border-gray-600 rounded">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary dark:text-gray-300"
-                            onClick={() => handleQuantityUpdate(productId, item.quantity - 1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="px-4 text-primary dark:text-gray-100">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-primary dark:text-gray-300"
-                            onClick={() => handleQuantityUpdate(productId, item.quantity + 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Subtotal */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Subtotal:</span>
-                        <p className="font-semibold text-primary dark:text-gray-100">
-                          KES {(item.products.price * item.quantity).toFixed(2)}
-                        </p>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 border-primary/20 text-primary dark:border-gray-600 dark:text-gray-300"
-                          onClick={() => handleMoveToWishlist(item)}
-                          disabled={isMoving}
-                        >
-                          <Heart className={`h-4 w-4 mr-2 ${isInWishlist(productId) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} />
-                          Wishlist
-                        </Button>
-                        
-                        {/* Remove button */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-primary dark:text-gray-300 hover:bg-primary/5 dark:hover:bg-gray-700"
-                          onClick={() => removeFromCart(productId, item.products.name)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Order Summary - ✅ FIXED WITH FEES */}
           <div className={`${isMobile ? 'order-first' : ''}`}>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-gray-900/20 p-6 border border-primary/10 dark:border-gray-700 sticky top-4">
               <h3 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h3>
@@ -388,24 +336,16 @@ const Cart = () => {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-primary dark:text-gray-300">
                   <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span>KES {(cartWithFees?.subtotal || total).toFixed(2)}</span>
+                  <span>KES {total.toFixed(2)}</span>
                 </div>
-                
-                {/* ✅ NEW: Show platform fees */}
-                {cartWithFees && cartWithFees.totalBuyerFees > 0 && (
-                  <div className="flex justify-between text-primary dark:text-gray-300">
-                    <span>Platform Fee</span>
-                    <span>KES {cartWithFees.totalBuyerFees.toFixed(2)}</span>
-                  </div>
-                )}
-                
                 <div className="flex justify-between text-primary dark:text-gray-300">
-                  
+                  <span>Delivery</span>
+                  <span>Free</span>
                 </div>
                 <div className="border-t border-primary/10 dark:border-gray-700 pt-2">
                   <div className="flex justify-between font-bold text-lg text-primary dark:text-gray-100">
                     <span>Total</span>
-                    <span>KES {(cartWithFees?.grandTotal || total).toFixed(2)}</span>
+                    <span>KES {total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -430,7 +370,6 @@ const Cart = () => {
                 </Button>
               </Link>
               
-              {/* Quick stats */}
               <div className="mt-4 pt-4 border-t border-primary/10 dark:border-gray-700">
                 <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
                   <span>Items in cart:</span>

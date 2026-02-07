@@ -1,17 +1,18 @@
 // src/components/MyShop.jsx
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Plus, 
-  Settings, 
-  Package, 
-  Star, 
-  DollarSign, 
-  ShoppingBag, 
-  Edit, 
+import {
+  Plus,
+  Settings,
+  Package,
+  Star,
+  DollarSign,
+  ShoppingBag,
+  Edit,
   Pencil,
   Clock,
-  Book // Added for ToS icon
+  Book, // Added for ToS icon
+  Building // Added for Shop Locations tab
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import ShopSettingsForm from './ShopSettingsForm';
 import EditProductForm from './EditProductForm';
 import TosModal from './TosModal'; // Import the TosModal component
 import TosBanner from './TosBanner'; // Import the TosBanner component
+import ShopLocationsManager from './ShopLocationsManager'; // Import Shop Locations Manager
 
 // Lazy load the SellerOrders component
 const SellerOrders = React.lazy(() => import('./SellerOrders'));
@@ -726,7 +728,7 @@ const MyShop = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="listings">
               <Package className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Products</span>
@@ -739,6 +741,10 @@ const MyShop = () => {
                   {statistics.pendingOrders}
                 </span>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="shop_locations">
+              <Building className="w-4 h-4 mr-2" />
+              <span className={isMobile ? "text-xs" : ""}>Locations</span>
             </TabsTrigger>
           </TabsList>
 
@@ -762,6 +768,11 @@ const MyShop = () => {
             }>
               {activeTab === 'orders' && <SellerOrders />}
             </Suspense>
+          </TabsContent>
+
+          {/* Shop Locations Tab */}
+          <TabsContent value="shop_locations" className="mt-6">
+            <ShopLocationsManager />
           </TabsContent>
         </Tabs>
         

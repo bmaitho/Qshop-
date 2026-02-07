@@ -164,11 +164,8 @@ const SignUp = () => {
     if (!formData.password) newErrors.password = "Password is required";
     if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
-    
-    // Campus location is ONLY required for students
-    if (formData.accountType === 'student' && !formData.campusLocation) {
-      newErrors.campusLocation = "Campus location is required";
-    }
+
+    // Campus location is now optional - users can add it later in Profile
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -306,8 +303,10 @@ const SignUp = () => {
       const metadata = {
         full_name: formData.fullName,
         phone: formData.phone,
-        // Only include campus location for students
-        campus_location: formData.accountType === 'student' ? formData.campusLocation : null,
+        // Only include campus location for students, and allow null/empty
+        campus_location: formData.accountType === 'student' && formData.campusLocation
+          ? formData.campusLocation
+          : null,
         is_seller: formData.accountType === 'wholesaler',
         campus_location_id: formData.accountType === 'student' && formData.campusLocationId 
           ? parseInt(formData.campusLocationId) 
@@ -519,21 +518,8 @@ const SignUp = () => {
           </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger 
-              value="student" 
-              onClick={() => setFormData(prev => ({ ...prev, accountType: 'student' }))}
-            >
-              Student
-            </TabsTrigger>
-            <TabsTrigger 
-              value="wholesaler"
-              onClick={() => setFormData(prev => ({ ...prev, accountType: 'wholesaler' }))}
-            >
-              Wholesaler
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-12">
+         
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Common Fields */}
@@ -593,11 +579,11 @@ const SignUp = () => {
             </div>
 
             {/* Student-specific fields */}
-            <TabsContent value="student" className="space-y-4 mt-0">
-              {/* Campus Location - ONLY FOR STUDENTS */}
+            {/* <TabsContent value="student" className="space-y-4 mt-0">
+              Campus Location - ONLY FOR STUDENTS
               <div className="space-y-2">
                 <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground">
-                  Campus/School <span className="text-red-500">*</span>
+                  Campus/School <span className="text-gray-500">(Optional)</span>
                 </label>
 
                 <CampusLocationSelector
@@ -641,10 +627,10 @@ const SignUp = () => {
                 />
                 {errors.studentId && <p className="text-red-500 text-sm mt-1">{errors.studentId}</p>}
               </div>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Wholesaler-specific fields */}
-            <TabsContent value="wholesaler" className="space-y-4 mt-0">
+            {/* <TabsContent value="wholesaler" className="space-y-4 mt-0">
               <div>
                 <Input
                   name="businessName"
@@ -751,7 +737,7 @@ const SignUp = () => {
             </TabsContent>
 
             {/* Document Upload Section */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium mb-2">
                 {activeTab === 'student' ? 'Student ID or National ID (Optional)' : 'Business License (Optional)'}
               </label>
@@ -816,7 +802,7 @@ const SignUp = () => {
                 onChange={handleFileSelect}
                 className="hidden"
               />
-            </div>
+            </div>  */}
 
             {/* Terms and Conditions */}
             <div className="space-y-3">

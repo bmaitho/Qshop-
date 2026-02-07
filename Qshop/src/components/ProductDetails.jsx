@@ -123,10 +123,10 @@ const ProductDetails = () => {
 
   const handleBuyNow = async () => {
     if (!product) return;
-    
+
     try {
       setBuyingNow(true);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error('Please log in to continue');
@@ -134,43 +134,85 @@ const ProductDetails = () => {
         return;
       }
 
-      const orderData = {
-        user_id: user.id,
-        amount: product.price * quantity,
-        payment_status: 'pending',
-        order_status: 'pending_payment',
-        created_at: new Date().toISOString()
-      };
+      const totalAmount = product.price * quantity;
 
-      const { data: orderResult, error: orderError } = await supabase
+      // Cancel stale pending orders (older than 30 minutes)
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      await supabase
         .from('orders')
-        .insert([orderData])
-        .select()
-        .single();
+        .update({
+          order_status: 'cancelled',
+          payment_status: 'cancelled'
+        })
+        .eq('user_id', user.id)
+        .eq('payment_status', 'pending')
+        .lt('created_at', thirtyMinutesAgo);
 
-      if (orderError) throw orderError;
+      // Check for existing recent pending order with same product
+      const { data: existingOrders } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('user_id', user.id)
+        .eq('payment_status', 'pending')
+        .gte('created_at', thirtyMinutesAgo)
+        .order('created_at', { ascending: false });
 
-      const orderId = orderResult.id;
+      // Check if any existing order has this exact product with same quantity
+      const matchingOrder = existingOrders?.find(order => {
+        const hasProduct = order.order_items.some(
+          item => item.product_id === product.id && item.quantity === quantity
+        );
+        return hasProduct && order.order_items.length === 1; // Single product order
+      });
 
-      const orderItem = {
-        order_id: orderId,
-        product_id: product.id,
-        seller_id: product.seller_id,
-        buyer_user_id: user.id,
-        quantity: quantity,
-        price_per_unit: product.price,
-        subtotal: product.price * quantity,
-        status: 'pending_payment'
-      };
+      let orderId;
 
-      const { error: itemError } = await supabase
-        .from('order_items')
-        .insert([orderItem]);
+      if (matchingOrder) {
+        // Reuse existing pending order
+        orderId = matchingOrder.id;
+        console.log('Reusing existing pending order:', orderId);
+        toast.info('Resuming your pending order');
+      } else {
+        // Create new order
+        const orderData = {
+          user_id: user.id,
+          amount: totalAmount,
+          payment_status: 'pending',
+          order_status: 'pending_payment',
+          created_at: new Date().toISOString()
+        };
 
-      if (itemError) throw itemError;
+        const { data: orderResult, error: orderError } = await supabase
+          .from('orders')
+          .insert([orderData])
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+        orderId = orderResult.id;
+
+        // Create order item with buyer_user_id
+        const orderItem = {
+          order_id: orderId,
+          product_id: product.id,
+          seller_id: product.seller_id,
+          buyer_user_id: user.id,
+          quantity: quantity,
+          price_per_unit: product.price,
+          subtotal: product.price * quantity,
+          status: 'pending_payment'
+        };
+
+        const { error: itemError } = await supabase
+          .from('order_items')
+          .insert([orderItem]);
+
+        if (itemError) throw itemError;
+        console.log('Created new order:', orderId);
+      }
 
       navigate(`/checkout/${orderId}`);
-      
+
     } catch (error) {
       console.error('Error with buy now:', error);
       toast.error('Failed to process purchase');

@@ -1,3 +1,6 @@
+// ✅ COMPLETE Checkout.jsx WITH DELIVERY OPTIONS
+// This is the FULL file - replace your entire Checkout.jsx with this
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,7 @@ import Navbar from './Navbar';
 import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
 import { toast } from 'react-toastify';
 import { useCart } from '../context/CartContext';
+import DeliveryOptionsSelector from './DeliveryOptionsSelector'; // ← NEW IMPORT
 
 const Checkout = () => {
   const { orderId } = useParams();
@@ -30,8 +34,10 @@ const Checkout = () => {
 
   // Delivery agreement state
   const [agreedToDelivery, setAgreedToDelivery] = useState(false);
+  
+  // ✅ NEW: Delivery options state
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
 
-  // Clean up interval on unmount
   useEffect(() => {
     return () => {
       if (pollingInterval.current) {
@@ -44,7 +50,6 @@ const Checkout = () => {
     fetchOrderDetails();
   }, [orderId]);
 
-  // Status polling effect
   useEffect(() => {
     if (pollingActive && checkoutRequestId) {
       startStatusPolling();
@@ -64,7 +69,6 @@ const Checkout = () => {
     try {
       setLoading(true);
       
-      // Fetch order details
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -84,19 +88,14 @@ const Checkout = () => {
         
         if (orderData.payment_status === 'pending') {
           setPollingActive(true);
-        } else if (orderData.payment_status === 'completed') {
-          clearCart();
-          navigate(`/order-confirmation/${orderId}`);
         }
       }
 
-      // Fetch order items with product and seller information
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
           *,
-          products(*),
-          profiles:seller_id(*)
+          products(*)
         `)
         .eq('order_id', orderId);
 
@@ -104,7 +103,7 @@ const Checkout = () => {
       setOrderItems(itemsData || []);
     } catch (error) {
       console.error('Error fetching order details:', error);
-      toast.error('Failed to load order details');
+      toast.error('Failed to load order information');
     } finally {
       setLoading(false);
     }
@@ -114,104 +113,117 @@ const Checkout = () => {
     if (pollingInterval.current) {
       clearInterval(pollingInterval.current);
     }
-    
-    checkPaymentStatusFromAPI();
-    
-    pollingInterval.current = setInterval(() => {
-      checkPaymentStatusFromAPI();
-    }, 5000);
-  };
 
-  const checkPaymentStatusFromAPI = async () => {
-    try {
-      const response = await checkPaymentStatus(checkoutRequestId);
-      
-      if (response.success) {
-        const { paymentStatus: newStatus, receipt } = response.data.data;
-        
-        setPaymentStatus(newStatus);
-        
-        if (newStatus === 'completed' || newStatus === 'failed') {
-          setPollingActive(false);
-          
-          if (newStatus === 'completed') {
-            setPaymentMessage(`Payment successful! M-Pesa receipt: ${receipt}`);
-            toast.success('Payment completed successfully!');
-            
-            clearCart();
-            
-            setTimeout(() => {
-              navigate(`/order-confirmation/${orderId}`);
-            }, 2000);
-          } else {
-            setPaymentMessage('Payment failed. Please try again.');
-            toast.error('Payment failed. Please try again.');
-          }
-        }
+    let pollCount = 0;
+    const maxPolls = 60;
+
+    pollingInterval.current = setInterval(async () => {
+      pollCount++;
+
+      if (pollCount >= maxPolls) {
+        clearInterval(pollingInterval.current);
+        setPollingActive(false);
+        setPaymentStatus('timeout');
+        setPaymentMessage('Payment verification timed out. Please check your M-Pesa messages.');
+        return;
       }
-    } catch (error) {
-      console.error('Error checking payment status:', error);
-    }
+
+      try {
+        const result = await checkPaymentStatus(checkoutRequestId);
+
+        if (result.ResultCode === '0') {
+          clearInterval(pollingInterval.current);
+          setPollingActive(false);
+          setPaymentStatus('completed');
+          setPaymentMessage('Payment successful!');
+          
+          await supabase
+            .from('orders')
+            .update({
+              payment_status: 'completed',
+              order_status: 'new',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+
+          clearCart();
+          
+          setTimeout(() => {
+            navigate(`/order-confirmation/${orderId}`);
+          }, 2000);
+        } else if (result.ResultCode && result.ResultCode !== '0') {
+          clearInterval(pollingInterval.current);
+          setPollingActive(false);
+          setPaymentStatus('failed');
+          setPaymentMessage(result.ResultDesc || 'Payment failed');
+        }
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+      }
+    }, 3000);
   };
 
-  const handleInitiatePayment = async (e) => {
-    e.preventDefault();
-    
-    if (!phoneNumber) {
-      toast.error('Please enter a phone number');
-      return;
-    }
-
-    if (!agreedToDelivery) {
-      toast.error('Please confirm delivery arrangements');
-      return;
-    }
-    
-    setProcessing(true);
-    setPaymentMessage('');
-    
+  const handlePayment = async () => {
     try {
-      // Update order with delivery agreement
+      // ✅ Validate delivery info selected
+      if (!deliveryInfo || deliveryInfo.requires_shop_selection) {
+        toast.error('Please select a delivery method and shop location (if required)');
+        return;
+      }
+
+      if (!phoneNumber || phoneNumber.length < 10) {
+        toast.error('Please enter a valid phone number');
+        return;
+      }
+
+      if (!agreedToDelivery) {
+        toast.error('Please agree to coordinate delivery with the seller');
+        return;
+      }
+
+      setProcessing(true);
+
+      // ✅ Update order with delivery info BEFORE payment
       const { error: updateError } = await supabase
         .from('orders')
         .update({
-          delivery_option: 'delivery',
-          phone_number: phoneNumber
+          phone_number: phoneNumber,
+          delivery_method: deliveryInfo.delivery_method,
+          selected_shop_location_id: deliveryInfo.selected_shop_location_id,
+          delivery_fee: deliveryInfo.delivery_fee || 0,
+          updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
 
-      if (updateError) {
-        console.error('Error updating order:', updateError);
-      }
+      if (updateError) throw updateError;
 
-      const response = await initiateMpesaPayment(
+      const paymentResult = await initiateMpesaPayment(
         phoneNumber,
-        parseInt(order.amount),
-        orderId,
-        `Order #${orderId.substring(0, 8)}`
+        order.amount,
+        orderId
       );
 
-      if (response.success) {
-        const checkoutId = response.data?.data?.CheckoutRequestID;
-        
-        if (checkoutId) {
-          setCheckoutRequestId(checkoutId);
-          setPaymentStatus('processing');
-          setPaymentMessage('Payment request sent. Please check your phone for the M-Pesa prompt.');
-          toast.info('Please check your phone for the M-Pesa prompt');
-          
-          setPollingActive(true);
-        } else {
-          throw new Error('No checkout request ID received');
-        }
+      if (paymentResult.success) {
+        setCheckoutRequestId(paymentResult.CheckoutRequestID);
+        setPaymentStatus('processing');
+        setPaymentMessage('Payment request sent to your phone. Please enter your M-Pesa PIN.');
+        setPollingActive(true);
+
+        await supabase
+          .from('orders')
+          .update({
+            checkout_request_id: paymentResult.CheckoutRequestID,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderId);
       } else {
-        throw new Error(response.error);
+        throw new Error(paymentResult.message || 'Payment initiation failed');
       }
     } catch (error) {
-      console.error('Payment initiation error:', error);
+      console.error('Payment error:', error);
       setPaymentStatus('failed');
-      setPaymentMessage(error.message || 'Failed to initiate payment. Please try again.');
-      toast.error(error.message || 'Failed to initiate payment');
+      setPaymentMessage(error.message || 'Payment initiation failed. Please try again.');
+      toast.error('Payment initiation failed');
     } finally {
       setProcessing(false);
     }
@@ -220,26 +232,28 @@ const Checkout = () => {
   const getStatusIcon = () => {
     switch (paymentStatus) {
       case 'processing':
-        return <Loader2 className="h-6 w-6 animate-spin text-orange-500" />;
+        return <Loader2 className="h-6 w-6 animate-spin text-blue-500" />;
       case 'completed':
         return <CheckCircle className="h-6 w-6 text-green-500" />;
       case 'failed':
+      case 'timeout':
         return <XCircle className="h-6 w-6 text-red-500" />;
       default:
-        return <PhoneCall className="h-6 w-6 text-blue-500" />;
+        return <AlertCircle className="h-6 w-6 text-yellow-500" />;
     }
   };
 
   const getStatusColorClass = () => {
     switch (paymentStatus) {
       case 'processing':
-        return 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-900/20 dark:text-orange-200';
+        return 'border-blue-200 bg-blue-50';
       case 'completed':
-        return 'border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200';
+        return 'border-green-200 bg-green-50';
       case 'failed':
-        return 'border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200';
+      case 'timeout':
+        return 'border-red-200 bg-red-50';
       default:
-        return 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200';
+        return 'border-yellow-200 bg-yellow-50';
     }
   };
 
@@ -248,26 +262,25 @@ const Checkout = () => {
       <>
         <Navbar />
         <div className="max-w-3xl mx-auto p-4 mt-12">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
-            <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-            <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="text-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="mt-2 text-gray-500">Loading checkout...</p>
           </div>
         </div>
       </>
     );
   }
 
-  if (!order) {
+  if (!order || orderItems.length === 0) {
     return (
       <>
         <Navbar />
         <div className="max-w-3xl mx-auto p-4 mt-12">
-          <Alert variant="destructive" className="dark:border-red-800 dark:bg-red-900/20">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle className="dark:text-red-200">Error</AlertTitle>
-            <AlertDescription className="dark:text-red-300">
-              Order not found. Please return to your cart and try again.
+          <Alert className="border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800">Order Not Found</AlertTitle>
+            <AlertDescription className="text-red-700">
+              Unable to find order details. Please return to your cart and try again.
             </AlertDescription>
           </Alert>
           <div className="mt-4">
@@ -286,7 +299,7 @@ const Checkout = () => {
       <div className="max-w-3xl mx-auto p-4 mt-12">
         <h1 className="text-2xl font-bold mb-6 text-primary dark:text-gray-100">Complete Your Payment</h1>
 
-        {/* Order Summary with Location Info */}
+        {/* Order Summary */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Order Summary</h2>
@@ -306,50 +319,39 @@ const Checkout = () => {
                     <div className="flex-1">
                       <h3 className="font-medium text-primary dark:text-gray-100">{item.products?.name}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Quantity: {item.quantity} × KES {item.price_per_unit?.toLocaleString()}
+                        Quantity: {item.quantity}
                       </p>
-                      
-                      {/* Location Information */}
-                      <div className="mt-2 space-y-1">
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                          <MapPin className="w-4 h-4 mr-1 text-gray-500" />
-                          <span>Product Location: {item.products?.location || 'Not specified'}</span>
-                        </div>
-                        {item.profiles && (
-                          <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-                            <User className="w-4 h-4 mr-1 text-gray-500" />
-                            <span>Seller: {item.profiles.full_name || 'Anonymous'}</span>
-                            {item.profiles.campus_location && (
-                              <span className="ml-2">({item.profiles.campus_location})</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-primary dark:text-gray-100">KES {item.subtotal?.toFixed(2)}</p>
+                      <p className="text-sm font-semibold mt-1">
+                        KES {(item.price_per_unit * item.quantity).toFixed(2)}
+                      </p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-
-            <div className="border-t border-gray-200 dark:border-gray-700 mt-6 pt-4">
-              <div className="flex justify-between mb-2 text-gray-600 dark:text-gray-300">
+            
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+              <div className="flex justify-between text-primary dark:text-gray-300">
                 <span>Subtotal</span>
                 <span>KES {order.amount?.toFixed(2)}</span>
               </div>
               <div className="flex justify-between mb-2 text-gray-600 dark:text-gray-300">
                 <span>Delivery</span>
-                <span>KES 0.00</span>
+                <span>KES {deliveryInfo?.delivery_fee?.toFixed(2) || '0.00'}</span>
               </div>
               <div className="flex justify-between font-bold text-primary dark:text-gray-100">
                 <span>Total</span>
-                <span>KES {order.amount?.toFixed(2)}</span>
+                <span>KES {((order.amount || 0) + (deliveryInfo?.delivery_fee || 0)).toFixed(2)}</span>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* ✅ NEW: Delivery Options Selector */}
+        <DeliveryOptionsSelector 
+          orderItems={orderItems}
+          onDeliverySelected={setDeliveryInfo}
+        />
 
         {/* Delivery Agreement */}
         <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
@@ -372,7 +374,6 @@ const Checkout = () => {
                   </Label>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     I agree to coordinate delivery details directly with the seller after payment is completed.
-                    The seller will contact me to arrange delivery time and location.
                   </p>
                 </div>
               </div>
@@ -386,93 +387,67 @@ const Checkout = () => {
             {getStatusIcon()}
             <AlertTitle className="ml-2">
               {paymentStatus === 'processing' ? 'Payment Processing' : 
-               paymentStatus === 'completed' ? 'Payment Successful' : 'Payment Failed'}
+               paymentStatus === 'completed' ? 'Payment Successful' :
+               paymentStatus === 'timeout' ? 'Payment Timeout' : 'Payment Failed'}
             </AlertTitle>
-            <AlertDescription>
+            <AlertDescription className="ml-2">
               {paymentMessage}
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Payment Details */}
-        <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Payment Details</h2>
-            <form onSubmit={handleInitiatePayment}>
-              <div className="mb-4">
-                <Label htmlFor="phone" className="mb-2 block text-primary dark:text-gray-200">
-                  Phone Number (M-Pesa)
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="e.g., 07XXXXXXXX"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="w-full dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
-                  disabled={processing || paymentStatus === 'processing' || paymentStatus === 'completed'}
-                />
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  Enter the phone number registered with M-Pesa
-                </p>
-              </div>
+        {/* Payment Section */}
+        {paymentStatus === 'pending' && (
+          <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
+            <CardContent className="p-6">
+              <h2 className="text-lg font-semibold mb-4 text-primary dark:text-gray-100">Payment Information</h2>
               
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-4 mb-4">
-                <p className="text-sm flex items-start text-yellow-800 dark:text-yellow-200">
-                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5 text-yellow-600 dark:text-yellow-400" />
-                  <span>
-                    You will receive an M-Pesa payment prompt on your phone.
-                    Please enter your PIN to complete the payment.
-                  </span>
-                </p>
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-secondary text-primary hover:bg-secondary/90 dark:bg-green-600 dark:text-white dark:hover:bg-green-700"
-                disabled={processing || paymentStatus === 'processing' || paymentStatus === 'completed'}
-              >
-                {processing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : paymentStatus === 'processing' ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Waiting for M-Pesa...
-                  </>
-                ) : paymentStatus === 'completed' ? (
-                  <>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Payment Complete
-                  </>
-                ) : (
-                  `Pay KES ${order.amount?.toFixed(2)}`
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="phone">M-Pesa Phone Number</Label>
+                  <div className="flex space-x-2 mt-1">
+                    <PhoneCall className="w-5 h-5 text-gray-400 mt-2" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="254712345678"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      disabled={processing}
+                      className="flex-1 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Enter the phone number to receive the M-Pesa payment prompt
+                  </p>
+                </div>
 
-        <div className="flex justify-between mt-8">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/studentmarketplace')}
-            className="dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-          >
-            Continue Shopping
-          </Button>
-          <Button
-            onClick={() => fetchOrderDetails()}
-            disabled={processing}
-            variant="outline"
-            className="dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-          >
-            Refresh Status
-          </Button>
-        </div>
+                <Button
+                  onClick={handlePayment}
+                  disabled={processing || !phoneNumber || !agreedToDelivery || !deliveryInfo || deliveryInfo.requires_shop_selection}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white dark:bg-green-600 dark:hover:bg-green-700"
+                >
+                  {processing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing Payment...
+                    </>
+                  ) : (
+                    <>Pay KES {((order.amount || 0) + (deliveryInfo?.delivery_fee || 0)).toFixed(2)}</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {paymentStatus === 'completed' && (
+          <div className="text-center py-8">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h2>
+            <p className="text-gray-600 dark:text-gray-400">Redirecting to order confirmation...</p>
+          </div>
+        )}
       </div>
     </>
   );
