@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from "react-hook-form";
-import { ImagePlus, Camera, X, PackageOpen } from 'lucide-react';
+import { ImagePlus, Camera, X, PackageOpen, MapPin } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -12,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { shopToasts } from '../utils/toastConfig';
+import { toast } from 'react-toastify';
 import { supabase } from './SupabaseClient';
 
 const EditProductForm = ({ product, onSuccess, onCancel }) => {
@@ -20,6 +21,13 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(product?.image_url || null);
   const [isDragging, setIsDragging] = useState(false);
+  const [categories, setCategories] = useState([]);
+  
+  // Shop locations state
+  const [shopLocations, setShopLocations] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  
   const fileInputRef = useRef(null);
   
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
@@ -32,15 +40,18 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
     }
   });
 
-  // Register select fields
+  useEffect(() => {
+    fetchCategories();
+    fetchShopLocations();
+    fetchProductLocations();
+  }, [product]);
+
   useEffect(() => {
     register("category", { required: "Category is required" });
     register("condition", { required: "Condition is required" });
     
-    // Set initial values for select fields
     setValue("category", product?.category || '');
     
-    // Map condition from display value to form value
     const conditionMap = {
       'New': 'new',
       'Used - Like New': 'like_new',
@@ -55,69 +66,119 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
     setValue("condition", reverseCondition ? reverseCondition[1] : 'new');
   }, [register, setValue, product]);
 
-  // Handle file selection
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        shopToasts.imageTypeError();
-        return;
-      }
-      setImageFile(file);
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('status', 'approved')
+        .order('name');
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
     }
   };
 
-  // Handle drag events
+  const fetchShopLocations = async () => {
+    try {
+      setLoadingLocations(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('seller_shop_locations')
+        .select('*')
+        .eq('seller_id', user.id)
+        .order('is_primary', { ascending: false });
+
+      if (error) throw error;
+      setShopLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching shop locations:', error);
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const fetchProductLocations = async () => {
+    try {
+      if (!product?.id) return;
+
+      const { data, error } = await supabase
+        .from('product_shop_locations')
+        .select('shop_location_id')
+        .eq('product_id', product.id);
+
+      if (error) throw error;
+      
+      const locationIds = data.map(item => item.shop_location_id);
+      setSelectedLocations(locationIds);
+    } catch (error) {
+      console.error('Error fetching product locations:', error);
+    }
+  };
+
+  const handleLocationToggle = (locationId) => {
+    setSelectedLocations(prev => {
+      if (prev.includes(locationId)) {
+        return prev.filter(id => id !== locationId);
+      } else {
+        return [...prev, locationId];
+      }
+    });
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleDragEnter = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!isDragging) setIsDragging(true);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
     
-    const files = e.dataTransfer.files;
-    if (files?.length) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        setImageFile(file);
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
-      } else {
-        shopToasts.imageTypeError();
-      }
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // Open file browser
-  const openFileBrowser = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Remove selected image
-  const removeImage = () => {
-    setImageFile(null);
-    setPreviewUrl(product?.image_url || null);
-  };
-
-  // Upload image to Supabase
   const uploadImage = async (file) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -141,18 +202,21 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
     }
   };
 
-  // Handle form submission
   const onSubmit = async (data) => {
     try {
+      // Validate locations selected
+      if (selectedLocations.length === 0) {
+        toast.error('Please select at least one location for this product');
+        return;
+      }
+
       setUploading(true);
-      
-      // Upload image if provided
-      let imageUrl = product?.image_url;
+
+      let imageUrl = product.image_url;
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
 
-      // Map condition from form value to display value
       const conditionMap = {
         'new': 'New',
         'like_new': 'Used - Like New',
@@ -161,7 +225,6 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
       };
 
       const productData = {
-        id: product.id,
         name: data.name,
         price: parseFloat(data.price),
         description: data.description,
@@ -178,28 +241,46 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
 
       if (error) throw error;
 
-      shopToasts.updateSuccess();
-      onSuccess?.();
+      // Update product locations
+      // First, delete existing locations
+      await supabase
+        .from('product_shop_locations')
+        .delete()
+        .eq('product_id', product.id);
+
+      // Then insert new locations
+      const locationRecords = selectedLocations.map(locationId => ({
+        product_id: product.id,
+        shop_location_id: locationId
+      }));
+
+      const { error: locationsError } = await supabase
+        .from('product_shop_locations')
+        .insert(locationRecords);
+
+      if (locationsError) {
+        console.error('Error updating product locations:', locationsError);
+        toast.error('Product updated but failed to save locations');
+      }
+
+      toast.success('Product updated successfully');
+      onSuccess?.({ ...product, ...productData });
     } catch (error) {
       console.error('Error updating product:', error);
-      shopToasts.updateError();
+      toast.error('Failed to update product');
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="h-[80vh] overflow-y-auto p-4">
-      <div className="flex items-center space-x-2 mb-6">
-        <PackageOpen className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-semibold">Edit Product</h2>
-      </div>
-
+    <div className="p-4 space-y-4">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-1">
-          <Label htmlFor="name">Product Name</Label>
+        {/* Product Name */}
+        <div className="space-y-2">
+          <Label htmlFor="edit-name">Product Name</Label>
           <Input
-            id="name"
+            id="edit-name"
             {...register("name", { required: "Product name is required" })}
             placeholder="Enter product name"
           />
@@ -208,26 +289,28 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
           )}
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="price">Price (KES)</Label>
+        {/* Price */}
+        <div className="space-y-2">
+          <Label htmlFor="edit-price">Price (KES)</Label>
           <Input
-            id="price"
+            id="edit-price"
             type="number"
             {...register("price", { 
               required: "Price is required",
               min: { value: 0, message: "Price must be positive" }
             })}
-            placeholder="Enter price in KES"
+            placeholder="Enter price"
           />
           {errors.price && (
             <p className="text-sm text-red-500">{errors.price.message}</p>
           )}
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="description">Description</Label>
+        {/* Description */}
+        <div className="space-y-2">
+          <Label htmlFor="edit-description">Description</Label>
           <Textarea
-            id="description"
+            id="edit-description"
             {...register("description", { required: "Description is required" })}
             placeholder="Describe your product"
             className="min-h-[100px]"
@@ -237,52 +320,116 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="category">Category</Label>
-            <Select 
-              onValueChange={(value) => setValue("category", value)}
-              value={watch("category")}
-            >
-              <SelectTrigger id="category">
-                <SelectValue placeholder="Select Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="electronics">Electronics</SelectItem>
-                <SelectItem value="books">Books</SelectItem>
-                <SelectItem value="clothing">Clothing</SelectItem>
-                <SelectItem value="furniture">Furniture</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.category && (
-              <p className="text-sm text-red-500">{errors.category.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="condition">Condition</Label>
-            <Select
-              onValueChange={(value) => setValue("condition", value)}
-              value={watch("condition")}
-            >
-              <SelectTrigger id="condition">
-                <SelectValue placeholder="Select Condition" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="like_new">Used - Like New</SelectItem>
-                <SelectItem value="good">Used - Good</SelectItem>
-                <SelectItem value="fair">Used - Fair</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.condition && (
-              <p className="text-sm text-red-500">{errors.condition.message}</p>
-            )}
-          </div>
+        {/* Category */}
+        <div className="space-y-2">
+          <Label>Category</Label>
+          <Select
+            value={watch("category")}
+            onValueChange={(value) => setValue("category", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.category && (
+            <p className="text-sm text-red-500">{errors.category.message}</p>
+          )}
         </div>
 
-        <div className="space-y-1">
+        {/* Condition */}
+        <div className="space-y-2">
+          <Label>Condition</Label>
+          <Select
+            value={watch("condition")}
+            onValueChange={(value) => setValue("condition", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select condition" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="like_new">Used - Like New</SelectItem>
+              <SelectItem value="good">Used - Good</SelectItem>
+              <SelectItem value="fair">Used - Fair</SelectItem>
+            </SelectContent>
+          </Select>
+          {errors.condition && (
+            <p className="text-sm text-red-500">{errors.condition.message}</p>
+          )}
+        </div>
+
+        {/* SHOP LOCATIONS SELECTOR */}
+        <div className="space-y-2 border-t pt-4">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Available Locations *
+          </Label>
+          <p className="text-xs text-gray-600">
+            Select where buyers can pick up this product
+          </p>
+          
+          {loadingLocations ? (
+            <div className="p-4 text-center text-gray-500">
+              Loading locations...
+            </div>
+          ) : shopLocations.length === 0 ? (
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                You need to set up shop locations first. Go to "Customize Shop" to add locations.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {shopLocations.map(location => (
+                <div
+                  key={location.id}
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedLocations.includes(location.id)
+                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleLocationToggle(location.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedLocations.includes(location.id)}
+                      onCheckedChange={() => handleLocationToggle(location.id)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">{location.shop_name}</h4>
+                        {location.is_primary && (
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+                        <MapPin className="h-3 w-3" />
+                        {location.physical_address}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {selectedLocations.length === 0 && shopLocations.length > 0 && (
+            <p className="text-sm text-red-500">Please select at least one location</p>
+          )}
+        </div>
+
+        {/* Product Image */}
+        <div className="space-y-2">
           <Label>Product Image</Label>
           <div
             className={`border-2 ${isDragging ? 'border-orange-500 bg-orange-50' : previewUrl ? 'border-orange-300' : 'border-dashed border-gray-300'} rounded-lg transition-colors ${!previewUrl ? 'p-6' : 'p-2'}`}
@@ -293,62 +440,65 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
           >
             {previewUrl ? (
               <div className="relative">
-                <img 
-                  src={previewUrl} 
-                  alt="Product preview" 
-                  className="w-full h-64 object-contain rounded"
+                <img
+                  src={previewUrl}
+                  alt="Product preview"
+                  className="w-full h-48 object-cover rounded-lg"
                 />
-                <button
+                <Button
                   type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2"
                 >
-                  <X className="h-5 w-5 text-red-500" />
-                </button>
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             ) : (
               <div className="text-center">
-                <ImagePlus className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-600">
-                  Drag and drop an image, or click to browse
+                <Camera className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Drag and drop an image here, or click to select
                 </p>
-                <Button 
+                <Button
                   type="button"
-                  variant="outline" 
-                  size="sm"
-                  onClick={openFileBrowser}
-                  className="mt-4"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  Browse Files
+                  <ImagePlus className="h-4 w-4 mr-2" />
+                  Select Image
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
               </div>
             )}
-            
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
           </div>
         </div>
 
-        <div className="flex space-x-2 pt-4">
+        {/* Action Buttons */}
+        <div className="flex gap-3 pt-4 border-t">
+          {onCancel && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          )}
           <Button 
             type="submit" 
             className="flex-1"
-            disabled={uploading}
+            disabled={uploading || (shopLocations.length > 0 && selectedLocations.length === 0)}
           >
-            {uploading ? "Updating..." : "Save Changes"}
-          </Button>
-          <Button 
-            type="button" 
-            variant="outline"
-            onClick={onCancel}
-          >
-            Cancel
+            {uploading ? "Updating..." : "Update Product"}
           </Button>
         </div>
       </form>

@@ -1,22 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from "react-hook-form";
-import { Store, ImagePlus, Camera, X } from 'lucide-react';
+import { Store, ImagePlus, Camera, X, Plus, Edit, Trash2, MapPin, Building, Star } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { shopToasts } from '../utils/toastConfig';
 import { supabase } from './SupabaseClient';
+import { toast } from 'react-toastify';
 
 const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [bannerDeleted, setBannerDeleted] = useState(false); // Track if banner was deleted
+  const [bannerDeleted, setBannerDeleted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const fileInputRef = useRef(null);
+
+  // Shop locations state
+  const [shopLocations, setShopLocations] = useState([]);
+  const [campusLocations, setCampusLocations] = useState([]);
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [locationFormData, setLocationFormData] = useState({
+    shop_name: '',
+    physical_address: '',
+    campus_id: null,
+    is_primary: false
+  });
 
   const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -28,94 +51,257 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
     }
   });
 
-  // Check for mobile screen on resize
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Use effect to set banner image preview if it exists
   useEffect(() => {
     if (shopData?.banner_url) {
       setPreviewUrl(shopData.banner_url);
     }
+    // Fetch shop locations and campus locations
+    fetchShopLocations();
+    fetchCampusLocations();
   }, [shopData]);
 
-  // Handle file selection for banner image
+  const fetchShopLocations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('seller_shop_locations')
+        .select(`
+          *,
+          campus_locations:campus_id(name)
+        `)
+        .eq('seller_id', user.id)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setShopLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching shop locations:', error);
+    }
+  };
+
+  const fetchCampusLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('campus_locations')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setCampusLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching campuses:', error);
+    }
+  };
+
+  const handleOpenLocationDialog = (location = null) => {
+    if (location) {
+      setEditingLocation(location);
+      setLocationFormData({
+        shop_name: location.shop_name,
+        physical_address: location.physical_address,
+        campus_id: location.campus_id,
+        is_primary: location.is_primary
+      });
+    } else {
+      setEditingLocation(null);
+      setLocationFormData({
+        shop_name: '',
+        physical_address: '',
+        campus_id: null,
+        is_primary: shopLocations.length === 0
+      });
+    }
+    setLocationDialogOpen(true);
+  };
+
+  const handleCloseLocationDialog = () => {
+    setLocationDialogOpen(false);
+    setEditingLocation(null);
+    setLocationFormData({
+      shop_name: '',
+      physical_address: '',
+      campus_id: null,
+      is_primary: false
+    });
+  };
+
+  const handleSaveLocation = async () => {
+    try {
+      if (!locationFormData.shop_name.trim() || !locationFormData.physical_address.trim()) {
+        toast.error('Shop name and address are required');
+        return;
+      }
+
+      if (!editingLocation && shopLocations.length >= 2) {
+        toast.error('Maximum 2 shop locations allowed');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (editingLocation) {
+        const { error } = await supabase
+          .from('seller_shop_locations')
+          .update({
+            shop_name: locationFormData.shop_name.trim(),
+            physical_address: locationFormData.physical_address.trim(),
+            campus_id: locationFormData.campus_id,
+            is_primary: locationFormData.is_primary,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingLocation.id);
+
+        if (error) throw error;
+        toast.success('Shop location updated successfully');
+      } else {
+        const { error } = await supabase
+          .from('seller_shop_locations')
+          .insert([{
+            seller_id: user.id,
+            shop_name: locationFormData.shop_name.trim(),
+            physical_address: locationFormData.physical_address.trim(),
+            campus_id: locationFormData.campus_id,
+            is_primary: locationFormData.is_primary || shopLocations.length === 0
+          }]);
+
+        if (error) throw error;
+        toast.success('Shop location added successfully');
+
+        if (shopLocations.length === 0) {
+          await supabase
+            .from('profiles')
+            .update({ has_physical_shop: true })
+            .eq('id', user.id);
+        }
+      }
+
+      handleCloseLocationDialog();
+      fetchShopLocations();
+    } catch (error) {
+      console.error('Error saving shop location:', error);
+      toast.error('Failed to save shop location');
+    }
+  };
+
+  const handleDeleteLocation = async (locationId) => {
+    if (!window.confirm('Are you sure you want to delete this shop location?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('seller_shop_locations')
+        .delete()
+        .eq('id', locationId);
+
+      if (error) throw error;
+
+      toast.success('Shop location deleted');
+      fetchShopLocations();
+
+      if (shopLocations.length === 1) {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase
+          .from('profiles')
+          .update({ 
+            has_physical_shop: false,
+            shop_and_campus: false 
+          })
+          .eq('id', user.id);
+      }
+    } catch (error) {
+      console.error('Error deleting shop location:', error);
+      toast.error('Failed to delete shop location');
+    }
+  };
+
+  const handleSetPrimary = async (locationId) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase
+        .from('seller_shop_locations')
+        .update({ is_primary: false })
+        .eq('seller_id', user.id);
+
+      const { error } = await supabase
+        .from('seller_shop_locations')
+        .update({ is_primary: true })
+        .eq('id', locationId);
+
+      if (error) throw error;
+
+      toast.success('Primary shop location updated');
+      fetchShopLocations();
+    } catch (error) {
+      console.error('Error setting primary:', error);
+      toast.error('Failed to update primary location');
+    }
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        shopToasts.imageTypeError();
-        return;
-      }
       setImageFile(file);
-      const objectUrl = URL.createObjectURL(file);
-      setPreviewUrl(objectUrl);
-      setBannerDeleted(false); // Reset deletion flag when new image is selected
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setBannerDeleted(false);
     }
   };
 
-  // Handle drag events for image upload
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isDragging) setIsDragging(true);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files?.length) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        setImageFile(file);
-        const objectUrl = URL.createObjectURL(file);
-        setPreviewUrl(objectUrl);
-        setBannerDeleted(false); // Reset deletion flag
-      } else {
-        shopToasts.imageTypeError();
-      }
-    }
-  };
-
-  // Open file browser
-  const openFileBrowser = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Remove selected image
-  const removeImage = () => {
+  const handleRemoveBanner = () => {
     setImageFile(null);
     setPreviewUrl(null);
-    setBannerDeleted(true); // Mark banner as deleted
-    
-    // Reset file input
+    setBannerDeleted(true);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Upload banner image to Supabase
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setBannerDeleted(false);
+    }
+  };
+
   const uploadBannerImage = async (file) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -139,7 +325,6 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
     }
   };
 
-  // Handle form submission
   const onSubmit = async (data) => {
     try {
       setLoading(true);
@@ -150,25 +335,19 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
         return;
       }
 
-      // Determine banner URL based on user actions
       let bannerUrl = shopData?.banner_url;
       
       if (imageFile) {
-        // User selected a new image
         bannerUrl = await uploadBannerImage(imageFile);
       } else if (bannerDeleted) {
-        // User deleted the banner
         bannerUrl = null;
       }
-      // Otherwise keep existing banner_url
 
-      // Parse business hours if provided as string
       let businessHours = data.businessHours;
       if (typeof businessHours === 'string') {
         try {
           businessHours = JSON.parse(businessHours);
         } catch (e) {
-          // If not valid JSON, store as is
           businessHours = data.businessHours;
         }
       }
@@ -184,7 +363,6 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
         updated_at: new Date().toISOString()
       };
 
-      // If it's a new shop, add created_at
       if (!shopData) {
         shopInfo.created_at = new Date().toISOString();
       }
@@ -196,11 +374,8 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
       if (error) throw error;
 
       shopToasts.updateSuccess();
-      
-      // Reset deletion flag after successful update
       setBannerDeleted(false);
-      
-      onUpdate?.();
+      onUpdate?.(shopInfo);
     } catch (error) {
       console.error('Error updating shop:', error);
       shopToasts.updateError();
@@ -211,9 +386,9 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Main content area with proper padding */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20"> 
         <form id="shop-settings-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Shop Name */}
           <div className="space-y-2">
             <Label htmlFor="shopName">Shop Name</Label>
             <Input
@@ -226,6 +401,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
             )}
           </div>
 
+          {/* Shop Banner */}
           <div className="space-y-2">
             <Label>Shop Banner</Label>
             <div
@@ -237,68 +413,70 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
             >
               {previewUrl ? (
                 <div className="relative">
-                  <img 
-                    src={previewUrl} 
-                    alt="Shop banner preview" 
-                    className="w-full h-40 object-cover rounded"
+                  <img
+                    src={previewUrl}
+                    alt="Shop banner preview"
+                    className="w-full h-48 object-cover rounded-lg"
                   />
-                  <button
+                  <Button
                     type="button"
-                    onClick={removeImage}
-                    className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 transition-colors"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleRemoveBanner}
+                    className="absolute top-2 right-2"
                   >
-                    <X className="h-5 w-5 text-red-500" />
-                  </button>
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               ) : (
                 <div className="text-center">
-                  <ImagePlus className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-600">
-                    Drag and drop a banner image, or click to browse
+                  <Camera className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600 mb-2">
+                    Drag and drop an image here, or click to select
                   </p>
-                  <Button 
+                  <Button
                     type="button"
-                    variant="outline" 
-                    size="sm"
-                    onClick={openFileBrowser}
-                    className="mt-4"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    Browse Files
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Select Image
                   </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                 </div>
               )}
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
             </div>
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Shop Description</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               {...register("description")}
-              placeholder="Describe your shop"
-              className="min-h-[100px]"
+              placeholder="Tell customers about your shop..."
+              className="min-h-[80px]"
             />
           </div>
 
+          {/* Policies */}
           <div className="space-y-2">
             <Label htmlFor="policies">Shop Policies</Label>
             <Textarea
               id="policies"
               {...register("policies")}
-              placeholder="Return policy, delivery information, etc."
+              placeholder="Returns, warranties, shipping policies..."
               className="min-h-[80px]"
             />
           </div>
 
+          {/* Offers Delivery */}
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="offersDelivery" 
@@ -306,6 +484,184 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
               defaultChecked={shopData?.offers_delivery}
             />
             <Label htmlFor="offersDelivery">Offers Delivery</Label>
+          </div>
+
+          {/* SHOP LOCATIONS SECTION */}
+          <div className="space-y-4 pt-6 border-t">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  Shop Locations
+                </h3>
+                <p className="text-sm text-gray-600">Manage your physical shop locations (max 2)</p>
+              </div>
+              <Dialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    onClick={() => handleOpenLocationDialog()}
+                    disabled={shopLocations.length >= 2}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Location
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingLocation ? 'Edit Shop Location' : 'Add Shop Location'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Add a physical shop where buyers can pick up orders
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Shop Name *</Label>
+                      <Input
+                        placeholder="e.g., Tulley's Electronics"
+                        value={locationFormData.shop_name}
+                        onChange={(e) => setLocationFormData(prev => ({
+                          ...prev,
+                          shop_name: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Physical Address/Landmark *</Label>
+                      <Input
+                        placeholder="e.g., KU Main Gate, Shop 12"
+                        value={locationFormData.physical_address}
+                        onChange={(e) => setLocationFormData(prev => ({
+                          ...prev,
+                          physical_address: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Campus Location</Label>
+                      <select
+                        value={locationFormData.campus_id || ''}
+                        onChange={(e) => setLocationFormData(prev => ({
+                          ...prev,
+                          campus_id: e.target.value ? parseInt(e.target.value) : null
+                        }))}
+                        className="w-full p-2 border rounded bg-background text-foreground dark:bg-gray-800 dark:border-gray-600"
+                      >
+                        <option value="">Select campus (optional)</option>
+                        {campusLocations.map(campus => (
+                          <option key={campus.id} value={campus.id}>
+                            {campus.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {shopLocations.length > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="is_primary"
+                          checked={locationFormData.is_primary}
+                          onChange={(e) => setLocationFormData(prev => ({
+                            ...prev,
+                            is_primary: e.target.checked
+                          }))}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="is_primary">Set as primary location</Label>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={handleCloseLocationDialog}>
+                      Cancel
+                    </Button>
+                    <Button type="button" onClick={handleSaveLocation} className="bg-green-600">
+                      {editingLocation ? 'Update' : 'Add'} Location
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Locations List */}
+            {shopLocations.length === 0 ? (
+              <Card className="bg-gray-50 dark:bg-gray-800">
+                <CardContent className="p-6 text-center">
+                  <Building className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    No shop locations yet. Add locations where buyers can pick up products.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {shopLocations.map(location => (
+                  <Card key={location.id} className={location.is_primary ? 'border-green-500 border-2' : ''}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">{location.shop_name}</h4>
+                            {location.is_primary && (
+                              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {location.physical_address}
+                          </p>
+                          {location.campus_locations?.name && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {location.campus_locations.name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          {!location.is_primary && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSetPrimary(location.id)}
+                              title="Set as primary"
+                            >
+                              <Star className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenLocationDialog(location)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteLocation(location.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Form buttons visible on mobile */}

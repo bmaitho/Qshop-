@@ -11,8 +11,7 @@ import {
   Edit,
   Pencil,
   Clock,
-  Book, // Added for ToS icon
-  Building // Added for Shop Locations tab
+  Book
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -728,7 +727,7 @@ const MyShop = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-2">
             <TabsTrigger value="listings">
               <Package className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Products</span>
@@ -741,10 +740,6 @@ const MyShop = () => {
                   {statistics.pendingOrders}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="shop_locations">
-              <Building className="w-4 h-4 mr-2" />
-              <span className={isMobile ? "text-xs" : ""}>Locations</span>
             </TabsTrigger>
           </TabsList>
 
@@ -770,10 +765,6 @@ const MyShop = () => {
             </Suspense>
           </TabsContent>
 
-          {/* Shop Locations Tab */}
-          <TabsContent value="shop_locations" className="mt-6">
-            <ShopLocationsManager />
-          </TabsContent>
         </Tabs>
         
         {/* Edit Product Sheet */}

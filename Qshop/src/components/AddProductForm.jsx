@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from "react-hook-form";
-import { ImagePlus, Camera, X, Upload, Plus, GripVertical } from 'lucide-react';
+import { ImagePlus, Camera, X, Upload, Plus, GripVertical, MapPin } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from 'react-toastify';
 import {
   Dialog,
@@ -77,6 +78,12 @@ const AddProductForm = ({ onSuccess }) => {
   const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
+  
+  // Shop locations state
+  const [shopLocations, setShopLocations] = useState([]);
+  const [selectedLocations, setSelectedLocations] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   
@@ -89,6 +96,7 @@ const AddProductForm = ({ onSuccess }) => {
 
   useEffect(() => {
     fetchCategories();
+    fetchShopLocations();
 
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -117,21 +125,59 @@ const AddProductForm = ({ onSuccess }) => {
       setCategories(data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      console.error('Failed to load categories');
     }
+  };
+
+  const fetchShopLocations = async () => {
+    try {
+      setLoadingLocations(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('seller_shop_locations')
+        .select('*')
+        .eq('seller_id', user.id)
+        .order('is_primary', { ascending: false });
+
+      if (error) throw error;
+      
+      setShopLocations(data || []);
+      
+      // Auto-select primary location or first location as default
+      if (data && data.length > 0) {
+        const defaultLocation = data.find(loc => loc.is_primary) || data[0];
+        setSelectedLocations([defaultLocation.id]);
+      }
+    } catch (error) {
+      console.error('Error fetching shop locations:', error);
+      toast.error('Failed to load shop locations');
+    } finally {
+      setLoadingLocations(false);
+    }
+  };
+
+  const handleLocationToggle = (locationId) => {
+    setSelectedLocations(prev => {
+      if (prev.includes(locationId)) {
+        return prev.filter(id => id !== locationId);
+      } else {
+        return [...prev, locationId];
+      }
+    });
   };
 
   const handleNewCategory = async (categoryData) => {
     try {
       if (!categoryData.name.trim()) {
-        shopToasts.error('Category name is required');
+        toast.error('Category name is required');
         return;
       }
   
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        shopToasts.error('Please sign in to add categories');
+        toast.error('Please sign in to add categories');
         return;
       }
   
@@ -162,7 +208,7 @@ const AddProductForm = ({ onSuccess }) => {
       if (error) {
         console.error('Error adding category:', error);
         setCategories(prevCategories => prevCategories.filter(cat => cat.id !== tempId));
-        shopToasts.error('Failed to add category');
+        toast.error('Failed to add category');
         return;
       }
   
@@ -173,43 +219,44 @@ const AddProductForm = ({ onSuccess }) => {
       );
       
       setValue("category", data.id);
-      console.log('Category added successfully');
-      shopToasts.success('New category added');
+      toast.success('Category added successfully');
       
     } catch (error) {
       console.error('Error adding category:', error);
-      shopToasts.error('Failed to add category');
+      toast.error('Failed to add category');
     }
   };
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
-    addFiles(files);
+    processFiles(files);
   };
 
-  const addFiles = (files) => {
-    const validImageFiles = files.filter(file => file.type.startsWith('image/'));
-    
-    if (validImageFiles.length !== files.length) {
-      console.error('Please upload image files only');
-    }
-
-    if (validImageFiles.length === 0) return;
-
-    const remainingSlots = 8 - previewUrls.length;
-    if (validImageFiles.length > remainingSlots) {
-      console.log(`Maximum 8 images allowed. Only adding first ${remainingSlots} images.`);
-      validImageFiles.splice(remainingSlots);
-    }
-
-    const newPreviews = validImageFiles.map(file => URL.createObjectURL(file));
-    
-    setImageFiles(prev => [...prev, ...validImageFiles]);
-    setPreviewUrls(prev => [...prev, ...newPreviews]);
+  const handleCameraCapture = (e) => {
+    const files = Array.from(e.target.files || []);
+    processFiles(files);
   };
 
-  const removeImage = (index) => {
-    URL.revokeObjectURL(previewUrls[index]);
+  const processFiles = (files) => {
+    if (imageFiles.length + files.length > 5) {
+      toast.error('Maximum 5 images allowed');
+      return;
+    }
+
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    setImageFiles(prev => [...prev, ...validFiles]);
+    
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrls(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index) => {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
@@ -218,60 +265,48 @@ const AddProductForm = ({ onSuccess }) => {
     setDraggedIndex(index);
   };
 
-  const handleDragOver = (e, index) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+  };
 
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null) return;
+    
     const newFiles = [...imageFiles];
     const newPreviews = [...previewUrls];
     
-    const draggedFile = newFiles[draggedIndex];
-    const draggedPreview = newPreviews[draggedIndex];
+    const [draggedFile] = newFiles.splice(draggedIndex, 1);
+    const [draggedPreview] = newPreviews.splice(draggedIndex, 1);
     
-    newFiles.splice(draggedIndex, 1);
-    newPreviews.splice(draggedIndex, 1);
-    newFiles.splice(index, 0, draggedFile);
-    newPreviews.splice(index, 0, draggedPreview);
+    newFiles.splice(dropIndex, 0, draggedFile);
+    newPreviews.splice(dropIndex, 0, draggedPreview);
     
     setImageFiles(newFiles);
     setPreviewUrls(newPreviews);
-    setDraggedIndex(index);
-  };
-
-  const handleDragEnd = () => {
     setDraggedIndex(null);
   };
 
   const handleDragEnter = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
   };
 
-  const handleDragOverZone = (e) => {
+  const handleDropZone = (e) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!isDragging) setIsDragging(true);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files);
-    addFiles(files);
+    const files = Array.from(e.dataTransfer.files || []);
+    processFiles(files);
   };
 
   const uploadImages = async () => {
-    if (imageFiles.length === 0) return [];
-    
     try {
       const uploadPromises = imageFiles.map(async (file, index) => {
         const fileExt = file.name.split('.').pop();
@@ -304,11 +339,17 @@ const AddProductForm = ({ onSuccess }) => {
 
   const onSubmit = async (data) => {
     try {
+      // Validate locations selected
+      if (selectedLocations.length === 0) {
+        toast.error('Please select at least one location for this product');
+        return;
+      }
+
       setUploading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        console.error('Please sign in to add products');
+        toast.error('Please sign in to add products');
         return;
       }
 
@@ -332,7 +373,7 @@ const AddProductForm = ({ onSuccess }) => {
         image_url: uploadedImages.length > 0 ? uploadedImages[0].url : null,
         seller_id: user.id,
         status: 'active',
-        location: profile?.campus_location || 'Unknown'
+        location: profile?.campus_location || 'Unknown' // Keep for backward compatibility
       };
 
       const { data: product, error } = await supabase
@@ -361,14 +402,30 @@ const AddProductForm = ({ onSuccess }) => {
         }
       }
 
-      console.log('Product added successfully');
+      // Insert product-location relationships
+      const locationRecords = selectedLocations.map(locationId => ({
+        product_id: product.id,
+        shop_location_id: locationId
+      }));
+
+      const { error: locationsError } = await supabase
+        .from('product_shop_locations')
+        .insert(locationRecords);
+
+      if (locationsError) {
+        console.error('Error saving product locations:', locationsError);
+        toast.error('Product created but failed to save locations');
+      }
+
+      toast.success('Product added successfully');
       reset();
       setImageFiles([]);
       setPreviewUrls([]);
+      setSelectedLocations(shopLocations.length > 0 ? [shopLocations[0].id] : []);
       onSuccess?.();
     } catch (error) {
       console.error('Error adding product:', error);
-      console.error('Failed to add product');
+      toast.error('Failed to add product');
     } finally {
       setUploading(false);
     }
@@ -376,7 +433,7 @@ const AddProductForm = ({ onSuccess }) => {
 
   return (
     <div className="relative w-full h-full">
-      {/* Mobile sticky button at top - always visible */}
+      {/* Mobile sticky button at top */}
       <div className="md:hidden sticky top-0 left-0 right-0 p-4 bg-background border-b shadow-sm z-50 mb-4">
         <Button 
           onClick={handleSubmit(onSubmit)}
@@ -386,8 +443,10 @@ const AddProductForm = ({ onSuccess }) => {
           {uploading ? "Adding Product..." : "Add Product"}
         </Button>
       </div>
-<div className="w-full max-w-4xl mx-auto px-4 py-0 md:py-6 md:px-6 overflow-y-auto pb-48 md:pb-8" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+
+      <div className="w-full max-w-4xl mx-auto px-4 py-0 md:py-6 md:px-6 overflow-y-auto pb-48 md:pb-8" style={{ maxHeight: 'calc(100vh - 140px)' }}>
         <div className="space-y-4">
+          {/* Product Name */}
           <div className="space-y-2">
             <Label htmlFor="name" className="text-sm font-medium">Product Name</Label>
             <Input
@@ -401,6 +460,7 @@ const AddProductForm = ({ onSuccess }) => {
             )}
           </div>
 
+          {/* Price */}
           <div className="space-y-2">
             <Label htmlFor="price" className="text-sm font-medium">Price (KES)</Label>
             <Input
@@ -418,6 +478,7 @@ const AddProductForm = ({ onSuccess }) => {
             )}
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="text-sm font-medium">Description</Label>
             <Textarea
@@ -431,192 +492,238 @@ const AddProductForm = ({ onSuccess }) => {
             )}
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-sm font-medium">Category</Label>
-              <div className="flex gap-2">
-                <Select 
-                  onValueChange={(value) => setValue("category", value)}
-                  value={watch("category")}
-                >
-                  <SelectTrigger id="category" className="flex-1">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowNewCategoryDialog(true)}
-                  className="flex-shrink-0 h-10 px-3 rounded-md"
-                  aria-label="Add new category"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Add</span>
-                </Button>
-              </div>
-              {errors.category && (
-                <p className="text-sm text-destructive">{errors.category.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="condition" className="text-sm font-medium">Condition</Label>
-              <Select
-                value={watch("condition")}
-                onValueChange={(value) => setValue("condition", value)}
+          {/* Category */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label className="text-sm font-medium">Category</Label>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={() => setShowNewCategoryDialog(true)}
+                className="text-xs"
               >
-                <SelectTrigger id="condition" className="w-full">
-                  <SelectValue placeholder="Select Condition" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="like_new">Used - Like New</SelectItem>
-                  <SelectItem value="good">Used - Good</SelectItem>
-                  <SelectItem value="fair">Used - Fair</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.condition && (
-                <p className="text-sm text-destructive">{errors.condition.message}</p>
-              )}
+                <Plus className="h-3 w-3 mr-1" />
+                Suggest Category
+              </Button>
             </div>
+            <Select
+              value={watch("category")}
+              onValueChange={(value) => setValue("category", value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.category && (
+              <p className="text-sm text-destructive">{errors.category.message}</p>
+            )}
           </div>
 
+          {/* Condition */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Product Images {previewUrls.length > 0 && `(${previewUrls.length}/8)`}
+            <Label className="text-sm font-medium">Condition</Label>
+            <Select
+              value={watch("condition")}
+              onValueChange={(value) => setValue("condition", value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select condition" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="like_new">Used - Like New</SelectItem>
+                <SelectItem value="good">Used - Good</SelectItem>
+                <SelectItem value="fair">Used - Fair</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.condition && (
+              <p className="text-sm text-destructive">{errors.condition.message}</p>
+            )}
+          </div>
+
+          {/* SHOP LOCATIONS SELECTOR */}
+          <div className="space-y-2 border-t pt-4">
+            <Label className="text-sm font-medium flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Available Locations *
             </Label>
+            <p className="text-xs text-gray-600">
+              Select where buyers can pick up this product
+            </p>
             
-            {previewUrls.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
-                {previewUrls.map((url, index) => (
+            {loadingLocations ? (
+              <div className="p-4 text-center text-gray-500">
+                Loading locations...
+              </div>
+            ) : shopLocations.length === 0 ? (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  You need to set up shop locations first. Go to "Customize Shop" to add locations.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {shopLocations.map(location => (
                   <div
-                    key={index}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={`relative group cursor-move rounded-lg overflow-hidden border-2 ${
-                      index === 0 ? 'border-secondary' : 'border-border'
-                    } ${draggedIndex === index ? 'opacity-50' : ''}`}
+                    key={location.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedLocations.includes(location.id)
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleLocationToggle(location.id)}
                   >
-                    <div className="aspect-square">
-                      <img 
-                        src={url} 
-                        alt={`Preview ${index + 1}`} 
-                        className="w-full h-full object-cover"
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedLocations.includes(location.id)}
+                        onCheckedChange={() => handleLocationToggle(location.id)}
+                        className="mt-0.5"
                       />
-                    </div>
-                    
-                    {index === 0 && (
-                      <div className="absolute top-1 left-1 bg-secondary text-primary text-xs px-2 py-0.5 rounded">
-                        Primary
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-sm">{location.shop_name}</h4>
+                          {location.is_primary && (
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
+                          {location.physical_address}
+                        </p>
                       </div>
-                    )}
-                    
-                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="h-7 w-7 rounded-full"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    
-                    <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
-                      <GripVertical className="h-3 w-3" />
-                      Drag
                     </div>
                   </div>
                 ))}
               </div>
             )}
+            
+            {selectedLocations.length === 0 && shopLocations.length > 0 && (
+              <p className="text-sm text-red-500">Please select at least one location</p>
+            )}
+          </div>
 
+          {/* Product Images */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Product Images (Max 5)</Label>
             <div
-              className={`border-2 ${
-                isDragging 
-                  ? 'border-ring bg-ring/5' 
-                  : previewUrls.length > 0
-                    ? 'border-ring/50' 
-                    : 'border-dashed border-input'
-              } rounded-lg transition-colors ${previewUrls.length === 0 ? 'p-4 md:p-6' : 'p-4'}`}
+              className={`border-2 ${isDragging ? 'border-orange-500 bg-orange-50' : 'border-dashed border-gray-300'} rounded-lg p-6 transition-colors`}
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
-              onDragOver={handleDragOverZone}
-              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDrop={handleDropZone}
             >
-              {previewUrls.length < 8 && (
+              {previewUrls.length === 0 ? (
                 <div className="text-center">
-                  <ImagePlus className="mx-auto h-10 w-10 md:h-12 md:w-12 text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {previewUrls.length === 0 
-                      ? 'Drag and drop images, or use the options below'
-                      : 'Add more images (drag to reorder)'}
+                  <Camera className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-600 mb-4">
+                    Drag and drop images here, or
                   </p>
-                  <div className="flex flex-col sm:flex-row justify-center mt-4 space-y-2 sm:space-y-0 sm:space-x-3">
-                    <Button 
+                  <div className="flex gap-2 justify-center flex-wrap">
+                    <Button
                       type="button"
-                      variant="outline" 
+                      variant="outline"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full sm:w-auto"
                     >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Browse Files
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      Choose Files
                     </Button>
-                    <Button 
+                    <Button
                       type="button"
                       variant="outline"
                       onClick={() => cameraInputRef.current?.click()}
-                      className="w-full sm:w-auto"
                     >
                       <Camera className="h-4 w-4 mr-2" />
                       Take Photo
                     </Button>
                   </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handleCameraCapture}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {previewUrls.map((url, index) => (
+                    <div
+                      key={index}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      className="relative group cursor-move"
+                    >
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      {index === 0 && (
+                        <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                          Primary
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemoveImage(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <GripVertical className="h-5 w-5 text-white drop-shadow-lg" />
+                      </div>
+                    </div>
+                  ))}
+                  {previewUrls.length < 5 && (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-gray-300 rounded-lg h-32 flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                    >
+                      <Plus className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
                 </div>
               )}
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleFileChange}
-                className="hidden"
-              />
             </div>
-            
             {previewUrls.length > 0 && (
-              <p className="text-xs text-muted-foreground">
-                First image will be the primary image. Drag to reorder.
+              <p className="text-xs text-gray-500">
+                First image is the primary. Drag to reorder.
               </p>
             )}
           </div>
 
-          {/* Desktop button - inline with form */}
+          {/* Desktop button */}
           <div className="hidden md:block">
             <Button 
               onClick={handleSubmit(onSubmit)}
               className="w-full bg-secondary text-primary hover:bg-secondary/90 py-4 mt-6 text-base font-medium"
-              disabled={uploading}
+              disabled={uploading || (shopLocations.length > 0 && selectedLocations.length === 0)}
             >
               {uploading ? "Adding Product..." : "Add Product"}
             </Button>
