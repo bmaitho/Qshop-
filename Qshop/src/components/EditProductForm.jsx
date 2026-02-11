@@ -22,21 +22,31 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
   const [previewUrl, setPreviewUrl] = useState(product?.image_url || null);
   const [isDragging, setIsDragging] = useState(false);
   const [categories, setCategories] = useState([]);
-  
+
+  // Local state for selects (avoids watch() infinite loop issues)
+  const [selectedCategory, setSelectedCategory] = useState(product?.category || '');
+  const [selectedCondition, setSelectedCondition] = useState(() => {
+    const conditionMap = {
+      'New': 'new',
+      'Used - Like New': 'like_new',
+      'Used - Good': 'good',
+      'Used - Fair': 'fair'
+    };
+    return conditionMap[product?.condition] || 'new';
+  });
+
   // Shop locations state
   const [shopLocations, setShopLocations] = useState([]);
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
-  
+
   const fileInputRef = useRef(null);
-  
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       name: product?.name || '',
       price: product?.price || '',
-      description: product?.description || '',
-      category: product?.category || '',
-      condition: product?.condition || ''
+      description: product?.description || ''
     }
   });
 
@@ -44,27 +54,8 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
     fetchCategories();
     fetchShopLocations();
     fetchProductLocations();
-  }, [product]);
-
-  useEffect(() => {
-    register("category", { required: "Category is required" });
-    register("condition", { required: "Condition is required" });
-    
-    setValue("category", product?.category || '');
-    
-    const conditionMap = {
-      'New': 'new',
-      'Used - Like New': 'like_new',
-      'Used - Good': 'good',
-      'Used - Fair': 'fair'
-    };
-    
-    const reverseCondition = Object.entries(conditionMap).find(
-      ([key, value]) => key === product?.condition
-    );
-    
-    setValue("condition", reverseCondition ? reverseCondition[1] : 'new');
-  }, [register, setValue, product]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchCategories = async () => {
     try {
@@ -204,8 +195,14 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
 
   const onSubmit = async (data) => {
     try {
-      // Validate locations selected
-      if (selectedLocations.length === 0) {
+      // Validate category
+      if (!selectedCategory) {
+        toast.error('Please select a category');
+        return;
+      }
+
+      // Validate locations selected (only if locations exist)
+      if (shopLocations.length > 0 && selectedLocations.length === 0) {
         toast.error('Please select at least one location for this product');
         return;
       }
@@ -228,8 +225,8 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
         name: data.name,
         price: parseFloat(data.price),
         description: data.description,
-        category: data.category,
-        condition: conditionMap[data.condition] || data.condition,
+        category: selectedCategory,
+        condition: conditionMap[selectedCondition] || selectedCondition,
         image_url: imageUrl,
         updated_at: new Date().toISOString()
       };
@@ -274,8 +271,9 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto px-4 pt-4 pb-20">
+        <form id="edit-product-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Product Name */}
         <div className="space-y-2">
           <Label htmlFor="edit-name">Product Name</Label>
@@ -324,22 +322,26 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
         <div className="space-y-2">
           <Label>Category</Label>
           <Select
-            value={watch("category")}
-            onValueChange={(value) => setValue("category", value)}
+            value={selectedCategory}
+            onValueChange={setSelectedCategory}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map(cat => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
+              {categories.length > 0 ? (
+                categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+              )}
             </SelectContent>
           </Select>
-          {errors.category && (
-            <p className="text-sm text-red-500">{errors.category.message}</p>
+          {!selectedCategory && (
+            <p className="text-sm text-red-500">Category is required</p>
           )}
         </div>
 
@@ -347,8 +349,8 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
         <div className="space-y-2">
           <Label>Condition</Label>
           <Select
-            value={watch("condition")}
-            onValueChange={(value) => setValue("condition", value)}
+            value={selectedCondition}
+            onValueChange={setSelectedCondition}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select condition" />
@@ -360,9 +362,6 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
               <SelectItem value="fair">Used - Fair</SelectItem>
             </SelectContent>
           </Select>
-          {errors.condition && (
-            <p className="text-sm text-red-500">{errors.condition.message}</p>
-          )}
         </div>
 
         {/* SHOP LOCATIONS SELECTOR */}
@@ -388,14 +387,13 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
           ) : (
             <div className="space-y-2">
               {shopLocations.map(location => (
-                <div
+                <label
                   key={location.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors block ${
                     selectedLocations.includes(location.id)
                       ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                   }`}
-                  onClick={() => handleLocationToggle(location.id)}
                 >
                   <div className="flex items-start gap-3">
                     <Checkbox
@@ -418,7 +416,7 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
                       </p>
                     </div>
                   </div>
-                </div>
+                </label>
               ))}
             </div>
           )}
@@ -481,27 +479,30 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t">
-          {onCancel && (
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onCancel}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          )}
-          <Button 
-            type="submit" 
+        </form>
+      </div>
+
+      {/* Action Buttons - Fixed at bottom */}
+      <div className="flex gap-3 p-4 border-t bg-white dark:bg-gray-900">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
             className="flex-1"
-            disabled={uploading || (shopLocations.length > 0 && selectedLocations.length === 0)}
           >
-            {uploading ? "Updating..." : "Update Product"}
+            Cancel
           </Button>
-        </div>
-      </form>
+        )}
+        <Button
+          type="submit"
+          form="edit-product-form"
+          className="flex-1"
+          disabled={uploading || !selectedCategory || (shopLocations.length > 0 && selectedLocations.length === 0)}
+        >
+          {uploading ? "Updating..." : "Update Product"}
+        </Button>
+      </div>
     </div>
   );
 };

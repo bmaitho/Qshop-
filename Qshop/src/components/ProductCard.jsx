@@ -7,7 +7,8 @@ import {
   Pencil, 
   MapPin, 
   Tag,
-  ShoppingCart
+  ShoppingCart,
+  Building2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import {
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
+import { supabase } from '../components/SupabaseClient';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -45,6 +47,61 @@ const truncateToThreeWords = (text) => {
   return words.slice(0, 3).join(' ') + (words.length > 3 ? '...' : '');
 };
 
+// Component to display product shop locations (compact view for cards)
+const ProductLocationsCompact = ({ productId }) => {
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!productId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('product_shop_locations')
+          .select(`
+            seller_shop_locations!inner(
+              shop_name,
+              physical_address,
+              is_primary
+            )
+          `)
+          .eq('product_id', productId);
+
+        if (error) throw error;
+
+        const locationDetails = data?.map(item => item.seller_shop_locations) || [];
+        locationDetails.sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+        
+        setLocations(locationDetails);
+      } catch (err) {
+        console.error('Error fetching product locations:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, [productId]);
+
+  if (loading || !locations || locations.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 text-xs text-primary/60 dark:text-gray-400 mt-1">
+      <Building2 className="h-3 w-3 flex-shrink-0" />
+      <span className="truncate">
+        {locations.length === 1 
+          ? locations[0].shop_name
+          : `${locations.length} pickup locations`
+        }
+      </span>
+    </div>
+  );
+};
+
 const ProductCard = ({ 
   product, 
   isOwner = false, 
@@ -60,7 +117,6 @@ const ProductCard = ({
   const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
   
-  // Fixed aspect ratio for all products
   const aspectRatioClass = "aspect-[4/3]";
 
   useEffect(() => {
@@ -69,12 +125,11 @@ const ProductCard = ({
   }, [product.id, isInWishlist]);
 
   const handleProductClick = (e) => {
-    // Navigate to product detail page
     navigate(`/product/${product.id}`);
   };
 
   const handleWishlist = (e) => {
-    e.stopPropagation(); // Prevent navigation
+    e.stopPropagation();
     try {
       const token = sessionStorage.getItem('token');
       if (!token) {
@@ -95,50 +150,63 @@ const ProductCard = ({
   };
 
   const handleAddToCart = (e) => {
-    e.stopPropagation(); // Prevent navigation
+    e.stopPropagation();
     try {
       const token = sessionStorage.getItem('token');
       if (!token) {
+        productToasts.error("Please login to add items to cart");
         return;
       }
-  
+
+      if (product.status !== 'active') {
+        productToasts.error("This product is not available");
+        return;
+      }
+
       addToCart(product);
     } catch (error) {
       console.error('Error adding to cart:', error);
+      productToasts.error("Failed to add to cart");
     }
   };
 
   const handleSellerClick = (e) => {
-    e.stopPropagation(); // Prevent navigation to product
-    navigate(`/seller/${product.seller_id}`);
-  };
-
-  const getStatusBadge = () => {
-    switch (product.status) {
-      case 'sold':
-        return <Badge className="bg-blue-500 dark:bg-blue-600">Sold</Badge>;
-      case 'out_of_stock':
-        return <Badge className="bg-red-500 dark:bg-red-600">Out of Stock</Badge>;
-      default:
-        return <Badge className="bg-secondary/90 text-primary dark:bg-secondary/80 dark:text-gray-100">Active</Badge>;
-    }
-  };
-
-  const handleDeleteClick = (e) => {
-    e.stopPropagation(); // Prevent navigation
-    if (onDelete) {
-      onDelete(product.id);
-    } else {
-      console.error("onDelete function is not provided");
-      productToasts.error();
+    e.stopPropagation();
+    if (product.seller_id) {
+      navigate(`/seller/${product.seller_id}`);
     }
   };
 
   const handleEditClick = (e) => {
-    e.stopPropagation(); // Prevent navigation
-    if (onEdit) {
-      onEdit(product);
-    }
+    e.stopPropagation();
+    onEdit?.(product);
+  };
+
+  const handleDeleteClick = async (e) => {
+    e.stopPropagation();
+    onDelete?.(product.id);
+  };
+
+  const handleStatusChange = async (e, newStatus) => {
+    e.stopPropagation();
+    onStatusChange?.(product.id, newStatus);
+  };
+
+  const getStatusBadge = () => {
+    const statusConfig = {
+      active: { color: 'bg-green-500', text: 'Active' },
+      pending: { color: 'bg-yellow-500', text: 'Pending' },
+      sold: { color: 'bg-blue-500', text: 'Sold' },
+      inactive: { color: 'bg-gray-500', text: 'Inactive' }
+    };
+
+    const config = statusConfig[product.status] || statusConfig.active;
+    
+    return (
+      <Badge className={`${config.color} text-white text-xs`}>
+        {config.text}
+      </Badge>
+    );
   };
 
   const renderOwnerControls = () => (
@@ -154,40 +222,21 @@ const ProductCard = ({
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-          <DropdownMenuItem 
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem
             onClick={(e) => {
               e.stopPropagation();
-              onStatusChange(product.id, 'active');
+              handleStatusChange(e, product.status === 'active' ? 'inactive' : 'active');
             }}
-            disabled={product.status === 'active'}
           >
-            Mark as Active
-          </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={(e) => {
-              e.stopPropagation();
-              onStatusChange(product.id, 'sold');
-            }}
-            disabled={product.status === 'sold'}
-          >
-            Mark as Sold
-          </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={(e) => {
-              e.stopPropagation();
-              onStatusChange(product.id, 'out_of_stock');
-            }}
-            disabled={product.status === 'out_of_stock'}
-          >
-            Mark as Out of Stock
+            {product.status === 'active' ? 'Mark as Inactive' : 'Mark as Active'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            className="text-red-600 dark:text-red-400"
+          <DropdownMenuItem
+            className="text-red-600"
             onClick={(e) => {
               e.stopPropagation();
-              if (window.confirm("Are you sure you want to delete this product? This action cannot be undone.")) {
+              if (window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
                 handleDeleteClick(e);
               }
             }}
@@ -197,7 +246,6 @@ const ProductCard = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Edit button */}
       <Button
         variant="ghost"
         size="icon"
@@ -209,7 +257,6 @@ const ProductCard = ({
     </>
   );
 
-  // Get the display category, prioritizing processed display_category or properly formatted category
   const displayCategory = product.display_category || 
     (isUUID(product.category) ? "Other" : getDisplayCategory(product.category));
 
@@ -219,7 +266,6 @@ const ProductCard = ({
       onClick={handleProductClick}
     >
       <div className="relative">
-        {/* Image container with fixed aspect ratio */}
         <div className={`${aspectRatioClass} w-full overflow-hidden bg-gray-100 dark:bg-gray-700`}>
           <img 
             src={product.image_url || "/api/placeholder/400/300"} 
@@ -249,12 +295,10 @@ const ProductCard = ({
       </div>
       
       <div className="p-4 flex flex-col h-[calc(100%-33%)]">
-        {/* Product title */}
         <h3 className="font-serif font-medium text-sm line-clamp-1 text-primary dark:text-gray-100 mb-2">
           {product.name}
         </h3>
         
-        {/* Price section */}
         <div className="mb-3">
           <span className="text-base font-bold block" style={{ color: '#E7C65F' }}>
             KES {product.price?.toLocaleString()}
@@ -266,12 +310,10 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Description - truncated to 3 words */}
         <p className="text-xs text-primary/70 dark:text-gray-300 mb-3">
           {truncateToThreeWords(product.description) || "No description available"}
         </p>
         
-        {/* Tags section - condition only */}
         <div className="mb-3">
           <div className="flex items-center gap-1 mb-2">
             <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400" />
@@ -280,7 +322,11 @@ const ProductCard = ({
             </span>
           </div>
           
-          {product.location && (
+          {/* NEW: Show shop locations instead of campus location */}
+          <ProductLocationsCompact productId={product.id} />
+          
+          {/* FALLBACK: Show old campus location if no shop locations */}
+          {product.location && !product.id && (
             <div className="flex items-center gap-1 text-xs text-primary/60 dark:text-gray-500">
               <MapPin className="h-3 w-3" />
               <span>{product.location}</span>
@@ -288,7 +334,6 @@ const ProductCard = ({
           )}
         </div>
         
-        {/* Footer section */}
         <div className="mt-auto">
           {product.seller_id && !isOwner && (
             <button 

@@ -223,7 +223,7 @@ const SellerOrders = () => {
             <div className="flex items-center gap-3">
               {/* Product Image Placeholder */}
               <div className="w-16 h-16 bg-gradient-to-br from-emerald-800 to-emerald-900 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-emerald-300" />
+                <Package className="h-6 w-6 text-white" />
               </div>
               
               <div>
@@ -231,7 +231,7 @@ const SellerOrders = () => {
                   {orderItem.products?.name || 'Unknown Product'}
                 </h3>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge variant="outline" className="text-xs border-emerald-700 text-emerald-300">
+                  <Badge variant="outline" className="text-xs border-emerald-700 text-white">
                     {getStatusIcon()}
                     <span className="ml-1 capitalize">{orderItem.status}</span>
                   </Badge>
@@ -251,7 +251,7 @@ const SellerOrders = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
-                className="text-emerald-300 hover:text-emerald-100 hover:bg-emerald-800/50"
+                className="text-white hover:text-emerald-100 hover:bg-emerald-800/50"
               >
                 <FileText className="h-4 w-4" />
               </Button>
@@ -279,7 +279,7 @@ const SellerOrders = () => {
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-green-400" />
               <div>
-                <p className="text-xs text-emerald-400">Value</p>
+                <p className="text-xs text-white">Value</p>
                 <p className="font-semibold text-gray-100">KES {orderItem.subtotal}</p>
               </div>
             </div>
@@ -287,7 +287,7 @@ const SellerOrders = () => {
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-blue-400" />
               <div>
-                <p className="text-xs text-emerald-400">Quantity</p>
+                <p className="text-xs text-white">Quantity</p>
                 <p className="font-semibold text-gray-100">{orderItem.quantity}</p>
               </div>
             </div>
@@ -295,7 +295,7 @@ const SellerOrders = () => {
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-purple-400" />
               <div>
-                <p className="text-xs text-emerald-400">Age</p>
+                <p className="text-xs text-white">Age</p>
                 <p className="font-semibold text-gray-100">
                   {daysSince === 0 ? 'Today' : `${daysSince} days`}
                 </p>
@@ -305,7 +305,7 @@ const SellerOrders = () => {
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-indigo-400" />
               <div>
-                <p className="text-xs text-emerald-400">Order ID</p>
+                <p className="text-xs text-white">Order ID</p>
                 <p className="font-mono text-xs font-semibold text-gray-100">
                   #{orderItem.order_id.slice(-8)}
                 </p>
@@ -458,7 +458,7 @@ const SellerOrders = () => {
                   onClick={() => navigate(`/seller/orders/${orderItem.id}`)}
                   variant="outline"
                   size="sm"
-                  className="border-emerald-600 text-emerald-300 hover:bg-emerald-900/50"
+                  className="border-emerald-600 text-white hover:bg-emerald-900/50"
                 >
                   View Details
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -479,13 +479,13 @@ const SellerOrders = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-100">Order Management</h2>
-          <p className="text-emerald-400 mt-1">
-            Track and manage your sales 
+          <p className="text-white mt-1">
+            Track and manage your sales
           </p>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="text-sm text-emerald-400">
+          <div className="text-sm text-white">
             <span className="font-semibold text-gray-100">{orders.length}</span> total orders
           </div>
           
@@ -503,15 +503,15 @@ const SellerOrders = () => {
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-500 h-4 w-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white h-4 w-4" />
           <Input
             placeholder="Search by order ID, product name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-emerald-950/50 border-emerald-700 text-gray-100 placeholder:text-emerald-600"
+            className="pl-10 bg-emerald-950/50 border-emerald-700 text-gray-100 placeholder:text-white"
           />
         </div>
-        <Button type="submit" variant="outline" className="border-emerald-700 text-emerald-300 hover:bg-emerald-900/50">
+        <Button type="submit" variant="outline" className="border-emerald-700 text-white hover:bg-emerald-900/50">
           <Search className="h-4 w-4 mr-2" />
           Search
         </Button>
@@ -523,7 +523,7 @@ const SellerOrders = () => {
               setSearchQuery('');
               setFilteredOrders(orders);
             }}
-            className="text-emerald-300 hover:bg-emerald-900/50"
+            className="text-white hover:bg-emerald-900/50"
           >
             Clear
           </Button>
@@ -598,7 +598,7 @@ const SellerOrders = () => {
               <Truck className="h-3 w-3" />
               <span className="hidden sm:inline">Shipped</span>
               {counts.shipped > 0 && (
-                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-emerald-300">
+                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-white">
                   {counts.shipped}
                 </Badge>
               )}
@@ -612,7 +612,7 @@ const SellerOrders = () => {
               <CheckCircle className="h-3 w-3" />
               <span className="hidden sm:inline">Delivered</span>
               {counts.delivered > 0 && (
-                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-emerald-300">
+                <Badge variant="outline" className="ml-1 text-xs border-emerald-600 text-white">
                   {counts.delivered}
                 </Badge>
               )}
@@ -644,7 +644,7 @@ const SellerOrders = () => {
                   <CardContent className="p-12 text-center">
                     <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
                     <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
-                    <p className="text-emerald-400 max-w-md mx-auto mb-4">
+                    <p className="text-white max-w-md mx-auto mb-4">
                       No orders match "{searchQuery}"
                     </p>
                     <Button
@@ -664,7 +664,7 @@ const SellerOrders = () => {
                   <CardContent className="p-12 text-center">
                     <Package className="h-16 w-16 text-emerald-600 mx-auto mb-6" />
                     <h3 className="text-xl font-semibold text-gray-100 mb-2">No orders found</h3>
-                    <p className="text-emerald-400 max-w-md mx-auto">
+                    <p className="text-white max-w-md mx-auto">
                       {status === 'all' && 'You have no orders yet. Once customers start buying, they\'ll appear here.'}
                       {status === 'urgent' && 'No urgent orders! All your orders are up to date.'}
                       {status === 'ready' && 'No orders ready to ship right now.'}
@@ -705,8 +705,8 @@ const SellerOrders = () => {
                           <Zap className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-green-300 text-lg">Ready to Ship!</h4>
-                          <p className="text-green-400 mt-1">
+                          <h4 className="font-bold text-white text-lg">Ready to Ship!</h4>
+                          <p className="text-white mt-1">
                             {filteredOrders.filter(o => o.buyer_contacted && o.buyer_agreed && o.status !== 'shipped').length} orders
                             are confirmed and ready for shipping. Mark them as shipped once sent!
                           </p>
