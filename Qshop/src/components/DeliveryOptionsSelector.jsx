@@ -125,45 +125,71 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
       let url;
       
       if (useGeolocation && navigator.geolocation) {
-        // Request permission and get user's location
+        // Check permission status first
         try {
-          // Show loading message to user
-          toast.info('Getting your location...', { autoClose: 2000 });
+          let permissionGranted = false;
           
-          const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-              resolve, 
-              reject, 
-              {
-                timeout: 10000, // Give more time - 10 seconds
-                enableHighAccuracy: true, // Try to get better accuracy
-                maximumAge: 0 // Don't use cached position
-              }
-            );
-          });
+          // Check if Permissions API is available
+          if (navigator.permissions && navigator.permissions.query) {
+            const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+            console.log('📍 Geolocation permission status:', permissionStatus.state);
+            
+            if (permissionStatus.state === 'denied') {
+              toast.error('Location permission is blocked. Please enable it in your browser settings.', { autoClose: 5000 });
+              url = `${backendUrl}/pickup-mtaani/points?limit=50`;
+            } else if (permissionStatus.state === 'granted') {
+              permissionGranted = true;
+            } else {
+              // State is 'prompt' - will ask user
+              toast.info('Please allow location access when prompted...', { autoClose: 3000 });
+              permissionGranted = true; // Try anyway
+            }
+          } else {
+            // Permissions API not available, try anyway
+            permissionGranted = true;
+          }
           
-          const { latitude, longitude } = position.coords;
-          console.log('📍 User location:', latitude, longitude);
-          toast.success('Location found! Searching nearby...', { autoClose: 1000 });
-          
-          // Search by coordinates (within 10km radius)
-          url = `${backendUrl}/pickup-mtaani/points-nearby?lat=${latitude}&lng=${longitude}&radius=10&limit=20`;
+          if (permissionGranted) {
+            // Now try to get location
+            toast.info('Getting your location...', { autoClose: 2000 });
+            
+            const position = await new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(
+                resolve, 
+                reject, 
+                {
+                  timeout: 15000, // 15 seconds
+                  enableHighAccuracy: true,
+                  maximumAge: 0
+                }
+              );
+            });
+            
+            const { latitude, longitude } = position.coords;
+            console.log('✅ Got location:', latitude, longitude);
+            toast.success('Location found! Searching nearby...', { autoClose: 1000 });
+            
+            // Search by coordinates (within 10km radius)
+            url = `${backendUrl}/pickup-mtaani/points-nearby?lat=${latitude}&lng=${longitude}&radius=10&limit=20`;
+          }
         } catch (geoError) {
-          console.warn('Geolocation failed:', geoError);
+          console.error('❌ Geolocation error:', geoError);
           
           if (geoError.code === 1) {
-            toast.error('Location permission denied. Please enable location access in your browser settings.');
+            toast.error('Location permission denied. Click the 🔒 icon in your address bar to allow location access.', { autoClose: 8000 });
           } else if (geoError.code === 2) {
-            toast.error('Location unavailable. Searching all points instead.');
+            toast.error('Location unavailable. Please check your device settings.', { autoClose: 5000 });
           } else if (geoError.code === 3) {
-            toast.error('Location request timeout. Searching all points instead.');
+            toast.error('Location request timeout. Please try again.', { autoClose: 5000 });
+          } else {
+            toast.error('Could not get your location. Showing all points.', { autoClose: 5000 });
           }
           
           // Fallback to all points
           url = `${backendUrl}/pickup-mtaani/points?limit=50`;
         }
       } else if (useGeolocation && !navigator.geolocation) {
-        toast.error('Geolocation not supported by your browser. Searching all points.');
+        toast.error('Geolocation not supported by your browser.', { autoClose: 5000 });
         url = `${backendUrl}/pickup-mtaani/points?limit=50`;
       } else {
         // Town-based search
@@ -179,7 +205,7 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
         setPickupPoints(data.points || []);
         
         if (data.points.length === 0) {
-          toast.info('No pickup points found in this area. Try a different search.');
+          toast.info('No pickup points found. Try searching by town name.');
         } else if (data.points[0]?.distance !== undefined) {
           toast.success(`Found ${data.points.length} pickup points near you!`);
         }
