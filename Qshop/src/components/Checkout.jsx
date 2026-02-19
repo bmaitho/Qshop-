@@ -88,7 +88,7 @@ const Checkout = () => {
           *,
           products(
             name,
-            price_per_unit
+            price
           ),
           seller:seller_id(
             full_name,
