@@ -50,20 +50,35 @@ export const syncPickupPoints = async () => {
       return { success: true, count: 0, points: [] };
     }
 
-    // Prepare data for database
-    const pointsToInsert = shops.map(shop => ({
-      shop_id: shop.id || shop.shop_id,
-      shop_name: shop.name || shop.shop_name,
-      town: shop.town,
-      street_address: shop.street_address || shop.address,
-      latitude: shop.latitude ? parseFloat(shop.latitude) : null,
-      longitude: shop.longitude ? parseFloat(shop.longitude) : null,
-      phone_number: shop.phone_number || shop.contact,
-      opening_time: shop.opening_time,
-      closing_time: shop.closing_time,
-      is_active: true,
-      last_synced_at: new Date().toISOString()
-    }));
+    // Log first item to see actual structure
+    console.log('🔍 Sample API response (first item):', JSON.stringify(shops[0], null, 2));
+
+    // Prepare data for database - filter out items without required fields
+    const pointsToInsert = shops
+      .filter(shop => {
+        // Must have an ID and a name
+        const hasId = shop.id || shop.shop_id || shop.agent_id || shop.business_id;
+        const hasName = shop.name || shop.shop_name || shop.business_name || shop.agent_name;
+        
+        if (!hasId || !hasName) {
+          console.warn('⚠️ Skipping point without ID or name:', shop);
+          return false;
+        }
+        return true;
+      })
+      .map(shop => ({
+        shop_id: shop.id || shop.shop_id || shop.agent_id || shop.business_id,
+        shop_name: shop.name || shop.shop_name || shop.business_name || shop.agent_name || 'Unknown',
+        town: shop.town || shop.city || shop.area || 'Unknown',
+        street_address: shop.street_address || shop.address || shop.location || null,
+        latitude: shop.latitude ? parseFloat(shop.latitude) : null,
+        longitude: shop.longitude ? parseFloat(shop.longitude) : null,
+        phone_number: shop.phone_number || shop.phone || shop.contact || null,
+        opening_time: shop.opening_time || shop.open_time || null,
+        closing_time: shop.closing_time || shop.close_time || null,
+        is_active: true,
+        last_synced_at: new Date().toISOString()
+      }));
 
     console.log('💾 Attempting to save to database...');
     console.log('Sample point:', JSON.stringify(pointsToInsert[0], null, 2));
@@ -158,21 +173,22 @@ export const searchNearestPoints = async (town, limit = 10) => {
 
 /**
  * Calculate delivery fee based on origin and destination
- * Can use PickUp Mtaani API or fallback to zone-based pricing
+ * Uses PickUp Mtaani API with agent IDs
  */
-export const calculateDeliveryFee = async (originLocationId, destinationLocationId) => {
+export const calculateDeliveryFee = async (senderAgentID, receiverAgentID) => {
   try {
     // Try to get actual price from PickUp Mtaani API first
     try {
       const response = await pickupMtaaniAPI.get('/delivery-charge/agent-package', {
         params: {
-          originLocationId,
-          destinationLocationId
+          senderAgentID,
+          receiverAgentID
         }
       });
       
       const feeData = response.data.data || response.data;
       if (feeData && feeData.charge) {
+        console.log('✅ Got delivery fee from API:', feeData.charge);
         return { success: true, fee: feeData.charge };
       }
     } catch (apiError) {
@@ -180,20 +196,21 @@ export const calculateDeliveryFee = async (originLocationId, destinationLocation
     }
 
     // Fallback to zone-based pricing if API fails
-    // This requires knowing the towns, so we'll query database
+    // Query database to get town info for zone-based calculation
     const { data: originPoint } = await supabase
       .from('pickup_mtaani_points')
       .select('town')
-      .eq('shop_id', originLocationId)
+      .eq('shop_id', senderAgentID)
       .single();
       
     const { data: destPoint } = await supabase
       .from('pickup_mtaani_points')
       .select('town')
-      .eq('shop_id', destinationLocationId)
+      .eq('shop_id', receiverAgentID)
       .single();
 
     if (!originPoint || !destPoint) {
+      console.log('⚠️ Could not find town info, using default fee');
       return { success: true, fee: 200 }; // Default fallback
     }
 
@@ -232,50 +249,58 @@ export const calculateDeliveryFee = async (originLocationId, destinationLocation
 
 /**
  * Create a parcel booking with PickUp Mtaani
- * Uses POST /packages/agent-agent endpoint
+ * Uses POST /packages/agent-agent endpoint with business ID in query param
  */
 export const createParcel = async (parcelData) => {
   try {
     const {
+      businessId, // Required: ID of the business creating the package
       orderNumber,
-      senderName,
-      senderPhone,
-      recipientName,
-      recipientPhone,
-      originShopId,
-      destinationShopId,
-      itemDescription,
-      itemValue,
-      paymentMethod = 'prepaid' // Since buyer pays via M-Pesa
+      senderAgentId, // Changed from originShopId
+      receiverAgentId, // Changed from destinationShopId
+      packageValue,
+      customerName, // Recipient name
+      packageName, // Description
+      customerPhoneNumber, // Recipient phone
+      paymentOption = 'Vendor', // 'Vendor' or other options
+      onDeliveryBalance = 0, // Balance to collect on delivery
+      paymentNumber = '' // Payment reference number
     } = parcelData;
 
-    // Note: Check PickUp Mtaani docs for exact payload format
-    // This is a best guess based on typical API patterns
+    // Build the request body matching the API spec exactly
     const payload = {
-      senderName: senderName,
-      senderPhone: senderPhone,
-      recipientName: recipientName,
-      recipientPhone: recipientPhone,
-      originLocationId: originShopId, // May need to be businessId instead
-      destinationLocationId: destinationShopId,
-      description: itemDescription || 'UniHive Order',
-      value: itemValue,
-      paymentMethod: paymentMethod,
-      referenceNumber: orderNumber
+      receiverAgentId: receiverAgentId,
+      senderAgentId: senderAgentId,
+      packageValue: packageValue,
+      customerName: customerName,
+      packageName: packageName,
+      customerPhoneNumber: customerPhoneNumber,
+      paymentOption: paymentOption,
+      on_delivery_balance: onDeliveryBalance,
+      payment_number: paymentNumber || orderNumber // Use order number as payment reference
     };
 
-    console.log('📦 Creating parcel with PickUp Mtaani:', payload);
+    console.log('📦 Creating parcel with PickUp Mtaani:', {
+      businessId,
+      payload
+    });
 
-    // ✅ Use /packages/agent-agent endpoint for agent-to-agent delivery
-    const response = await pickupMtaaniAPI.post('/packages/agent-agent', payload);
+    // ✅ Business ID goes in query param, payload in body
+    const response = await pickupMtaaniAPI.post('/packages/agent-agent', payload, {
+      params: {
+        b_id: businessId
+      }
+    });
+    
     const parcelInfo = response.data.data || response.data;
 
     console.log('✅ Parcel created successfully:', parcelInfo);
 
     return {
       success: true,
+      packageId: parcelInfo.id || parcelInfo.packageId,
       trackingCode: parcelInfo.trackingCode || parcelInfo.tracking_code || parcelInfo.code,
-      parcelId: parcelInfo.id || parcelInfo.packageId,
+      businessId: businessId,
       parcelData: parcelInfo
     };
 
@@ -283,21 +308,24 @@ export const createParcel = async (parcelData) => {
     console.error('❌ Error creating parcel:', error.response?.data || error.message);
     return {
       success: false,
-      error: error.response?.data?.message || error.message
+      error: error.response?.data?.message || error.message,
+      details: error.response?.data
     };
   }
 };
 
 /**
  * Track parcel status
- * Uses GET /packages/agent-agent endpoint
+ * Requires both package ID and business ID
+ * Note: We may need to store business ID with the order
  */
-export const trackParcel = async (trackingCode) => {
+export const trackParcel = async (packageId, businessId) => {
   try {
-    // ✅ Use /packages/agent-agent endpoint to get package details
+    // ✅ Use /packages/agent-agent endpoint with id and b_id params
     const response = await pickupMtaaniAPI.get(`/packages/agent-agent`, {
       params: {
-        trackingCode: trackingCode
+        id: packageId,
+        b_id: businessId
       }
     });
     const parcelInfo = response.data.data || response.data;

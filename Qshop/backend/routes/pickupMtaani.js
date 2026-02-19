@@ -24,13 +24,17 @@ const router = express.Router();
 router.get('/sync-points', async (req, res) => {
   try {
     console.log('📡 Syncing pickup points from PickUp Mtaani API...');
+    console.log('Request headers:', req.headers);
     
     const result = await syncPickupPoints();
     
     if (!result.success) {
+      console.error('Sync failed:', result);
       return res.status(500).json({
         success: false,
-        error: result.error
+        error: result.error,
+        details: result.details,
+        message: 'Failed to sync pickup points from PickUp Mtaani API'
       });
     }
     
@@ -43,10 +47,12 @@ router.get('/sync-points', async (req, res) => {
     
   } catch (error) {
     console.error('Error in sync-points endpoint:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
-      message: error.message
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -241,45 +247,50 @@ router.post('/create-parcel', async (req, res) => {
   try {
     const {
       orderId,
+      businessId,
       orderNumber,
-      senderName,
-      senderPhone,
-      recipientName,
-      recipientPhone,
-      originShopId,
-      destinationShopId,
-      itemDescription,
-      itemValue
+      senderAgentId,
+      receiverAgentId,
+      packageValue,
+      customerName,
+      packageName,
+      customerPhoneNumber,
+      paymentOption,
+      onDeliveryBalance,
+      paymentNumber
     } = req.body;
     
     // Validation
-    if (!orderId || !orderNumber || !senderName || !senderPhone || 
-        !recipientName || !recipientPhone || !originShopId || !destinationShopId) {
+    if (!orderId || !businessId || !senderAgentId || !receiverAgentId || 
+        !packageValue || !customerName || !customerPhoneNumber) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'
       });
     }
     
-    console.log(`📦 Creating parcel for order ${orderNumber}...`);
+    console.log(`📦 Creating parcel for order ${orderNumber || orderId}...`);
     
     // Create parcel with PickUp Mtaani
     const result = await createParcel({
-      orderNumber,
-      senderName,
-      senderPhone,
-      recipientName,
-      recipientPhone,
-      originShopId,
-      destinationShopId,
-      itemDescription,
-      itemValue
+      businessId,
+      orderNumber: orderNumber || orderId,
+      senderAgentId,
+      receiverAgentId,
+      packageValue,
+      customerName,
+      packageName: packageName || 'UniHive Order',
+      customerPhoneNumber,
+      paymentOption: paymentOption || 'Vendor',
+      onDeliveryBalance: onDeliveryBalance || 0,
+      paymentNumber: paymentNumber || orderNumber || orderId
     });
     
     if (!result.success) {
       return res.status(500).json({
         success: false,
-        error: result.error
+        error: result.error,
+        details: result.details
       });
     }
     
@@ -288,9 +299,10 @@ router.post('/create-parcel', async (req, res) => {
       .from('orders')
       .update({
         pickup_mtaani_tracking_code: result.trackingCode,
-        pickup_mtaani_parcel_id: result.parcelId,
-        pickup_mtaani_origin_id: originShopId,
-        pickup_mtaani_destination_id: destinationShopId,
+        pickup_mtaani_parcel_id: result.packageId, // Note: packageId not parcelId
+        pickup_mtaani_business_id: businessId, // Store business ID for tracking
+        pickup_mtaani_origin_id: senderAgentId,
+        pickup_mtaani_destination_id: receiverAgentId,
         pickup_mtaani_status: 'pending_pickup'
       })
       .eq('id', orderId);
@@ -303,7 +315,8 @@ router.post('/create-parcel', async (req, res) => {
     return res.status(200).json({
       success: true,
       trackingCode: result.trackingCode,
-      parcelId: result.parcelId,
+      packageId: result.packageId,
+      businessId: result.businessId,
       message: 'Parcel created successfully'
     });
     

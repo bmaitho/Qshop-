@@ -72,22 +72,23 @@ export const createPickupMtaaniParcel = async (orderId) => {
 
     const originPoint = originData.points[0];
 
-    // 5. Prepare parcel data
+    // 5. Prepare parcel data matching PickUp Mtaani API format
     const itemDescriptions = order.order_items
       .map(item => `${item.quantity}x ${item.products.name}`)
       .join(', ');
 
     const parcelData = {
-      orderId: order.id,
+      businessId: 505, // TODO: This should be your actual PickUp Mtaani business ID
       orderNumber: order.id.substring(0, 8).toUpperCase(),
-      senderName: seller.full_name || 'UniHive Seller',
-      senderPhone: seller.phone_number || '254700000000',
-      recipientName: buyerProfile.full_name || 'UniHive Buyer',
-      recipientPhone: buyerProfile.phone_number || order.phone_number,
-      originShopId: originPoint.shop_id,
-      destinationShopId: order.pickup_mtaani_destination_id,
-      itemDescription: itemDescriptions.substring(0, 100), // Limit to 100 chars
-      itemValue: Math.round(order.amount)
+      senderAgentId: originPoint.shop_id, // Sender agent ID (seller's nearest point)
+      receiverAgentId: order.pickup_mtaani_destination_id, // Buyer's selected point
+      packageValue: Math.round(order.amount), // Total order value
+      customerName: buyerProfile.full_name || 'UniHive Buyer',
+      packageName: itemDescriptions.substring(0, 100), // Description (max 100 chars)
+      customerPhoneNumber: (buyerProfile.phone_number || order.phone_number).replace(/\+/g, ''), // Remove + prefix if present
+      paymentOption: 'Vendor', // Vendor has already been paid via M-Pesa
+      onDeliveryBalance: 0, // No balance to collect (already paid)
+      paymentNumber: order.id.substring(0, 8).toUpperCase() // Reference number
     };
 
     console.log('📦 Parcel data:', parcelData);
