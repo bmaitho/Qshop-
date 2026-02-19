@@ -130,14 +130,15 @@ const Checkout = () => {
 
       try {
         const result = await checkPaymentStatus(checkoutRequestId);
+        const resultData = result.data || result;
 
-        if (result.ResultCode === '0') {
+        if (resultData.ResultCode === '0' || resultData.ResultCode === 0) {
           // Payment successful
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('completed');
           setPaymentMessage('Payment successful! Processing your order...');
-          
+
           // Update order status
           await supabase
             .from('orders')
@@ -152,7 +153,7 @@ const Checkout = () => {
           if (deliveryInfo?.delivery_method === 'pickup_mtaani') {
             setPaymentMessage('Payment successful! Creating delivery booking...');
             const parcelResult = await createPickupMtaaniParcel(orderId);
-            
+
             if (parcelResult.success && !parcelResult.skipped) {
               toast.success(`Delivery booked! Tracking code: ${parcelResult.trackingCode}`);
             } else if (!parcelResult.success) {
@@ -162,17 +163,17 @@ const Checkout = () => {
           }
 
           clearCart();
-          
+
           setTimeout(() => {
             navigate(`/order-confirmation/${orderId}`);
           }, 2000);
 
-        } else if (result.ResultCode && result.ResultCode !== '0') {
+        } else if (resultData.ResultCode != null && resultData.ResultCode !== '0' && resultData.ResultCode !== 0) {
           // Payment failed
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('failed');
-          setPaymentMessage(result.ResultDesc || 'Payment failed');
+          setPaymentMessage(resultData.ResultDesc || 'Payment failed');
         }
       } catch (error) {
         console.error('Error checking payment status:', error);
@@ -249,7 +250,7 @@ const Checkout = () => {
       );
 
       if (paymentResult.success) {
-        setCheckoutRequestId(paymentResult.CheckoutRequestID);
+        setCheckoutRequestId(paymentResult.data?.CheckoutRequestID || paymentResult.CheckoutRequestID);
         setPaymentStatus('processing');
         setPaymentMessage('Payment request sent to your phone. Please enter your M-Pesa PIN.');
         setPollingActive(true);
