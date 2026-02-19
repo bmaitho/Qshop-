@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import mpesaRoutes from './routes/mpesa.js';
 import emailRoutes from './routes/email.js';
 import sitemapRoutes from './routes/sitemap.js';
-import buyerOrdersRoutes from './routes/buyerOrders.js'; // ← NEW: Import buyer orders routes
+import buyerOrdersRoutes from './routes/buyerOrders.js';
+import pickupMtaaniRoutes from './routes/pickupMtaani.js'; // ← NEW: PickUp Mtaani routes
 
 dotenv.config();
 
@@ -46,7 +47,7 @@ app.get('/', (req, res) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Qshop API</title>
+        <title>UniHive API</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -96,7 +97,7 @@ app.get('/', (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🛍️ Qshop API</h1>
+          <h1>🛍️ UniHive API</h1>
           <p>Server Status: <span class="status">ONLINE</span></p>
           <div class="endpoints">
             <h3>Available Endpoints:</h3>
@@ -105,6 +106,7 @@ app.get('/', (req, res) => {
               <li>/api/mpesa/* - M-Pesa payment endpoints</li>
               <li>/api/email/* - Email service endpoints</li>
               <li>/api/buyer-orders/* - Buyer order management endpoints</li>
+              <li>/api/pickup-mtaani/* - PickUp Mtaani delivery endpoints</li>
             </ul>
           </div>
           <p>Environment: ${process.env.NODE_ENV || 'development'}</p>
@@ -119,12 +121,14 @@ app.get('/', (req, res) => {
 // API routes
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/email', emailRoutes);
-app.use('/api/buyer-orders', buyerOrdersRoutes); // ← NEW: Add buyer orders routes
+app.use('/api/buyer-orders', buyerOrdersRoutes);
+app.use('/api/pickup-mtaani', pickupMtaaniRoutes); // ← NEW: PickUp Mtaani routes
 
 // Apply CORS options to preflight requests
 app.options('/api/mpesa/*', cors(corsOptions));
 app.options('/api/email/*', cors(corsOptions));
-app.options('/api/buyer-orders/*', cors(corsOptions)); // ← NEW: CORS for buyer orders
+app.options('/api/buyer-orders/*', cors(corsOptions));
+app.options('/api/pickup-mtaani/*', cors(corsOptions)); // ← NEW: CORS for PickUp Mtaani
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -134,9 +138,10 @@ app.get('/api/health', (req, res) => {
     services: {
       mpesa: 'available',
       email: 'available',
-      buyerOrders: 'available' // ← NEW: Add to health check
+      buyerOrders: 'available',
+      pickupMtaani: process.env.PICKUP_MTAANI_API_KEY ? 'available' : 'not configured' // ← NEW
     },
-    version: '1.0.0',
+    version: '1.1.0',
     timestamp: new Date().toISOString()
   });
 });
@@ -150,7 +155,8 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Allowed origins for CORS: ${allowedOrigins.join(', ')}`);
-  console.log(`Email service initialized: ${Boolean(process.env.RESEND_API_KEY) ? 'YES' : 'NO - Missing API Key'}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 Allowed origins for CORS: ${allowedOrigins.join(', ')}`);
+  console.log(`📧 Email service: ${Boolean(process.env.RESEND_API_KEY) ? '✅ Configured' : '❌ Missing API Key'}`);
+  console.log(`📦 PickUp Mtaani: ${Boolean(process.env.PICKUP_MTAANI_API_KEY) ? '✅ Configured' : '❌ Missing API Key'}`);
 });
