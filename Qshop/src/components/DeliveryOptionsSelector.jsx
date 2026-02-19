@@ -112,7 +112,7 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
     }
   };
 
-  const loadPickupPoints = async (town = '') => {
+  const loadPickupPoints = async (town = '', useGeolocation = false) => {
     try {
       setLoadingPickupPoints(true);
       
@@ -122,10 +122,36 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
         console.warn('Could not sync pickup points, using cached data');
       }
 
-      // Fetch pickup points
-      const url = town 
-        ? `${backendUrl}/pickup-mtaani/points/near/${encodeURIComponent(town)}?limit=20`
-        : `${backendUrl}/pickup-mtaani/points?limit=50`;
+      let url;
+      
+      if (useGeolocation && navigator.geolocation) {
+        // Try to get user's location
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              timeout: 5000,
+              enableHighAccuracy: false
+            });
+          });
+          
+          const { latitude, longitude } = position.coords;
+          console.log('📍 User location:', latitude, longitude);
+          
+          // Search by coordinates (within 10km radius)
+          url = `${backendUrl}/pickup-mtaani/points-nearby?lat=${latitude}&lng=${longitude}&radius=10&limit=20`;
+        } catch (geoError) {
+          console.warn('Geolocation failed, falling back to search:', geoError);
+          // Fallback to town search
+          url = town 
+            ? `${backendUrl}/pickup-mtaani/points/near/${encodeURIComponent(town)}?limit=20`
+            : `${backendUrl}/pickup-mtaani/points?limit=50`;
+        }
+      } else {
+        // Town-based search
+        url = town 
+          ? `${backendUrl}/pickup-mtaani/points/near/${encodeURIComponent(town)}?limit=20`
+          : `${backendUrl}/pickup-mtaani/points?limit=50`;
+      }
 
       const response = await fetch(url);
       const data = await response.json();
@@ -134,7 +160,7 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
         setPickupPoints(data.points || []);
         
         if (data.points.length === 0) {
-          toast.info('No pickup points found in this area. Try a different town.');
+          toast.info('No pickup points found in this area. Try a different search.');
         }
       } else {
         throw new Error(data.error || 'Failed to load pickup points');
@@ -313,6 +339,15 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
                           Search
                         </button>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => loadPickupPoints('', true)}
+                        disabled={loadingPickupPoints}
+                        className="mt-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        Find Nearest to Me
+                      </button>
                     </form>
 
                     {/* Loading State */}
@@ -347,7 +382,12 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
                                     {point.street_address}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                                    {point.town} • {point.phone_number}
+                                    {point.town}
+                                    {point.distance && (
+                                      <span className="ml-2 font-medium text-blue-600 dark:text-blue-400">
+                                        • {point.distance.toFixed(1)} km away
+                                      </span>
+                                    )}
                                   </p>
                                 </div>
                               </div>

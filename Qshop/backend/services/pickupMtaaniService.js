@@ -53,29 +53,26 @@ export const syncPickupPoints = async () => {
     // Log first item to see actual structure
     console.log('🔍 Sample API response (first item):', JSON.stringify(shops[0], null, 2));
 
-    // Prepare data for database - filter out items without required fields
+    // Prepare data for database using correct field names from API
     const pointsToInsert = shops
       .filter(shop => {
         // Must have an ID and a name
-        const hasId = shop.id || shop.shop_id || shop.agent_id || shop.business_id;
-        const hasName = shop.name || shop.shop_name || shop.business_name || shop.agent_name;
-        
-        if (!hasId || !hasName) {
-          console.warn('⚠️ Skipping point without ID or name:', shop);
+        if (!shop.id || !shop.business_name) {
+          console.warn('⚠️ Skipping point without ID or name:', shop.id);
           return false;
         }
         return true;
       })
       .map(shop => ({
-        shop_id: shop.id || shop.shop_id || shop.agent_id || shop.business_id,
-        shop_name: shop.name || shop.shop_name || shop.business_name || shop.agent_name || 'Unknown',
-        town: shop.town || shop.city || shop.area || 'Unknown',
-        street_address: shop.street_address || shop.address || shop.location || null,
-        latitude: shop.latitude ? parseFloat(shop.latitude) : null,
-        longitude: shop.longitude ? parseFloat(shop.longitude) : null,
-        phone_number: shop.phone_number || shop.phone || shop.contact || null,
-        opening_time: shop.opening_time || shop.open_time || null,
-        closing_time: shop.closing_time || shop.close_time || null,
+        shop_id: shop.id.toString(), // Agent/Business ID
+        shop_name: shop.business_name, // Business name
+        town: shop.loc?.name || 'Unknown', // Location name from loc object
+        street_address: shop.agent_description || null, // Description has the address
+        latitude: shop.loc?.lat ? parseFloat(shop.loc.lat) : null,
+        longitude: shop.loc?.lng ? parseFloat(shop.loc.lng) : null,
+        phone_number: shop.phone_number || shop.contact || null, // May not be in response
+        opening_time: shop.opening_hours || null,
+        closing_time: shop.closing_hours || null,
         is_active: true,
         last_synced_at: new Date().toISOString()
       }));
@@ -151,6 +148,7 @@ export const getPickupPoints = async (filters = {}) => {
 
 /**
  * Search for nearest pickup points based on town/location
+ * Now uses database for better performance
  */
 export const searchNearestPoints = async (town, limit = 10) => {
   try {
@@ -170,6 +168,71 @@ export const searchNearestPoints = async (town, limit = 10) => {
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Search for pickup points near a specific coordinate
+ * Uses Haversine formula to calculate distance
+ */
+export const searchNearestPointsByCoordinates = async (latitude, longitude, radiusKm = 10, limit = 20) => {
+  try {
+    // Get all active points with coordinates
+    const { data: allPoints, error } = await supabase
+      .from('pickup_mtaani_points')
+      .select('*')
+      .eq('is_active', true)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
+
+    if (error) throw error;
+
+    // Calculate distances and sort
+    const pointsWithDistance = allPoints.map(point => {
+      const distance = calculateDistance(
+        latitude,
+        longitude,
+        point.latitude,
+        point.longitude
+      );
+      return { ...point, distance };
+    });
+
+    // Filter by radius and sort by distance
+    const nearbyPoints = pointsWithDistance
+      .filter(p => p.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
+
+    return { success: true, points: nearbyPoints };
+
+  } catch (error) {
+    console.error('Error searching by coordinates:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ * Returns distance in kilometers
+ */
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  
+  return distance;
+}
+
+function toRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
 
 /**
  * Calculate delivery fee based on origin and destination

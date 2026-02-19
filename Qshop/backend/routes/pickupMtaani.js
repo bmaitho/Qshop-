@@ -4,6 +4,7 @@ import {
   syncPickupPoints,
   getPickupPoints,
   searchNearestPoints,
+  searchNearestPointsByCoordinates,
   calculateDeliveryFee,
   createParcel,
   trackParcel
@@ -166,6 +167,60 @@ router.get('/points/:shopId', async (req, res) => {
     
   } catch (error) {
     console.error('Error fetching pickup point:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/pickup-mtaani/points/nearby
+ * Search pickup points near coordinates
+ * Query params: ?lat=-1.2921&lng=36.8219&radius=5&limit=10
+ */
+router.get('/points-nearby', async (req, res) => {
+  try {
+    const { lat, lng, radius, limit } = req.query;
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const radiusKm = radius ? parseFloat(radius) : 10;
+    const maxResults = limit ? parseInt(limit) : 20;
+    
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid lat and lng parameters are required'
+      });
+    }
+    
+    const result = await searchNearestPointsByCoordinates(
+      latitude,
+      longitude,
+      radiusKm,
+      maxResults
+    );
+    
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      latitude,
+      longitude,
+      radius: radiusKm,
+      count: result.points.length,
+      points: result.points
+    });
+    
+  } catch (error) {
+    console.error('Error in points-nearby endpoint:', error);
     return res.status(500).json({
       success: false,
       error: 'Internal server error',
