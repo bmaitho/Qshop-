@@ -3,14 +3,15 @@ import axios from 'axios';
 import { supabase } from '../supabaseClient.js';
 
 const API_KEY = process.env.PICKUP_MTAANI_API_KEY;
-const BASE_URL = process.env.PICKUP_MTAANI_BASE_URL || 'https://api.pickupmtaani.com/api/v1';
+const BASE_URL = process.env.PICKUP_MTAANI_BASE_URL || 'https://api.pickupmtaani.com/api/vv1';
 
 // Configure axios instance
 const pickupMtaaniAPI = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Authorization': `Bearer ${API_KEY}`,
-    'Content-Type': 'application/json'
+    'apiKey': API_KEY,  // ✅ Changed from 'Authorization: Bearer' to 'apiKey'
+    'Content-Type': 'application/json',
+    'accept': 'application/json'
   },
   timeout: 30000
 });
@@ -18,18 +19,36 @@ const pickupMtaaniAPI = axios.create({
 /**
  * Fetch all pickup points from PickUp Mtaani and cache in database
  */
+/**
+ * Fetch all pickup points from PickUp Mtaani and cache in database
+ * Uses /agents endpoint to get all agent details
+ */
 export const syncPickupPoints = async () => {
   try {
     console.log('🔄 Syncing PickUp Mtaani pickup points...');
+    console.log('📍 API Base URL:', BASE_URL);
+    console.log('🔑 API Key present:', !!API_KEY);
+    console.log('🔑 API Key (first 10 chars):', API_KEY ? API_KEY.substring(0, 10) : 'MISSING');
     
-    const response = await pickupMtaaniAPI.get('/parcel_shops');
+    // ✅ Use /agents endpoint to get all agent details
+    const response = await pickupMtaaniAPI.get('/agents');
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', response.headers);
+    
     const shops = response.data.data || response.data;
 
     if (!Array.isArray(shops)) {
+      console.error('❌ Invalid response format. Expected array, got:', typeof shops);
+      console.error('Response data:', JSON.stringify(response.data).substring(0, 500));
       throw new Error('Invalid response format from PickUp Mtaani API');
     }
 
     console.log(`📦 Received ${shops.length} pickup points from API`);
+
+    if (shops.length === 0) {
+      console.warn('⚠️ API returned empty array of shops');
+      return { success: true, count: 0, points: [] };
+    }
 
     // Prepare data for database
     const pointsToInsert = shops.map(shop => ({
@@ -46,6 +65,9 @@ export const syncPickupPoints = async () => {
       last_synced_at: new Date().toISOString()
     }));
 
+    console.log('💾 Attempting to save to database...');
+    console.log('Sample point:', JSON.stringify(pointsToInsert[0], null, 2));
+
     // Upsert to database (insert or update if exists)
     const { data, error } = await supabase
       .from('pickup_mtaani_points')
@@ -55,14 +77,30 @@ export const syncPickupPoints = async () => {
       })
       .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database error:', error);
+      throw error;
+    }
 
     console.log(`✅ Successfully synced ${data.length} pickup points to database`);
     return { success: true, count: data.length, points: data };
 
   } catch (error) {
-    console.error('❌ Error syncing pickup points:', error.response?.data || error.message);
-    return { success: false, error: error.message };
+    console.error('❌ Error syncing pickup points:');
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    console.error('Error response:', error.response?.data);
+    console.error('Error status:', error.response?.status);
+    console.error('Full error:', error);
+    
+    return { 
+      success: false, 
+      error: error.response?.data?.message || error.message,
+      details: {
+        status: error.response?.status,
+        data: error.response?.data
+      }
+    };
   }
 };
 
@@ -120,13 +158,48 @@ export const searchNearestPoints = async (town, limit = 10) => {
 
 /**
  * Calculate delivery fee based on origin and destination
- * NOTE: PickUp Mtaani API doesn't provide pricing endpoint, so we use zone-based pricing
+ * Can use PickUp Mtaani API or fallback to zone-based pricing
  */
-export const calculateDeliveryFee = async (originTown, destinationTown) => {
+export const calculateDeliveryFee = async (originLocationId, destinationLocationId) => {
   try {
-    // Normalize town names
-    const origin = originTown.toLowerCase().trim();
-    const destination = destinationTown.toLowerCase().trim();
+    // Try to get actual price from PickUp Mtaani API first
+    try {
+      const response = await pickupMtaaniAPI.get('/delivery-charge/agent-package', {
+        params: {
+          originLocationId,
+          destinationLocationId
+        }
+      });
+      
+      const feeData = response.data.data || response.data;
+      if (feeData && feeData.charge) {
+        return { success: true, fee: feeData.charge };
+      }
+    } catch (apiError) {
+      console.warn('Could not get fee from API, using fallback:', apiError.message);
+    }
+
+    // Fallback to zone-based pricing if API fails
+    // This requires knowing the towns, so we'll query database
+    const { data: originPoint } = await supabase
+      .from('pickup_mtaani_points')
+      .select('town')
+      .eq('shop_id', originLocationId)
+      .single();
+      
+    const { data: destPoint } = await supabase
+      .from('pickup_mtaani_points')
+      .select('town')
+      .eq('shop_id', destinationLocationId)
+      .single();
+
+    if (!originPoint || !destPoint) {
+      return { success: true, fee: 200 }; // Default fallback
+    }
+
+    // Zone-based calculation
+    const origin = originPoint.town.toLowerCase().trim();
+    const destination = destPoint.town.toLowerCase().trim();
 
     // Same town
     if (origin === destination) {
@@ -159,6 +232,7 @@ export const calculateDeliveryFee = async (originTown, destinationTown) => {
 
 /**
  * Create a parcel booking with PickUp Mtaani
+ * Uses POST /packages/agent-agent endpoint
  */
 export const createParcel = async (parcelData) => {
   try {
@@ -175,30 +249,33 @@ export const createParcel = async (parcelData) => {
       paymentMethod = 'prepaid' // Since buyer pays via M-Pesa
     } = parcelData;
 
+    // Note: Check PickUp Mtaani docs for exact payload format
+    // This is a best guess based on typical API patterns
     const payload = {
-      sender_name: senderName,
-      sender_phone: senderPhone,
-      recipient_name: recipientName,
-      recipient_phone: recipientPhone,
-      origin_shop_id: originShopId,
-      destination_shop_id: destinationShopId,
-      item_description: itemDescription || 'UniHive Order',
-      item_value: itemValue,
-      payment_method: paymentMethod,
-      reference_number: orderNumber
+      senderName: senderName,
+      senderPhone: senderPhone,
+      recipientName: recipientName,
+      recipientPhone: recipientPhone,
+      originLocationId: originShopId, // May need to be businessId instead
+      destinationLocationId: destinationShopId,
+      description: itemDescription || 'UniHive Order',
+      value: itemValue,
+      paymentMethod: paymentMethod,
+      referenceNumber: orderNumber
     };
 
     console.log('📦 Creating parcel with PickUp Mtaani:', payload);
 
-    const response = await pickupMtaaniAPI.post('/parcels', payload);
+    // ✅ Use /packages/agent-agent endpoint for agent-to-agent delivery
+    const response = await pickupMtaaniAPI.post('/packages/agent-agent', payload);
     const parcelInfo = response.data.data || response.data;
 
     console.log('✅ Parcel created successfully:', parcelInfo);
 
     return {
       success: true,
-      trackingCode: parcelInfo.tracking_code || parcelInfo.code,
-      parcelId: parcelInfo.id,
+      trackingCode: parcelInfo.trackingCode || parcelInfo.tracking_code || parcelInfo.code,
+      parcelId: parcelInfo.id || parcelInfo.packageId,
       parcelData: parcelInfo
     };
 
@@ -213,10 +290,16 @@ export const createParcel = async (parcelData) => {
 
 /**
  * Track parcel status
+ * Uses GET /packages/agent-agent endpoint
  */
 export const trackParcel = async (trackingCode) => {
   try {
-    const response = await pickupMtaaniAPI.get(`/parcels/${trackingCode}`);
+    // ✅ Use /packages/agent-agent endpoint to get package details
+    const response = await pickupMtaaniAPI.get(`/packages/agent-agent`, {
+      params: {
+        trackingCode: trackingCode
+      }
+    });
     const parcelInfo = response.data.data || response.data;
 
     return {
