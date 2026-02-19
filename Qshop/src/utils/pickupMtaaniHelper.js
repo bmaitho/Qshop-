@@ -78,7 +78,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
       .join(', ');
 
     const parcelData = {
-      businessId: 505, // TODO: This should be your actual PickUp Mtaani business ID
+      businessId: 77680, // TODO: This should be your actual PickUp Mtaani business ID
       orderNumber: order.id.substring(0, 8).toUpperCase(),
       senderAgentId: originPoint.shop_id, // Sender agent ID (seller's nearest point)
       receiverAgentId: order.pickup_mtaani_destination_id, // Buyer's selected point
