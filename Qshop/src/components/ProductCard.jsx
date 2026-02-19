@@ -93,8 +93,8 @@ const ProductLocationsCompact = ({ productId }) => {
     <div className="flex items-center gap-1 text-xs text-primary/60 dark:text-gray-400 mt-1">
       <Building2 className="h-3 w-3 flex-shrink-0" />
       <span className="truncate">
-        {locations.length === 1 
-          ? locations[0].shop_name
+        {locations.length === 1
+          ? locations[0].physical_address
           : `${locations.length} pickup locations`
         }
       </span>
