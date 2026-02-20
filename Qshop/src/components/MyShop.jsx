@@ -216,9 +216,16 @@ const MyShop = () => {
       }
 
       // Calculate statistics from order_items
-      const pendingOrders = (orderStats.data || []).filter(order => order.status === 'processing').length;
-      const totalSales = (orderStats.data || []).length;
-      const totalRevenue = (orderStats.data || []).reduce(
+      const paidOrders = (orderStats.data || []).filter(
+        order => ['processing', 'shipped', 'delivered'].includes(order.status)
+      );
+
+      const pendingOrders = (orderStats.data || []).filter(
+        order => order.status === 'processing'
+      ).length;
+
+      const totalSales = paidOrders.length;
+      const totalRevenue = paidOrders.reduce(
         (sum, order) => sum + (order.subtotal || 0), 0
       );
       
