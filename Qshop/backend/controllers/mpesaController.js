@@ -23,6 +23,12 @@ if (!BUSINESS_SHORT_CODE || !PASSKEY || !CALLBACK_URL) {
  * Initiates an STK push payment request to the user's phone
  */
 export const initiateSTKPush = async (req, res) => {
+  // PAYMENTS TEMPORARILY DISABLED
+  return res.status(503).json({
+    success: false,
+    error: 'Payments are temporarily unavailable. Please try again later.'
+  });
+
   try {
     const { phoneNumber, amount, orderId, accountReference } = req.body;
 
