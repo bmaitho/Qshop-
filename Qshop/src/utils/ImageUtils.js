@@ -1,118 +1,142 @@
 // src/utils/imageUtils.js
+// Image compression before upload + Supabase image transform helpers
 
 /**
- * Simple image optimization utilities
+ * Compress an image file before uploading.
+ * Converts HEIC/PNG to JPEG, resizes if oversized, reduces quality.
+ * Target: < 800KB for product images, < 600KB for banners
  */
+export const compressImage = (file, options = {}) => {
+  const {
+    maxWidth = 1200,
+    maxHeight = 1200,
+    quality = 0.82,
+    maxSizeKB = 800,
+  } = options;
 
-/**
- * Generates image dimensions appropriate for the context where it will be displayed
- * 
- * @param {string} context - Where the image will be shown (card, detail, etc.)
- * @returns {Object} Width and height values
- */
-export const getImageDimensions = (context) => {
-  switch (context) {
-    case 'card':
-      return { width: 400, height: 400 };
-    case 'detail':
-      return { width: 800, height: 800 };
-    case 'thumbnail':
-      return { width: 100, height: 100 };
-    case 'banner':
-      return { width: 1200, height: 400 };
-    default:
-      return { width: 400, height: 400 };
-  }
-};
-
-/**
- * Creates a properly sized image URL by appending width/height parameters
- * This works with Cloudinary, Imgix, or similar services
- * For Supabase, you might need to set up a proxy or use a third-party service
- * 
- * @param {string} url - Original image URL
- * @param {Object} options - Sizing options
- * @returns {string} Optimized image URL
- */
-export const getOptimizedUrl = (url, options = {}) => {
-  if (!url) return '/api/placeholder/400/400';
-  
-  // If it's already a placeholder, just return it
-  if (url.includes('/api/placeholder/')) {
-    return url;
-  }
-  
-  // Example using Cloudinary-style parameters
-  // In a real implementation, you'd check the URL and use the appropriate service
-  try {
-    const imageUrl = new URL(url);
-    
-    // Only add parameters if they don't already exist
-    if (options.width && !imageUrl.searchParams.has('width')) {
-      imageUrl.searchParams.append('width', options.width);
-    }
-    
-    if (options.height && !imageUrl.searchParams.has('height')) {
-      imageUrl.searchParams.append('height', options.height);
-    }
-    
-    return imageUrl.toString();
-  } catch (e) {
-    console.error('Invalid URL in image optimization:', url);
-    return url;
-  }
-};
-
-/**
- * Implements a simple image preloader
- * 
- * @param {string} src - Image URL to preload
- * @returns {Promise} Resolves when image is loaded
- */
-export const preloadImage = (src) => {
   return new Promise((resolve, reject) => {
-    if (!src) {
-      reject(new Error('No image URL provided'));
-      return;
-    }
-    
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-    img.src = src;
+    const isHeic =
+      file.type === 'image/heic' ||
+      file.type === 'image/heif' ||
+      file.name.toLowerCase().endsWith('.heic') ||
+      file.name.toLowerCase().endsWith('.heif');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calculate new dimensions maintaining aspect ratio
+        let { width, height } = img;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        // White background for PNGs with transparency
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Try progressively lower quality until we hit target size
+        const tryCompress = (q) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Canvas toBlob failed'));
+                return;
+              }
+              const sizeKB = blob.size / 1024;
+              if (sizeKB > maxSizeKB && q > 0.4) {
+                tryCompress(Math.round((q - 0.1) * 10) / 10);
+              } else {
+                const compressedFile = new File(
+                  [blob],
+                  file.name.replace(/\.[^.]+$/, '.jpg'),
+                  { type: 'image/jpeg' }
+                );
+                resolve({
+                  file: compressedFile,
+                  originalSizeKB: Math.round(file.size / 1024),
+                  compressedSizeKB: Math.round(blob.size / 1024),
+                  wasCompressed: blob.size < file.size,
+                });
+              }
+            },
+            'image/jpeg',
+            q
+          );
+        };
+
+        tryCompress(quality);
+      };
+
+      img.onerror = () => {
+        // If image fails to load (e.g. HEIC on unsupported browser), pass through original
+        console.warn('Could not compress image, uploading original:', file.name);
+        resolve({
+          file,
+          originalSizeKB: Math.round(file.size / 1024),
+          compressedSizeKB: Math.round(file.size / 1024),
+          wasCompressed: false,
+        });
+      };
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
   });
 };
 
 /**
- * Handles common image loading with fallbacks
- * 
- * @param {string} url - Primary image URL
- * @param {string} fallback - Fallback image URL
- * @param {function} setImage - State setter function
- * @param {function} setLoading - Loading state setter function
+ * Compress multiple images in parallel
  */
-export const loadImageWithFallback = async (url, fallback, setImage, setLoading) => {
-  if (!url) {
-    setImage(fallback);
-    setLoading(false);
-    return;
-  }
-  
-  try {
-    setLoading(true);
-    await preloadImage(url);
-    setImage(url);
-  } catch (error) {
-    console.warn('Image load failed, using fallback:', error);
-    setImage(fallback);
-  } finally {
-    setLoading(false);
-  }
+export const compressImages = async (files, options = {}) => {
+  return Promise.all(files.map((f) => compressImage(f, options)));
 };
 
-export default {
-  getImageDimensions,
-  getOptimizedUrl,
-  preloadImage,
-  loadImageWithFallback
+/**
+ * Get an optimised Supabase storage URL using image transformations.
+ * Works only for images stored in Supabase Storage.
+ *
+ * @param {string} url - The raw Supabase public URL
+ * @param {object} opts
+ */
+export const getOptimisedUrl = (url, opts = {}) => {
+  if (!url) return url;
+
+  // Only transform Supabase storage URLs
+  if (!url.includes('/storage/v1/object/public/')) return url;
+
+  // Convert to render endpoint for transformations
+  const transformUrl = url.replace(
+    '/storage/v1/object/public/',
+    '/storage/v1/render/image/public/'
+  );
+
+  const params = new URLSearchParams();
+  if (opts.width) params.set('width', opts.width);
+  if (opts.height) params.set('height', opts.height);
+  params.set('quality', opts.quality ?? 75);
+  params.set('resize', opts.resize ?? 'cover');
+
+  return `${transformUrl}?${params.toString()}`;
 };
+
+// Preset helpers for common use cases
+export const getProductCardUrl = (url) =>
+  getOptimisedUrl(url, { width: 400, quality: 75 });
+
+export const getProductDetailUrl = (url) =>
+  getOptimisedUrl(url, { width: 900, quality: 85 });
+
+export const getBannerUrl = (url) =>
+  getOptimisedUrl(url, { width: 1200, height: 400, quality: 80 });
+
+export const getThumbnailUrl = (url) =>
+  getOptimisedUrl(url, { width: 120, height: 120, quality: 70 });

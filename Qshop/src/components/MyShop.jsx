@@ -26,6 +26,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { supabase } from '../components/SupabaseClient';
+import { getBannerUrl } from '../utils/ImageUtils';
 import { shopToasts } from '../utils/toastConfig';
 import ProductCard from './ProductCard';
 import Navbar from './Navbar';

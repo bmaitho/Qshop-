@@ -5,6 +5,7 @@ import { User, MapPin, Star, ArrowLeft, Package, Phone, Mail } from 'lucide-reac
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from '../components/SupabaseClient';
+import { getBannerUrl } from '../utils/ImageUtils';
 import ProductCard from './ProductCard';
 import Navbar from './Navbar';
 

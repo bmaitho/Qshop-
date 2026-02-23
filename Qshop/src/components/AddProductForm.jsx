@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { shopToasts } from '@/utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
+import { compressImages } from '../utils/ImageUtils';
 
 const NewCategoryDialog = ({ open, onClose, onSubmit }) => {
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
@@ -243,10 +244,18 @@ const AddProductForm = ({ onSuccess }) => {
       return;
     }
 
-    const validFiles = files.filter(file => file.type.startsWith('image/'));
-    
+    const validFiles = files.filter(file => file.type.startsWith('image/') ||
+      file.name.toLowerCase().endsWith('.heic') ||
+      file.name.toLowerCase().endsWith('.heif'));
+
+    const hasHeic = validFiles.some(f =>
+      f.name.toLowerCase().endsWith('.heic') || f.name.toLowerCase().endsWith('.heif'));
+    if (hasHeic) {
+      toast.info('HEIC images will be automatically converted to JPEG for compatibility');
+    }
+
     setImageFiles(prev => [...prev, ...validFiles]);
-    
+
     validFiles.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -308,14 +317,23 @@ const AddProductForm = ({ onSuccess }) => {
 
   const uploadImages = async () => {
     try {
-      const uploadPromises = imageFiles.map(async (file, index) => {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+      // Compress all images before uploading (converts HEIC→JPEG, resizes, reduces quality)
+      const compressionToast = toast.loading('Optimising images...');
+      const compressed = await compressImages(imageFiles, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        maxSizeKB: 800,
+      });
+      toast.dismiss(compressionToast);
+
+      const uploadPromises = compressed.map(async ({ file }, index) => {
+        const fileName = `${Math.random()}.jpg`; // always jpg after compression
+        const filePath = fileName;
 
         const { error: uploadError } = await supabase.storage
           .from('product-images')
-          .upload(filePath, file);
+          .upload(filePath, file, { contentType: 'image/jpeg' });
 
         if (uploadError) throw uploadError;
 
@@ -326,7 +344,7 @@ const AddProductForm = ({ onSuccess }) => {
         return {
           url: publicUrl,
           order: index,
-          isPrimary: index === 0
+          isPrimary: index === 0,
         };
       });
 

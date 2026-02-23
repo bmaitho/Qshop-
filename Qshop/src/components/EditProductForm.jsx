@@ -15,6 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from 'react-toastify';
 import { supabase } from './SupabaseClient';
+import { compressImage } from '../utils/ImageUtils';
 
 const EditProductForm = ({ product, onSuccess, onCancel }) => {
   const [uploading, setUploading] = useState(false);
@@ -172,13 +173,19 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
 
   const uploadImage = async (file) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const { file: compressed } = await compressImage(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        maxSizeKB: 800,
+      });
+
+      const fileName = `${Math.random()}.jpg`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, file);
+        .upload(filePath, compressed, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 

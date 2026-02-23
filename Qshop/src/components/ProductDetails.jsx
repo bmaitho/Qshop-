@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { supabase } from '../components/SupabaseClient';
+import { getProductDetailUrl } from '../utils/ImageUtils';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 import MessageDialog from './MessageDialog';

@@ -23,6 +23,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
+import { getProductCardUrl } from '../utils/ImageUtils';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {

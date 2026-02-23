@@ -19,6 +19,7 @@ import {
 import { shopToasts } from '../utils/toastConfig';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
+import { compressImage } from '../utils/ImageUtils';
 
 const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
   const [loading, setLoading] = useState(false);
@@ -304,13 +305,20 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
   const uploadBannerImage = async (file) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `shop_banner_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      // Compress banner (wider aspect ratio, target 600KB max)
+      const { file: compressed } = await compressImage(file, {
+        maxWidth: 1400,
+        maxHeight: 500,
+        quality: 0.82,
+        maxSizeKB: 600,
+      });
+
+      const fileName = `shop_banner_${Date.now()}.jpg`;
+      const filePath = fileName;
 
       const { error: uploadError } = await supabase.storage
         .from('shop-banners')
-        .upload(filePath, file);
+        .upload(filePath, compressed, { contentType: 'image/jpeg' });
 
       if (uploadError) throw uploadError;
 

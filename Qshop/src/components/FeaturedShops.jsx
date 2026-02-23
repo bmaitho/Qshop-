@@ -5,6 +5,7 @@ import { supabase } from '../components/SupabaseClient';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, Store, AlertCircle } from 'lucide-react';
+import { getBannerUrl, getThumbnailUrl } from '../utils/ImageUtils';
 
 const FeaturedShops = () => {
   const [shops, setShops] = useState([]);
