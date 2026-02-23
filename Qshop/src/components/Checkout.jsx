@@ -3,8 +3,8 @@
 // 1. orders.amount updated to include delivery fee before STK push
 // 2. Stale pickup_mtaani fields cleared when switching to campus_pickup
 // 3. Delivery method saved immediately on selection (not just at payment time)
-// 4. ✅ NEW FIX: Polling now checks paymentStatus (not ResultCode) from backend response
-// 5. ✅ NEW FIX: handleDeliverySelected blocked after payment starts to prevent data corruption
+// 4. ✅ CRITICAL FIX: Polling checks payment_status DIRECTLY from Supabase DB — no API format mismatch possible
+// 5. ✅ CRITICAL FIX: handleDeliverySelected blocked after payment starts to prevent data corruption
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle, XCircle, PhoneCall, Truck } from 'lucide-react';
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
-import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
+import { initiateMpesaPayment } from '../Services/mpesaService';
 import { toast } from 'react-toastify';
 import { useCart } from '../context/CartContext';
 import DeliveryOptionsSelector from './DeliveryOptionsSelector';
@@ -38,7 +38,7 @@ const Checkout = () => {
   const [pollingActive, setPollingActive] = useState(false);
   const pollingInterval = useRef(null);
 
-  // ✅ NEW: Track whether payment has been initiated to guard delivery selector
+  // ✅ Track whether payment has been initiated to guard delivery selector
   const paymentInitiated = useRef(false);
 
   // Delivery states
@@ -58,7 +58,6 @@ const Checkout = () => {
   }, [orderId]);
 
   useEffect(() => {
-    // Polling is started directly in handlePayment with reqId — this effect handles cleanup only
     if (!pollingActive && pollingInterval.current) {
       clearInterval(pollingInterval.current);
       pollingInterval.current = null;
@@ -114,30 +113,25 @@ const Checkout = () => {
     }
   };
 
-  // ✅ FIX 1: Save delivery method to DB immediately when buyer selects it
-  // ✅ FIX 5: GUARD — skip DB writes if payment has already been initiated
+  // ✅ GUARD — skip DB writes if payment has already been initiated
   const handleDeliverySelected = async (info) => {
     setDeliveryInfo(info);
 
-    // ✅ GUARD: Do NOT overwrite order data once payment has started
     if (paymentInitiated.current) {
-      console.log('⚠️ Payment already initiated — skipping delivery DB update to prevent data corruption');
+      console.log('⚠️ Payment already initiated — skipping delivery DB update');
       return;
     }
 
     if (!info || !orderId) return;
 
     const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-
     const deliveryFee = info.delivery_fee || 0;
     const newTotal = productSubtotal + deliveryFee;
 
-    // Build the update — always reset pickup_mtaani fields first to avoid stale data
     const updateData = {
       delivery_method: info.delivery_method,
       delivery_fee: deliveryFee,
-      amount: newTotal, // ✅ FIX 2: Keep amount in sync with delivery selection
-      // Always clear pickup_mtaani fields — repopulate only if needed
+      amount: newTotal,
       pickup_mtaani_destination_id: null,
       pickup_mtaani_destination_name: null,
       pickup_mtaani_destination_address: null,
@@ -146,7 +140,6 @@ const Checkout = () => {
       updated_at: new Date().toISOString()
     };
 
-    // Re-populate pickup_mtaani fields only if that method is selected
     if (info.delivery_method === 'pickup_mtaani') {
       updateData.pickup_mtaani_destination_id = info.pickup_mtaani_destination_id || null;
       updateData.pickup_mtaani_destination_name = info.pickup_mtaani_destination_name || null;
@@ -165,12 +158,12 @@ const Checkout = () => {
     }
   };
 
-  // ✅ FIX 4: Polling now correctly checks backend response format
-  // Backend returns: { success: true, data: { paymentStatus: 'completed'|'pending'|'failed', receipt, orderId, orderStatus } }
-  // Frontend mpesaService wraps this as: { success: true, data: { success: true, data: { paymentStatus, ... } } }
-  const startStatusPolling = (reqId) => {
+  // ✅ CRITICAL FIX: Poll payment status DIRECTLY from Supabase DB
+  // The M-Pesa callback writes payment_status='completed' to orders table.
+  // We read it directly — zero middleman, zero format mismatch.
+  const startStatusPolling = () => {
     let pollCount = 0;
-    const maxPolls = 40; // 2 minutes
+    const maxPolls = 40; // ~2 minutes at 3s intervals
 
     pollingInterval.current = setInterval(async () => {
       pollCount++;
@@ -183,39 +176,28 @@ const Checkout = () => {
         return;
       }
 
-      if (!reqId) {
-        console.warn('No checkout request ID available');
-        return;
-      }
-
       try {
-        const result = await checkPaymentStatus(reqId);
+        // ✅ Read payment_status directly from the orders table
+        const { data: orderRow, error: dbError } = await supabase
+          .from('orders')
+          .select('payment_status, mpesa_receipt, order_status')
+          .eq('id', orderId)
+          .single();
 
-        // ✅ FIX 4: Navigate the nested response structure correctly
-        // result = { success, data: axiosResponse.data } where axiosResponse.data = { success, data: { paymentStatus, receipt, ... } }
-        const backendData = result?.data?.data || result?.data || {};
-        const status = backendData.paymentStatus;
-        const receipt = backendData.receipt;
+        if (dbError) {
+          console.error('Error polling order status:', dbError);
+          return;
+        }
 
-        console.log('Payment poll result:', { status, receipt, raw: result });
+        console.log(`Poll #${pollCount}: payment_status=${orderRow.payment_status}, receipt=${orderRow.mpesa_receipt}`);
 
-        if (status === 'completed') {
+        if (orderRow.payment_status === 'completed') {
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('completed');
           setPaymentMessage('Payment successful! Processing your order...');
 
-          // Update order status — amount is already correct from handlePayment
-          await supabase
-            .from('orders')
-            .update({
-              payment_status: 'completed',
-              order_status: 'new',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', orderId);
-
-          // Update order_items to processing
+          // Ensure order_items are set to processing
           await supabase
             .from('order_items')
             .update({ status: 'processing' })
@@ -224,13 +206,16 @@ const Checkout = () => {
           // Create PickUp Mtaani parcel if needed
           if (deliveryInfo?.delivery_method === 'pickup_mtaani') {
             setPaymentMessage('Payment successful! Creating delivery booking...');
-            const parcelResult = await createPickupMtaaniParcel(orderId);
-
-            if (parcelResult.success && !parcelResult.skipped) {
-              toast.success(`Delivery booked! Tracking code: ${parcelResult.trackingCode}`);
-            } else if (!parcelResult.success) {
-              console.warn('Failed to create parcel:', parcelResult.error);
-              toast.warning('Order paid but delivery booking failed. Please contact support.');
+            try {
+              const parcelResult = await createPickupMtaaniParcel(orderId);
+              if (parcelResult.success && !parcelResult.skipped) {
+                toast.success(`Delivery booked! Tracking code: ${parcelResult.trackingCode}`);
+              } else if (!parcelResult.success) {
+                console.warn('Failed to create parcel:', parcelResult.error);
+                toast.warning('Order paid but delivery booking failed. Please contact support.');
+              }
+            } catch (parcelError) {
+              console.error('Parcel creation error:', parcelError);
             }
           }
 
@@ -240,14 +225,13 @@ const Checkout = () => {
             navigate(`/order-confirmation/${orderId}`);
           }, 2000);
 
-        } else if (status === 'failed') {
+        } else if (orderRow.payment_status === 'failed') {
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('failed');
-          setPaymentMessage(backendData.ResultDesc || 'Payment failed. Please try again.');
-
+          setPaymentMessage('Payment failed. Please try again.');
         }
-        // If status is 'pending' or undefined, keep polling (do nothing)
+        // If still 'pending', keep polling
 
       } catch (error) {
         console.error('Error checking payment status:', error);
@@ -285,21 +269,17 @@ const Checkout = () => {
       }
 
       setProcessing(true);
-
-      // ✅ Mark payment as initiated to prevent delivery selector from overwriting data
       paymentInitiated.current = true;
 
-      // ✅ FIX 3: Calculate correct total and update DB amount + phone before STK push
       const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
       const deliveryFee = deliveryInfo.delivery_fee || 0;
       const totalAmount = productSubtotal + deliveryFee;
 
-      // Build update — always clear stale pickup_mtaani fields
       const updateData = {
         phone_number: phoneNumber,
         delivery_method: deliveryInfo.delivery_method,
         delivery_fee: deliveryFee,
-        amount: totalAmount, // ✅ Correct total saved to DB
+        amount: totalAmount,
         pickup_mtaani_destination_id: null,
         pickup_mtaani_destination_name: null,
         pickup_mtaani_destination_address: null,
@@ -323,7 +303,6 @@ const Checkout = () => {
 
       if (updateError) throw updateError;
 
-      // Initiate M-Pesa payment with the correct total
       const paymentResult = await initiateMpesaPayment(
         phoneNumber,
         totalAmount,
@@ -336,7 +315,7 @@ const Checkout = () => {
         setPaymentStatus('processing');
         setPaymentMessage('Payment request sent to your phone. Please enter your M-Pesa PIN.');
         setPollingActive(true);
-        startStatusPolling(reqId); // ← pass reqId directly, avoiding stale closure
+        startStatusPolling(); // ✅ Polls Supabase directly — no backend API needed
       } else {
         throw new Error(paymentResult.error || 'Payment initiation failed');
       }
@@ -346,7 +325,6 @@ const Checkout = () => {
       toast.error(error.message || 'Failed to initiate payment');
       setPaymentStatus('failed');
       setPaymentMessage(error.message || 'Payment failed');
-      // ✅ Reset the guard if payment initiation failed so user can retry
       paymentInitiated.current = false;
     } finally {
       setProcessing(false);
@@ -373,7 +351,6 @@ const Checkout = () => {
     }
   };
 
-  // Calculate display total from orderItems (source of truth for product prices)
   const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
   const displayTotal = productSubtotal + (deliveryInfo?.delivery_fee || 0);
 
