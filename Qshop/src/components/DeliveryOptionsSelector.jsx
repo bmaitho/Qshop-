@@ -237,11 +237,11 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
       const firstItem = orderItems[0];
       const { data: sellerProfile } = await supabase
         .from('profiles')
-        .select('town')
+        .select('campus_location')
         .eq('id', firstItem.seller_id)
         .single();
 
-      const originTown = sellerProfile?.town || 'Nairobi'; // Default to Nairobi
+      const originTown = sellerProfile?.campus_location || 'Nairobi'; // Default to Nairobi
 
       const response = await fetch(`${backendUrl}/pickup-mtaani/calculate-fee`, {
         method: 'POST',
