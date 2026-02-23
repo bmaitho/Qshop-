@@ -3,6 +3,8 @@
 // 1. orders.amount updated to include delivery fee before STK push
 // 2. Stale pickup_mtaani fields cleared when switching to campus_pickup
 // 3. Delivery method saved immediately on selection (not just at payment time)
+// 4. ✅ NEW FIX: Polling now checks paymentStatus (not ResultCode) from backend response
+// 5. ✅ NEW FIX: handleDeliverySelected blocked after payment starts to prevent data corruption
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -35,6 +37,9 @@ const Checkout = () => {
   const [checkoutRequestId, setCheckoutRequestId] = useState('');
   const [pollingActive, setPollingActive] = useState(false);
   const pollingInterval = useRef(null);
+
+  // ✅ NEW: Track whether payment has been initiated to guard delivery selector
+  const paymentInitiated = useRef(false);
 
   // Delivery states
   const [agreedToDelivery, setAgreedToDelivery] = useState(false);
@@ -110,13 +115,20 @@ const Checkout = () => {
   };
 
   // ✅ FIX 1: Save delivery method to DB immediately when buyer selects it
-  // This prevents stale delivery data if the buyer abandons and returns
+  // ✅ FIX 5: GUARD — skip DB writes if payment has already been initiated
   const handleDeliverySelected = async (info) => {
     setDeliveryInfo(info);
+
+    // ✅ GUARD: Do NOT overwrite order data once payment has started
+    if (paymentInitiated.current) {
+      console.log('⚠️ Payment already initiated — skipping delivery DB update to prevent data corruption');
+      return;
+    }
 
     if (!info || !orderId) return;
 
     const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+
     const deliveryFee = info.delivery_fee || 0;
     const newTotal = productSubtotal + deliveryFee;
 
@@ -153,6 +165,9 @@ const Checkout = () => {
     }
   };
 
+  // ✅ FIX 4: Polling now correctly checks backend response format
+  // Backend returns: { success: true, data: { paymentStatus: 'completed'|'pending'|'failed', receipt, orderId, orderStatus } }
+  // Frontend mpesaService wraps this as: { success: true, data: { success: true, data: { paymentStatus, ... } } }
   const startStatusPolling = (reqId) => {
     let pollCount = 0;
     const maxPolls = 40; // 2 minutes
@@ -175,15 +190,22 @@ const Checkout = () => {
 
       try {
         const result = await checkPaymentStatus(reqId);
-        const resultData = result.data || result;
 
-        if (resultData.ResultCode === '0' || resultData.ResultCode === 0) {
+        // ✅ FIX 4: Navigate the nested response structure correctly
+        // result = { success, data: axiosResponse.data } where axiosResponse.data = { success, data: { paymentStatus, receipt, ... } }
+        const backendData = result?.data?.data || result?.data || {};
+        const status = backendData.paymentStatus;
+        const receipt = backendData.receipt;
+
+        console.log('Payment poll result:', { status, receipt, raw: result });
+
+        if (status === 'completed') {
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('completed');
           setPaymentMessage('Payment successful! Processing your order...');
 
-          // Update order status — amount is already correct from handleDeliverySelected
+          // Update order status — amount is already correct from handlePayment
           await supabase
             .from('orders')
             .update({
@@ -218,12 +240,15 @@ const Checkout = () => {
             navigate(`/order-confirmation/${orderId}`);
           }, 2000);
 
-        } else if (resultData.ResultCode != null && resultData.ResultCode !== '0' && resultData.ResultCode !== 0) {
+        } else if (status === 'failed') {
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('failed');
-          setPaymentMessage(resultData.ResultDesc || 'Payment failed');
+          setPaymentMessage(backendData.ResultDesc || 'Payment failed. Please try again.');
+
         }
+        // If status is 'pending' or undefined, keep polling (do nothing)
+
       } catch (error) {
         console.error('Error checking payment status:', error);
       }
@@ -260,6 +285,9 @@ const Checkout = () => {
       }
 
       setProcessing(true);
+
+      // ✅ Mark payment as initiated to prevent delivery selector from overwriting data
+      paymentInitiated.current = true;
 
       // ✅ FIX 3: Calculate correct total and update DB amount + phone before STK push
       const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
@@ -318,6 +346,8 @@ const Checkout = () => {
       toast.error(error.message || 'Failed to initiate payment');
       setPaymentStatus('failed');
       setPaymentMessage(error.message || 'Payment failed');
+      // ✅ Reset the guard if payment initiation failed so user can retry
+      paymentInitiated.current = false;
     } finally {
       setProcessing(false);
     }
