@@ -105,7 +105,7 @@ const AuthLayout = ({ setToken }) => {
           <div className="max-w-md mx-auto w-full">
             <div className="text-center mb-6">
               <h1 className="text-3xl font-bold text-[#e7c65f]">UniHive</h1>
-              <p className="text-gray-400 mt-2">Student Marketplace</p>
+              <p className="text-gray-400 mt-2"> Marketplace</p>
             </div>
             
             {/* Routes for Login and SignUp components */}
