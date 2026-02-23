@@ -53,9 +53,8 @@ const Checkout = () => {
   }, [orderId]);
 
   useEffect(() => {
-    if (pollingActive && checkoutRequestId) {
-      startStatusPolling();
-    } else if (!pollingActive && pollingInterval.current) {
+    // Polling is started directly in handlePayment with reqId — this effect handles cleanup only
+    if (!pollingActive && pollingInterval.current) {
       clearInterval(pollingInterval.current);
       pollingInterval.current = null;
     }
@@ -65,7 +64,7 @@ const Checkout = () => {
         clearInterval(pollingInterval.current);
       }
     };
-  }, [pollingActive, checkoutRequestId]);
+  }, [pollingActive]);
 
   const fetchOrderDetails = async () => {
     try {
@@ -154,7 +153,7 @@ const Checkout = () => {
     }
   };
 
-  const startStatusPolling = () => {
+  const startStatusPolling = (reqId) => {
     let pollCount = 0;
     const maxPolls = 40; // 2 minutes
 
@@ -169,8 +168,13 @@ const Checkout = () => {
         return;
       }
 
+      if (!reqId) {
+        console.warn('No checkout request ID available');
+        return;
+      }
+
       try {
-        const result = await checkPaymentStatus(checkoutRequestId);
+        const result = await checkPaymentStatus(reqId);
         const resultData = result.data || result;
 
         if (resultData.ResultCode === '0' || resultData.ResultCode === 0) {
@@ -299,10 +303,12 @@ const Checkout = () => {
       );
 
       if (paymentResult.success) {
-        setCheckoutRequestId(paymentResult.data?.CheckoutRequestID || paymentResult.CheckoutRequestID);
+        const reqId = paymentResult.data?.CheckoutRequestID || paymentResult.CheckoutRequestID;
+        setCheckoutRequestId(reqId);
         setPaymentStatus('processing');
         setPaymentMessage('Payment request sent to your phone. Please enter your M-Pesa PIN.');
         setPollingActive(true);
+        startStatusPolling(reqId); // ← pass reqId directly, avoiding stale closure
       } else {
         throw new Error(paymentResult.error || 'Payment initiation failed');
       }

@@ -32,19 +32,20 @@ const OrderConfirmation = () => {
       // Fetch order details
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, delivery_fee, delivery_method, pickup_mtaani_destination_name, pickup_mtaani_destination_address, pickup_mtaani_destination_town, pickup_mtaani_tracking_code')
         .eq('id', orderId)
         .single();
 
       if (orderError) throw orderError;
       setOrder(orderData);
 
-      // Fetch order items
+      // Fetch order items with seller location for campus pickup display
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
           *,
-          products(*)
+          products(*),
+          seller:seller_id(full_name, campus_location, town)
         `)
         .eq('order_id', orderId);
 
@@ -194,15 +195,16 @@ const OrderConfirmation = () => {
             
             <div class="totals">
               <div class="total-row">
-                <span>Subtotal</span>
-                <span>KES ${order.amount?.toFixed(2)}</span>
+                <span>Products</span>
+                <span>KES ${(parseFloat(order.amount || 0) - parseFloat(order.delivery_fee || 0)).toFixed(2)}</span>
               </div>
+              ${parseFloat(order.delivery_fee || 0) > 0 ? `
               <div class="total-row">
-                <span>Delivery</span>
-                <span>KES 0.00</span>
-              </div>
+                <span>${order.delivery_method === 'pickup_mtaani' ? 'PickUp Mtaani Delivery' : 'Delivery Fee'}</span>
+                <span>KES ${parseFloat(order.delivery_fee || 0).toFixed(2)}</span>
+              </div>` : ''}
               <div class="total-row final">
-                <span>Total</span>
+                <span>Total Paid</span>
                 <span>KES ${order.amount?.toFixed(2)}</span>
               </div>
             </div>
@@ -373,18 +375,31 @@ const OrderConfirmation = () => {
             </div>
 
             <div className="border-t mt-6 pt-4">
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Subtotal</span>
-                <span>KES {order.amount?.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Delivery</span>
-                <span>KES 0.00</span>
-              </div>
-              <div className="flex justify-between font-bold">
-                <span>Total</span>
-                <span>KES {order.amount?.toFixed(2)}</span>
-              </div>
+              {(() => {
+                const deliveryFee = parseFloat(order.delivery_fee || 0);
+                const total = parseFloat(order.amount || 0);
+                const subtotal = total - deliveryFee;
+                return (
+                  <>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-gray-600">Products</span>
+                      <span>KES {subtotal.toFixed(2)}</span>
+                    </div>
+                    {deliveryFee > 0 && (
+                      <div className="flex justify-between mb-2">
+                        <span className="text-gray-600">
+                          {order.delivery_method === 'pickup_mtaani' ? 'PickUp Mtaani Delivery' : 'Delivery Fee'}
+                        </span>
+                        <span>KES {deliveryFee.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold border-t pt-2 mt-2">
+                      <span>Total Paid</span>
+                      <span>KES {total.toFixed(2)}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>
@@ -471,6 +486,63 @@ const OrderConfirmation = () => {
                     </Button>
                   </Link>
                 </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pickup / Delivery Location */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">
+              {order.delivery_method === 'pickup_mtaani' ? '📦 Delivery Destination' : '📍 Product Pickup Location'}
+            </h2>
+
+            {order.delivery_method === 'pickup_mtaani' ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-blue-800 mb-1">Your PickUp Mtaani Collection Point</p>
+                <p className="font-medium text-gray-900">{order.pickup_mtaani_destination_name || 'Pending assignment'}</p>
+                {order.pickup_mtaani_destination_address && (
+                  <p className="text-sm text-gray-600 mt-0.5">{order.pickup_mtaani_destination_address}</p>
+                )}
+                {order.pickup_mtaani_destination_town && (
+                  <p className="text-sm text-gray-500">{order.pickup_mtaani_destination_town}</p>
+                )}
+                {order.pickup_mtaani_tracking_code ? (
+                  <div className="mt-3 bg-white border border-blue-200 rounded p-2">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Tracking Code</p>
+                    <p className="font-mono font-bold text-gray-900">{order.pickup_mtaani_tracking_code}</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-600 mt-2">
+                    ⏳ Tracking code will be added once the seller drops off your parcel.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 mb-3">
+                  Coordinate with the seller via messages to arrange pickup from their location.
+                </p>
+                {orderItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{item.products?.name}</p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <svg className="h-3.5 w-3.5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <p className="text-sm text-green-700 font-medium">
+                          {item.seller?.campus_location || item.seller?.town || 'Location not set — check messages'}
+                        </p>
+                      </div>
+                      {item.seller?.full_name && (
+                        <p className="text-xs text-gray-500 mt-0.5">Seller: {item.seller.full_name}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
