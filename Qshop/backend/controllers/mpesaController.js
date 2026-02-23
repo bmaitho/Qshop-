@@ -23,12 +23,6 @@ if (!BUSINESS_SHORT_CODE || !PASSKEY || !CALLBACK_URL) {
  * Initiates an STK push payment request to the user's phone
  */
 export const initiateSTKPush = async (req, res) => {
-  // PAYMENTS TEMPORARILY DISABLED
-  return res.status(503).json({
-    success: false,
-    error: 'Payments are temporarily unavailable. Please try again later.'
-  });
-
   try {
     const { phoneNumber, amount, orderId, accountReference } = req.body;
 
@@ -248,10 +242,10 @@ export const handleCallback = async (req, res) => {
           } else {
             console.log(`✅ Order ${order.id} marked as paid successfully`);
 
-            // Update order items status
+            // Update order items status and initialize payout tracking
             await supabase
               .from('order_items')
-              .update({ status: 'processing' })
+              .update({ status: 'processing', payment_status: 'pending_payout' })
               .eq('order_id', order.id);
 
             // ✅ SEND EMAIL NOTIFICATIONS TO SELLERS

@@ -1,10 +1,8 @@
 // src/components/Checkout.jsx
-// ✅ UPDATED WITH PICKUP MTAANI INTEGRATION
-// Key changes:
-// 1. Validates delivery info including PickUp Mtaani selections
-// 2. Updates order with delivery details before payment
-// 3. Creates PickUp Mtaani parcel after successful payment
-// 4. Displays delivery fee in order summary
+// ✅ FIXED:
+// 1. orders.amount updated to include delivery fee before STK push
+// 2. Stale pickup_mtaani fields cleared when switching to campus_pickup
+// 3. Delivery method saved immediately on selection (not just at payment time)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -61,7 +59,7 @@ const Checkout = () => {
       clearInterval(pollingInterval.current);
       pollingInterval.current = null;
     }
-    
+
     return () => {
       if (pollingInterval.current) {
         clearInterval(pollingInterval.current);
@@ -72,7 +70,7 @@ const Checkout = () => {
   const fetchOrderDetails = async () => {
     try {
       setLoading(true);
-      
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -100,7 +98,6 @@ const Checkout = () => {
       if (itemsError) throw itemsError;
       setOrderItems(itemsData);
 
-      // Pre-fill phone if available
       if (orderData.phone_number) {
         setPhoneNumber(orderData.phone_number);
       }
@@ -113,9 +110,53 @@ const Checkout = () => {
     }
   };
 
+  // ✅ FIX 1: Save delivery method to DB immediately when buyer selects it
+  // This prevents stale delivery data if the buyer abandons and returns
+  const handleDeliverySelected = async (info) => {
+    setDeliveryInfo(info);
+
+    if (!info || !orderId) return;
+
+    const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+    const deliveryFee = info.delivery_fee || 0;
+    const newTotal = productSubtotal + deliveryFee;
+
+    // Build the update — always reset pickup_mtaani fields first to avoid stale data
+    const updateData = {
+      delivery_method: info.delivery_method,
+      delivery_fee: deliveryFee,
+      amount: newTotal, // ✅ FIX 2: Keep amount in sync with delivery selection
+      // Always clear pickup_mtaani fields — repopulate only if needed
+      pickup_mtaani_destination_id: null,
+      pickup_mtaani_destination_name: null,
+      pickup_mtaani_destination_address: null,
+      pickup_mtaani_destination_town: null,
+      pickup_mtaani_business_id: null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Re-populate pickup_mtaani fields only if that method is selected
+    if (info.delivery_method === 'pickup_mtaani') {
+      updateData.pickup_mtaani_destination_id = info.pickup_mtaani_destination_id || null;
+      updateData.pickup_mtaani_destination_name = info.pickup_mtaani_destination_name || null;
+      updateData.pickup_mtaani_destination_address = info.pickup_mtaani_destination_address || null;
+      updateData.pickup_mtaani_destination_town = info.pickup_mtaani_destination_town || null;
+      updateData.pickup_mtaani_business_id = info.pickup_mtaani_business_id || null;
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId);
+
+    if (error) {
+      console.error('Error saving delivery selection:', error);
+    }
+  };
+
   const startStatusPolling = () => {
     let pollCount = 0;
-    const maxPolls = 40; // 2 minutes (40 * 3 seconds)
+    const maxPolls = 40; // 2 minutes
 
     pollingInterval.current = setInterval(async () => {
       pollCount++;
@@ -133,13 +174,12 @@ const Checkout = () => {
         const resultData = result.data || result;
 
         if (resultData.ResultCode === '0' || resultData.ResultCode === 0) {
-          // Payment successful
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('completed');
           setPaymentMessage('Payment successful! Processing your order...');
 
-          // Update order status
+          // Update order status — amount is already correct from handleDeliverySelected
           await supabase
             .from('orders')
             .update({
@@ -149,7 +189,13 @@ const Checkout = () => {
             })
             .eq('id', orderId);
 
-          // ✅ Create PickUp Mtaani parcel if needed
+          // Update order_items to processing
+          await supabase
+            .from('order_items')
+            .update({ status: 'processing' })
+            .eq('order_id', orderId);
+
+          // Create PickUp Mtaani parcel if needed
           if (deliveryInfo?.delivery_method === 'pickup_mtaani') {
             setPaymentMessage('Payment successful! Creating delivery booking...');
             const parcelResult = await createPickupMtaaniParcel(orderId);
@@ -169,7 +215,6 @@ const Checkout = () => {
           }, 2000);
 
         } else if (resultData.ResultCode != null && resultData.ResultCode !== '0' && resultData.ResultCode !== 0) {
-          // Payment failed
           clearInterval(pollingInterval.current);
           setPollingActive(false);
           setPaymentStatus('failed');
@@ -183,20 +228,16 @@ const Checkout = () => {
 
   const handlePayment = async () => {
     try {
-      // ✅ Validate delivery info
       if (!deliveryInfo) {
         toast.error('Please select a delivery method');
         return;
       }
 
-      // For PickUp Mtaani, ensure pickup point is selected
       if (deliveryInfo.delivery_method === 'pickup_mtaani') {
         if (deliveryInfo.requires_pickup_point_selection) {
           toast.error('Please select a PickUp Mtaani pickup point');
           return;
         }
-        
-        // Check minimum order value (200 KES)
         const totalAmount = (order?.amount || 0) + (deliveryInfo.delivery_fee || 0);
         if (totalAmount < 200) {
           toast.error('Minimum order value for PickUp Mtaani delivery is KES 200');
@@ -216,20 +257,31 @@ const Checkout = () => {
 
       setProcessing(true);
 
-      // ✅ Update order with delivery info BEFORE payment
+      // ✅ FIX 3: Calculate correct total and update DB amount + phone before STK push
+      const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+      const deliveryFee = deliveryInfo.delivery_fee || 0;
+      const totalAmount = productSubtotal + deliveryFee;
+
+      // Build update — always clear stale pickup_mtaani fields
       const updateData = {
         phone_number: phoneNumber,
         delivery_method: deliveryInfo.delivery_method,
-        delivery_fee: deliveryInfo.delivery_fee || 0,
+        delivery_fee: deliveryFee,
+        amount: totalAmount, // ✅ Correct total saved to DB
+        pickup_mtaani_destination_id: null,
+        pickup_mtaani_destination_name: null,
+        pickup_mtaani_destination_address: null,
+        pickup_mtaani_destination_town: null,
+        pickup_mtaani_business_id: null,
         updated_at: new Date().toISOString()
       };
 
-      // Add PickUp Mtaani specific fields if applicable
       if (deliveryInfo.delivery_method === 'pickup_mtaani') {
-        updateData.pickup_mtaani_destination_id = deliveryInfo.pickup_mtaani_destination_id;
-        updateData.pickup_mtaani_destination_name = deliveryInfo.pickup_mtaani_destination_name;
-        updateData.pickup_mtaani_destination_address = deliveryInfo.pickup_mtaani_destination_address;
-        updateData.pickup_mtaani_destination_town = deliveryInfo.pickup_mtaani_destination_town;
+        updateData.pickup_mtaani_destination_id = deliveryInfo.pickup_mtaani_destination_id || null;
+        updateData.pickup_mtaani_destination_name = deliveryInfo.pickup_mtaani_destination_name || null;
+        updateData.pickup_mtaani_destination_address = deliveryInfo.pickup_mtaani_destination_address || null;
+        updateData.pickup_mtaani_destination_town = deliveryInfo.pickup_mtaani_destination_town || null;
+        updateData.pickup_mtaani_business_id = deliveryInfo.pickup_mtaani_business_id || null;
       }
 
       const { error: updateError } = await supabase
@@ -239,10 +291,7 @@ const Checkout = () => {
 
       if (updateError) throw updateError;
 
-      // Calculate total including delivery fee
-      const totalAmount = (order?.amount || 0) + (deliveryInfo.delivery_fee || 0);
-
-      // Initiate M-Pesa payment
+      // Initiate M-Pesa payment with the correct total
       const paymentResult = await initiateMpesaPayment(
         phoneNumber,
         totalAmount,
@@ -270,31 +319,27 @@ const Checkout = () => {
 
   const getStatusIcon = () => {
     switch (paymentStatus) {
-      case 'processing':
-        return <Loader2 className="h-5 w-5 animate-spin" />;
-      case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'processing': return <Loader2 className="h-5 w-5 animate-spin" />;
+      case 'completed': return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'failed':
-      case 'timeout':
-        return <XCircle className="h-5 w-5 text-red-600" />;
-      default:
-        return <AlertCircle className="h-5 w-5" />;
+      case 'timeout': return <XCircle className="h-5 w-5 text-red-600" />;
+      default: return <AlertCircle className="h-5 w-5" />;
     }
   };
 
   const getStatusColorClass = () => {
     switch (paymentStatus) {
-      case 'processing':
-        return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200';
-      case 'completed':
-        return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200';
+      case 'processing': return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200';
+      case 'completed': return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200';
       case 'failed':
-      case 'timeout':
-        return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200';
-      default:
-        return 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200';
+      case 'timeout': return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200';
+      default: return 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200';
     }
   };
+
+  // Calculate display total from orderItems (source of truth for product prices)
+  const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+  const displayTotal = productSubtotal + (deliveryInfo?.delivery_fee || 0);
 
   if (loading) {
     return (
@@ -342,13 +387,12 @@ const Checkout = () => {
                     </span>
                   </div>
                 ))}
-                
-                {/* Delivery Fee */}
+
                 {deliveryInfo && deliveryInfo.delivery_fee > 0 && (
-                  <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <span className="text-gray-700 dark:text-gray-300 flex items-center">
-                      <Truck className="h-4 w-4 mr-1" />
-                      Delivery Fee
+                  <div className="flex justify-between text-sm border-t pt-2 dark:border-gray-600">
+                    <span className="text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Truck className="h-3 w-3" />
+                      Delivery Fee ({deliveryInfo.delivery_method === 'pickup_mtaani' ? 'PickUp Mtaani' : 'Delivery'})
                     </span>
                     <span className="font-medium text-gray-900 dark:text-gray-100">
                       KES {deliveryInfo.delivery_fee}
@@ -356,30 +400,27 @@ const Checkout = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <span className="font-semibold text-gray-900 dark:text-gray-100">Total</span>
-                  <span className="font-bold text-lg text-green-600 dark:text-green-400">
-                    KES {(order?.amount || 0) + (deliveryInfo?.delivery_fee || 0)}
-                  </span>
+                <div className="flex justify-between font-semibold border-t pt-2 dark:border-gray-600">
+                  <span className="text-gray-900 dark:text-gray-100">Total</span>
+                  <span className="text-gray-900 dark:text-gray-100">KES {displayTotal}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Delivery Options Selector */}
-          <DeliveryOptionsSelector 
+          {/* Delivery Options */}
+          <DeliveryOptionsSelector
             orderItems={orderItems}
-            onDeliverySelected={setDeliveryInfo}
+            onDeliverySelected={handleDeliverySelected}
           />
 
-          {/* Phone Number Input */}
+          {/* Phone Number */}
           <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
             <CardContent className="p-6">
-              <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Payment Details</h2>
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-gray-700 dark:text-gray-300">
-                  <div className="flex items-center">
-                    <PhoneCall className="w-4 h-4 mr-2" />
+                <Label htmlFor="phone" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <div className="flex items-center gap-2">
+                    <PhoneCall className="h-4 w-4" />
                     M-Pesa Phone Number
                   </div>
                 </Label>
@@ -414,7 +455,7 @@ const Checkout = () => {
                     I understand the delivery arrangement
                   </Label>
                   <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    {deliveryInfo?.delivery_method === 'pickup_mtaani' 
+                    {deliveryInfo?.delivery_method === 'pickup_mtaani'
                       ? 'You will receive tracking information after payment. Seller will drop the parcel at their nearest PickUp Mtaani agent.'
                       : 'You agree to coordinate delivery details with the seller after payment is completed.'}
                   </p>
@@ -428,7 +469,7 @@ const Checkout = () => {
             <Alert className={`mb-6 ${getStatusColorClass()}`}>
               {getStatusIcon()}
               <AlertTitle className="ml-2">
-                {paymentStatus === 'processing' ? 'Payment Processing' : 
+                {paymentStatus === 'processing' ? 'Payment Processing' :
                  paymentStatus === 'completed' ? 'Payment Successful' :
                  paymentStatus === 'timeout' ? 'Request Timeout' : 'Payment Failed'}
               </AlertTitle>
@@ -451,7 +492,7 @@ const Checkout = () => {
             ) : paymentStatus === 'completed' ? (
               'Payment Completed'
             ) : (
-              `Pay KES ${(order?.amount || 0) + (deliveryInfo?.delivery_fee || 0)}`
+              `Pay KES ${displayTotal}`
             )}
           </Button>
 

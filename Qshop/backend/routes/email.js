@@ -260,4 +260,131 @@ router.post('/resend-order-notification', async (req, res) => {
   }
 });
 
+router.post('/message-notification', async (req, res) => {
+  try {
+    const {
+      recipientId,
+      senderName,
+      messageText,
+      orderItemId,
+      orderId,
+      productId,
+    } = req.body;
+
+    if (!recipientId || !messageText) {
+      return res.status(400).json({
+        success: false,
+        error: 'recipientId and messageText are required'
+      });
+    }
+
+    // 1. Fetch recipient profile
+    const { data: recipient, error: recipientError } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', recipientId)
+      .single();
+
+    if (recipientError || !recipient?.email) {
+      console.warn(`⚠️ Message notification skipped — no email for recipient ${recipientId}`);
+      return res.status(200).json({
+        success: false,
+        skipped: true,
+        reason: 'Recipient has no email'
+      });
+    }
+
+    // 2. Build context (product name, order ref)
+    let context = {};
+
+    if (orderItemId) {
+      const { data: item } = await supabase
+        .from('order_items')
+        .select('order_id, products(name)')
+        .eq('id', orderItemId)
+        .single();
+      if (item) {
+        context.productName = item.products?.name;
+        context.orderRef = (item.order_id || '').substring(0, 8).toUpperCase();
+      }
+    } else if (orderId) {
+      context.orderRef = orderId.substring(0, 8).toUpperCase();
+    }
+
+    if (!context.productName && productId) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('name')
+        .eq('id', productId)
+        .single();
+      if (product) context.productName = product.name;
+    }
+
+    // 3. Build conversation URL
+    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+    let conversationUrl;
+    if (orderItemId) {
+      conversationUrl = `${APP_URL}/orders/${orderItemId}`;
+    } else if (orderId) {
+      conversationUrl = `${APP_URL}/orders`;
+    } else {
+      conversationUrl = `${APP_URL}/messages`;
+    }
+
+    // 4. Truncate message preview (max 200 chars)
+    const messagePreview = messageText.length > 200
+      ? messageText.substring(0, 197) + '...'
+      : messageText;
+
+    // 5. Send email
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { newMessageEmailTemplate, newMessageEmailText } = await import('../utils/emailTemplates.js');
+
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+
+    const { data: emailData, error: emailError } = await resend.emails.send({
+      from: fromAddress,
+      to: recipient.email,
+      subject: `💬 New message from ${senderName || 'someone'} on UniHive`,
+      html: newMessageEmailTemplate(
+        recipient.full_name,
+        senderName,
+        messagePreview,
+        conversationUrl,
+        context
+      ),
+      text: newMessageEmailText(
+        recipient.full_name,
+        senderName,
+        messagePreview,
+        conversationUrl,
+        context
+      ),
+    });
+
+    if (emailError) {
+      console.error('❌ Message notification email failed:', emailError);
+      return res.status(200).json({
+        success: false,
+        error: 'Email send failed',
+        details: emailError
+      });
+    }
+
+    console.log(`✅ Message notification → ${recipient.email} (${emailData.id})`);
+    return res.status(200).json({
+      success: true,
+      emailId: emailData.id
+    });
+
+  } catch (error) {
+    console.error('Error in /email/message-notification:', error);
+    return res.status(200).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

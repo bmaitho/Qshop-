@@ -848,6 +848,93 @@ ${orderUrl}
 
 Your feedback helps us maintain quality on the UniHive marketplace!
 
+
+
 © ${new Date().getFullYear()} UniHive. All rights reserved.
   `;
+};
+
+/**
+ * HTML template for new message notification email
+ * Sent to a user when they receive a message in an order conversation
+ */
+export const newMessageEmailTemplate = (recipientName, senderName, messagePreview, conversationUrl, context = {}) => {
+  const { productName, orderRef } = context;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Message on UniHive</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto 0; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .header { background-color: #0D2B20; color: white; padding: 24px 20px; text-align: center; }
+    .logo { color: #E7C65F; font-weight: bold; font-size: 20px; margin-bottom: 6px; }
+    .header h1 { margin: 8px 0 0; font-size: 20px; font-weight: normal; }
+    .badge { display: inline-block; background-color: #E7C65F; color: #0D2B20; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-top: 10px; }
+    .content { padding: 28px 24px; }
+    .message-bubble { background-color: #f0fdf4; border-left: 4px solid #16a34a; border-radius: 0 8px 8px 0; padding: 16px 18px; margin: 20px 0; font-size: 15px; color: #1f2937; }
+    .context-box { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; font-size: 13px; color: #6b7280; margin-bottom: 22px; }
+    .button-container { text-align: center; margin: 28px 0 16px; }
+    .button { display: inline-block; background-color: #16a34a; color: white !important; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }
+    .footer { padding: 18px 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">UniHive</div>
+      <h1>💬 New message from ${senderName || 'someone'}</h1>
+      <div class="badge">Reply needed</div>
+    </div>
+    <div class="content">
+      <p>Hi <strong>${recipientName || 'there'}</strong>,</p>
+      <p><strong>${senderName || 'Someone'}</strong> sent you a message:</p>
+
+      <div class="message-bubble">
+        "${messagePreview || '(Open UniHive to view the message)'}"
+      </div>
+
+      ${(productName || orderRef) ? `
+      <div class="context-box">
+        ${productName ? `📦 <strong>Item:</strong> ${productName}` : ''}
+        ${productName && orderRef ? '<br>' : ''}
+        ${orderRef ? `🧾 <strong>Order:</strong> #${orderRef}` : ''}
+      </div>
+      ` : ''}
+
+      <p style="font-size:14px; color:#6b7280;">Quick replies help your order move forward. Sellers can only ship after you confirm the delivery arrangement.</p>
+
+      <div class="button-container">
+        <a href="${conversationUrl}" class="button">View Message & Reply →</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+      <p>You received this because someone messaged you on UniHive.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
+/**
+ * Plain text version of message notification email
+ */
+export const newMessageEmailText = (recipientName, senderName, messagePreview, conversationUrl, context = {}) => {
+  const { productName, orderRef } = context;
+  return `Hi ${recipientName || 'there'},
+
+${senderName || 'Someone'} sent you a message on UniHive:
+
+"${messagePreview || '(View in app)'}"
+
+${productName ? `Item: ${productName}\n` : ''}${orderRef ? `Order: #${orderRef}\n` : ''}
+Quick replies help your order move forward.
+
+View the conversation: ${conversationUrl}
+
+© ${new Date().getFullYear()} UniHive. All rights reserved.
+`;
 };

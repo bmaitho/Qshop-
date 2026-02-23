@@ -566,4 +566,231 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/pickup-mtaani/test-connection
+ * Tests that the PickUp Mtaani API key is valid and the service is active.
+ * Hit this endpoint to confirm the integration is live.
+ */
+router.get('/test-connection', async (req, res) => {
+  try {
+    console.log('🔍 Testing PickUp Mtaani connection...');
+
+    const apiKey = process.env.PICKUP_MTAANI_API_KEY;
+    const baseUrl = process.env.PICKUP_MTAANI_BASE_URL || 'https://api.pickupmtaani.com/api/vv1';
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'PICKUP_MTAANI_API_KEY is not set in environment variables',
+        configured: false
+      });
+    }
+
+    // Count cached pickup points in our database
+    const { count: cachedCount, error: countError } = await supabase
+      .from('pickup_mtaani_points')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    if (countError) {
+      console.error('DB count error:', countError);
+    }
+
+    // Try to hit the PickUp Mtaani API directly
+    let apiReachable = false;
+    let apiError = null;
+    let agentCount = 0;
+
+    try {
+      const { default: axios } = await import('axios');
+      const response = await axios.get(`${baseUrl}/agents`, {
+        headers: {
+          'apiKey': apiKey,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      const agents = response.data?.data || response.data;
+      if (Array.isArray(agents)) {
+        apiReachable = true;
+        agentCount = agents.length;
+      }
+    } catch (err) {
+      apiError = err.message;
+      console.error('❌ PickUp Mtaani API test failed:', err.message);
+    }
+
+    const status = {
+      configured: true,
+      apiKeyPresent: true,
+      apiReachable,
+      apiError,
+      cachedPoints: cachedCount || 0,
+      liveAgents: agentCount,
+      baseUrl,
+      recommendation: apiReachable
+        ? (cachedCount > 0
+            ? '✅ Integration is fully active'
+            : '⚠️ API works but no cached points — run /sync-points')
+        : '❌ API not reachable — check API key and base URL'
+    };
+
+    console.log('📊 PickUp Mtaani status:', status);
+
+    return res.status(200).json({
+      success: apiReachable,
+      message: status.recommendation,
+      status
+    });
+
+  } catch (error) {
+    console.error('Error in test-connection:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/pickup-mtaani/confirm-parcel-creation/:orderId
+ * Manually trigger parcel creation for an order that already has payment_status = 'completed'
+ * and delivery_method = 'pickup_mtaani'. Useful for retries.
+ */
+router.post('/confirm-parcel-creation/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*, order_items(*, products(name))')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    if (order.delivery_method !== 'pickup_mtaani') {
+      return res.status(400).json({
+        success: false,
+        error: 'Order does not use PickUp Mtaani delivery'
+      });
+    }
+
+    if (order.pickup_mtaani_tracking_code) {
+      return res.status(200).json({
+        success: true,
+        skipped: true,
+        message: 'Parcel already created',
+        trackingCode: order.pickup_mtaani_tracking_code
+      });
+    }
+
+    if (!order.pickup_mtaani_destination_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'No destination pickup point set for this order'
+      });
+    }
+
+    // Fetch buyer profile
+    const { data: buyer } = await supabase
+      .from('profiles')
+      .select('full_name, phone')
+      .eq('id', order.user_id)
+      .single();
+
+    // Find seller's nearest agent
+    const firstItem = order.order_items?.[0];
+    if (!firstItem) {
+      return res.status(400).json({ success: false, error: 'No order items found' });
+    }
+
+    const { data: sellerProfile } = await supabase
+      .from('profiles')
+      .select('full_name, phone, campus_location')
+      .eq('id', firstItem.seller_id)
+      .single();
+
+    // Get origin point — find one near seller's campus location
+    const { data: originPoints } = await supabase
+      .from('pickup_mtaani_points')
+      .select('shop_id, shop_name')
+      .eq('is_active', true)
+      .limit(1);
+
+    const originPoint = originPoints?.[0];
+    if (!originPoint) {
+      return res.status(500).json({ success: false, error: 'No origin PickUp Mtaani point found' });
+    }
+
+    const businessId = process.env.PICKUP_MTAANI_BUSINESS_ID
+      ? parseInt(process.env.PICKUP_MTAANI_BUSINESS_ID)
+      : 77680;
+
+    const itemDescription = order.order_items
+      .map(i => `${i.quantity}x ${i.products?.name || 'Item'}`)
+      .join(', ')
+      .substring(0, 100);
+
+    const customerPhone = (buyer?.phone || order.phone_number || '')
+      .replace(/\+/g, '')
+      .replace(/^0/, '254');
+
+    const parcelData = {
+      businessId,
+      orderNumber: order.id.substring(0, 8).toUpperCase(),
+      senderAgentId: originPoint.shop_id,
+      receiverAgentId: order.pickup_mtaani_destination_id,
+      packageValue: Math.round(order.amount || 0),
+      customerName: buyer?.full_name || 'UniHive Customer',
+      packageName: itemDescription || 'UniHive Order',
+      customerPhoneNumber: customerPhone,
+      paymentOption: 'Vendor',
+      onDeliveryBalance: 0,
+      paymentNumber: order.id.substring(0, 8).toUpperCase()
+    };
+
+    console.log('📦 Creating parcel manually:', parcelData);
+
+    const { createParcel } = await import('../services/pickupMtaaniService.js');
+    const result = await createParcel(parcelData);
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: 'PickUp Mtaani parcel creation failed',
+        details: result
+      });
+    }
+
+    // Update order with tracking info
+    await supabase
+      .from('orders')
+      .update({
+        pickup_mtaani_tracking_code: result.trackingCode,
+        pickup_mtaani_parcel_id: result.parcelId,
+        pickup_mtaani_status: 'pending_pickup',
+        pickup_mtaani_origin_id: originPoint.shop_id,
+        pickup_mtaani_business_id: businessId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Parcel created successfully',
+      trackingCode: result.trackingCode,
+      parcelId: result.parcelId
+    });
+
+  } catch (error) {
+    console.error('Error in confirm-parcel-creation:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

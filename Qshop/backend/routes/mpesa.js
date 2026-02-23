@@ -336,4 +336,74 @@ router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
   }
 });
 
+// GET /api/mpesa/payment-health/:orderId
+router.get('/payment-health/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, payment_status, order_status, mpesa_receipt, amount, delivery_method, pickup_mtaani_tracking_code')
+      .eq('id', orderId)
+      .single();
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('id, status, payment_status, seller_paid_at, buyer_confirmed')
+      .eq('order_id', orderId);
+
+    const { data: sellerPayments } = await supabase
+      .from('seller_payments')
+      .select('id, amount, status, transaction_id, created_at')
+      .eq('order_id', orderId);
+
+    const health = {
+      orderId,
+      buyer_paid: order.payment_status === 'completed',
+      receipt: order.mpesa_receipt,
+      order_status: order.order_status,
+      delivery_method: order.delivery_method,
+      pickup_tracking: order.pickup_mtaani_tracking_code,
+      items: items?.map(i => ({
+        id: i.id.substring(0, 8),
+        status: i.status,
+        payment_status: i.payment_status,
+        seller_paid: !!i.seller_paid_at,
+        buyer_confirmed: i.buyer_confirmed
+      })),
+      seller_payouts: sellerPayments?.map(p => ({
+        id: p.id.substring(0, 8),
+        amount: `KSh ${p.amount}`,
+        status: p.status,
+        transaction: p.transaction_id
+      })),
+      issues: []
+    };
+
+    if (!health.buyer_paid) health.issues.push('⚠️ Payment not completed');
+    if (health.buyer_paid && !health.receipt) health.issues.push('⚠️ No M-Pesa receipt stored');
+    if (health.delivery_method === 'pickup_mtaani' && !health.pickup_tracking) {
+      health.issues.push('⚠️ PickUp Mtaani order paid but no tracking code — retry /confirm-parcel-creation');
+    }
+    items?.forEach(i => {
+      if (i.status === 'delivered' && i.payment_status !== 'completed') {
+        health.issues.push(`⚠️ Item ${i.id.substring(0, 8)} delivered but seller not paid`);
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      healthy: health.issues.length === 0,
+      health
+    });
+
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

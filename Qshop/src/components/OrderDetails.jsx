@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from '../components/SupabaseClient';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
+import { sendMessageEmail } from '../utils/sendMessageEmail';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,17 @@ const MessageThread = ({ messages, currentUserId, orderItem, onNewMessage }) => 
       if (!orderItem.buyer_agreed) {
         await supabase.from('order_items').update({ buyer_agreed: true }).eq('id', orderItem.id);
       }
+
+      // 📧 Email notification to seller (fire-and-forget, never blocks UI)
+      // senderProfile and recipientProfile were fetched at the top of handleSend
+      sendMessageEmail({
+        recipientId: orderItem.seller_id,
+        senderName: senderProfile?.full_name || senderProfile?.email || 'Buyer',
+        messageText: text.trim(),
+        orderItemId: orderItem.id,
+        orderId: orderItem.order_id,
+        productId: orderItem.product_id,
+      });
 
       setText('');
       onNewMessage();
