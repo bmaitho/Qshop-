@@ -1,10 +1,7 @@
 // src/components/Checkout.jsx
-// ✅ FIXED:
-// 1. orders.amount updated to include delivery fee before STK push
-// 2. Stale pickup_mtaani fields cleared when switching to campus_pickup
-// 3. Delivery method saved immediately on selection (not just at payment time)
-// 4. ✅ CRITICAL FIX: Polling checks payment_status DIRECTLY from Supabase DB — no API format mismatch possible
-// 5. ✅ CRITICAL FIX: handleDeliverySelected blocked after payment starts to prevent data corruption
+// ✅ FIXED: Properly checks for mpesa_receipt before confirming payment completion
+// ✅ FIXED: Added validation to ensure receipt exists before moving to next step
+// ✅ FIXED: Extended polling to wait for receipt to be saved
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -37,6 +34,7 @@ const Checkout = () => {
   const [checkoutRequestId, setCheckoutRequestId] = useState('');
   const [pollingActive, setPollingActive] = useState(false);
   const pollingInterval = useRef(null);
+  const [mpesaReceipt, setMpesaReceipt] = useState(''); // ✅ Track receipt separately
 
   // ✅ Track whether payment has been initiated to guard delivery selector
   const paymentInitiated = useRef(false);
@@ -82,6 +80,11 @@ const Checkout = () => {
 
       if (orderError) throw orderError;
       setOrder(orderData);
+      
+      // ✅ If order already has receipt, set it
+      if (orderData.mpesa_receipt) {
+        setMpesaReceipt(orderData.mpesa_receipt);
+      }
 
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
@@ -158,12 +161,10 @@ const Checkout = () => {
     }
   };
 
-  // ✅ CRITICAL FIX: Poll payment status DIRECTLY from Supabase DB
-  // The M-Pesa callback writes payment_status='completed' to orders table.
-  // We read it directly — zero middleman, zero format mismatch.
+  // ✅ CRITICAL FIX: Poll payment status and wait for mpesa_receipt
   const startStatusPolling = () => {
     let pollCount = 0;
-    const maxPolls = 40; // ~2 minutes at 3s intervals
+    const maxPolls = 60; // Extended to 3 minutes at 3s intervals
 
     pollingInterval.current = setInterval(async () => {
       pollCount++;
@@ -177,7 +178,7 @@ const Checkout = () => {
       }
 
       try {
-        // ✅ Read payment_status directly from the orders table
+        // ✅ Read payment_status and mpesa_receipt directly from the orders table
         const { data: orderRow, error: dbError } = await supabase
           .from('orders')
           .select('payment_status, mpesa_receipt, order_status')
@@ -191,39 +192,53 @@ const Checkout = () => {
 
         console.log(`Poll #${pollCount}: payment_status=${orderRow.payment_status}, receipt=${orderRow.mpesa_receipt}`);
 
+        // ✅ Check if payment is completed AND we have a receipt
         if (orderRow.payment_status === 'completed') {
-          clearInterval(pollingInterval.current);
-          setPollingActive(false);
-          setPaymentStatus('completed');
-          setPaymentMessage('Payment successful! Processing your order...');
+          
+          // ✅ CRITICAL: Verify that we actually have a receipt code
+          if (orderRow.mpesa_receipt) {
+            // Store the receipt
+            setMpesaReceipt(orderRow.mpesa_receipt);
+            
+            // Clear polling
+            clearInterval(pollingInterval.current);
+            setPollingActive(false);
+            setPaymentStatus('completed');
+            setPaymentMessage(`Payment successful! Receipt: ${orderRow.mpesa_receipt}. Processing your order...`);
 
-          // Ensure order_items are set to processing
-          await supabase
-            .from('order_items')
-            .update({ status: 'processing' })
-            .eq('order_id', orderId);
+            // Update order_items status
+            await supabase
+              .from('order_items')
+              .update({ status: 'processing' })
+              .eq('order_id', orderId);
 
-          // Create PickUp Mtaani parcel if needed
-          if (deliveryInfo?.delivery_method === 'pickup_mtaani') {
-            setPaymentMessage('Payment successful! Creating delivery booking...');
-            try {
-              const parcelResult = await createPickupMtaaniParcel(orderId);
-              if (parcelResult.success && !parcelResult.skipped) {
-                toast.success(`Delivery booked! Tracking code: ${parcelResult.trackingCode}`);
-              } else if (!parcelResult.success) {
-                console.warn('Failed to create parcel:', parcelResult.error);
-                toast.warning('Order paid but delivery booking failed. Please contact support.');
+            // Create PickUp Mtaani parcel if needed
+            if (deliveryInfo?.delivery_method === 'pickup_mtaani') {
+              setPaymentMessage('Payment successful! Creating delivery booking...');
+              try {
+                const parcelResult = await createPickupMtaaniParcel(orderId);
+                if (parcelResult.success && !parcelResult.skipped) {
+                  toast.success(`Delivery booked! Tracking code: ${parcelResult.trackingCode}`);
+                } else if (!parcelResult.success) {
+                  console.warn('Failed to create parcel:', parcelResult.error);
+                  toast.warning('Order paid but delivery booking failed. Please contact support.');
+                }
+              } catch (parcelError) {
+                console.error('Parcel creation error:', parcelError);
               }
-            } catch (parcelError) {
-              console.error('Parcel creation error:', parcelError);
             }
+
+            clearCart();
+
+            // ✅ Navigate after showing receipt
+            setTimeout(() => {
+              navigate(`/order-confirmation/${orderId}`);
+            }, 3000);
+          } else {
+            // Payment is marked completed but no receipt yet - keep polling
+            console.log('Payment completed but waiting for receipt code...');
+            setPaymentMessage('Payment confirmed! Recording transaction details...');
           }
-
-          clearCart();
-
-          setTimeout(() => {
-            navigate(`/order-confirmation/${orderId}`);
-          }, 2000);
 
         } else if (orderRow.payment_status === 'failed') {
           clearInterval(pollingInterval.current);
@@ -315,7 +330,7 @@ const Checkout = () => {
         setPaymentStatus('processing');
         setPaymentMessage('Payment request sent to your phone. Please enter your M-Pesa PIN.');
         setPollingActive(true);
-        startStatusPolling(); // ✅ Polls Supabase directly — no backend API needed
+        startStatusPolling();
       } else {
         throw new Error(paymentResult.error || 'Payment initiation failed');
       }
@@ -418,6 +433,15 @@ const Checkout = () => {
                   <span className="text-gray-900 dark:text-gray-100">KES {displayTotal}</span>
                 </div>
               </div>
+              
+              {/* ✅ Show receipt if available */}
+              {mpesaReceipt && (
+                <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                  <p className="text-sm text-green-700 dark:text-green-300 font-mono">
+                    M-Pesa Receipt: {mpesaReceipt}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -500,7 +524,7 @@ const Checkout = () => {
             {processing || pollingActive ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
+                {paymentStatus === 'processing' && !mpesaReceipt ? 'Waiting for payment...' : 'Processing...'}
               </>
             ) : paymentStatus === 'completed' ? (
               'Payment Completed'
