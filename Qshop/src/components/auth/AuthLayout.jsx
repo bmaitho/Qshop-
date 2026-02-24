@@ -5,9 +5,9 @@ import Login from './Login';
 import SignUp from './SignUp';
 
 // Import images from your assets folder
-import Image1 from '../../assets/image1.png';
-import Image2 from '../../assets/image2.jpg';
-import Image3 from '../../assets/image3.jpg';
+import Image1 from '../../assets/slide1.jpeg';
+import Image2 from '../../assets/slide2.jpeg';
+import Image3 from '../../assets/slide3.jpeg';
 
 // Memoized slideshow component to prevent unnecessary re-renders
 const Slideshow = memo(({ slides, interval = 10000 }) => {
