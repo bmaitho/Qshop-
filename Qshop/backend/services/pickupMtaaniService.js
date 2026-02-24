@@ -3,7 +3,7 @@
 // ✅ FIXED: Explicit FK relationship hint for order_items
 // ✅ FIXED: profiles column names (phone not phone_number, no town column)
 
-import { supabase } from '../components/SupabaseClient';
+import { supabase } from '../supabaseClient'
 
 const backendUrl = import.meta.env.VITE_API_URL;
 
