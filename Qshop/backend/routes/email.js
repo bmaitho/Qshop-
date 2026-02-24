@@ -387,4 +387,313 @@ router.post('/message-notification', async (req, res) => {
   }
 });
 
+// ─── PickUp Mtaani: Seller Drop-off Instructions ─────────────────────────────
+router.post('/pickup-mtaani-seller-dropoff', async (req, res) => {
+  try {
+    const {
+      sellerEmail,
+      sellerName,
+      orderId,
+      orderItemIds,
+      items,
+      trackingCode,
+      dropoffPointName,
+      dropoffPointAddress,
+      dropoffPointPhone,
+      buyerName,
+      destinationPointName,
+      destinationTown
+    } = req.body;
+
+    if (!sellerEmail || !orderId) {
+      return res.status(400).json({ success: false, error: 'sellerEmail and orderId are required' });
+    }
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+
+    const orderUrl = orderItemIds?.[0]
+      ? `${APP_URL}/seller/orders/${orderItemIds[0]}`
+      : `${APP_URL}/myshop`;
+
+    const shortOrderId = orderId.substring(0, 8).toUpperCase();
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drop-off Instructions - UniHive</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto 0; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .header { background-color: #0D2B20; color: white; padding: 24px 20px; text-align: center; }
+    .logo { color: #E7C65F; font-weight: bold; font-size: 20px; margin-bottom: 6px; }
+    .header h1 { margin: 8px 0 0; font-size: 20px; font-weight: normal; }
+    .badge { display: inline-block; background-color: #E7C65F; color: #0D2B20; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-top: 10px; }
+    .content { padding: 28px 24px; }
+    .dropoff-card { background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 10px; padding: 20px; margin: 20px 0; }
+    .dropoff-card h3 { color: #1e40af; margin: 0 0 12px; font-size: 16px; }
+    .dropoff-detail { display: flex; align-items: flex-start; margin-bottom: 8px; font-size: 14px; }
+    .dropoff-detail .icon { margin-right: 8px; font-size: 16px; flex-shrink: 0; }
+    .tracking-box { background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 14px; text-align: center; margin: 16px 0; }
+    .tracking-code { font-family: monospace; font-size: 22px; font-weight: bold; color: #15803d; letter-spacing: 2px; }
+    .items-box { background-color: #fafafa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin: 16px 0; }
+    .warning { background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 12px 14px; margin: 16px 0; font-size: 13px; color: #92400e; }
+    .button-container { text-align: center; margin: 24px 0 12px; }
+    .button { display: inline-block; background-color: #0D2B20; color: white !important; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-weight: bold; font-size: 15px; }
+    .footer { padding: 18px 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">UniHive</div>
+      <h1>📦 Drop-off Required — Order #${shortOrderId}</h1>
+      <div class="badge">Action needed</div>
+    </div>
+    <div class="content">
+      <p>Hi <strong>${sellerName || 'Seller'}</strong>,</p>
+      <p>Your order has been <strong>paid via PickUp Mtaani delivery</strong>. Please drop off the parcel at the location below:</p>
+
+      <div class="dropoff-card">
+        <h3>📍 Your Drop-off Point</h3>
+        <div class="dropoff-detail">
+          <span class="icon">🏪</span>
+          <strong>${dropoffPointName || 'Nearest PickUp Mtaani Agent'}</strong>
+        </div>
+        ${dropoffPointAddress ? `
+        <div class="dropoff-detail">
+          <span class="icon">📍</span>
+          <span>${dropoffPointAddress}</span>
+        </div>` : ''}
+        ${dropoffPointPhone ? `
+        <div class="dropoff-detail">
+          <span class="icon">📞</span>
+          <span>${dropoffPointPhone}</span>
+        </div>` : ''}
+      </div>
+
+      <div class="tracking-box">
+        <p style="margin:0 0 6px; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Tracking Code</p>
+        <div class="tracking-code">${trackingCode || 'Pending'}</div>
+        <p style="margin:6px 0 0; font-size:12px; color:#6b7280;">Share this with the agent when dropping off</p>
+      </div>
+
+      <div class="items-box">
+        <p style="margin:0 0 6px; font-size:12px; color:#6b7280; text-transform:uppercase;">Items to drop off</p>
+        <p style="margin:0; font-weight:bold;">${items || 'Order items'}</p>
+        <p style="margin:6px 0 0; font-size:13px; color:#6b7280;">Buyer: ${buyerName || 'Customer'}${destinationTown ? ` • Destination: ${destinationTown}` : ''}</p>
+      </div>
+
+      <div class="warning">
+        ⚠️ <strong>Important:</strong> Please drop off the parcel within <strong>48 hours</strong>.
+        Package it securely and mention tracking code <strong>${trackingCode}</strong> to the agent.
+        The buyer will collect from their nearest PickUp Mtaani point${destinationPointName ? ` (${destinationPointName})` : ''}.
+      </div>
+
+      <div class="button-container">
+        <a href="${orderUrl}" class="button">View Order Details →</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const textContent = `Hi ${sellerName || 'Seller'},
+
+Your order #${shortOrderId} has been paid via PickUp Mtaani delivery.
+
+DROP-OFF INSTRUCTIONS:
+📍 Location: ${dropoffPointName || 'Nearest PickUp Mtaani Agent'}
+${dropoffPointAddress ? `Address: ${dropoffPointAddress}` : ''}
+${dropoffPointPhone ? `Phone: ${dropoffPointPhone}` : ''}
+
+Tracking Code: ${trackingCode || 'Pending'}
+Items: ${items || 'Order items'}
+Buyer: ${buyerName || 'Customer'}
+
+Please drop off within 48 hours. Share the tracking code with the agent.
+
+View order: ${orderUrl}
+
+© ${new Date().getFullYear()} UniHive`;
+
+    const { data, error } = await resend.emails.send({
+      from: fromAddress,
+      to: sellerEmail,
+      subject: `📦 Drop-off Required — Order #${shortOrderId} (PickUp Mtaani)`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    if (error) {
+      console.error('❌ Seller drop-off email failed:', error);
+      return res.status(200).json({ success: false, error: 'Email send failed', details: error });
+    }
+
+    console.log(`✅ Seller drop-off email → ${sellerEmail} (${data.id})`);
+    return res.status(200).json({ success: true, emailId: data.id });
+
+  } catch (error) {
+    console.error('Error in pickup-mtaani-seller-dropoff:', error);
+    return res.status(200).json({ success: false, error: error.message });
+  }
+});
+
+
+// ─── PickUp Mtaani: Buyer Pickup Confirmation ────────────────────────────────
+router.post('/pickup-mtaani-buyer-confirmation', async (req, res) => {
+  try {
+    const {
+      buyerEmail,
+      buyerName,
+      orderId,
+      items,
+      trackingCode,
+      pickupPointName,
+      pickupPointAddress,
+      pickupPointTown,
+      totalAmount
+    } = req.body;
+
+    if (!buyerEmail || !orderId) {
+      return res.status(400).json({ success: false, error: 'buyerEmail and orderId are required' });
+    }
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+    const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+
+    const orderUrl = `${APP_URL}/orders/${orderId}`;
+    const shortOrderId = orderId.substring(0, 8).toUpperCase();
+
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delivery Booked - UniHive</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto 0; background-color: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .header { background-color: #0D2B20; color: white; padding: 24px 20px; text-align: center; }
+    .logo { color: #E7C65F; font-weight: bold; font-size: 20px; margin-bottom: 6px; }
+    .header h1 { margin: 8px 0 0; font-size: 20px; font-weight: normal; }
+    .badge { display: inline-block; background-color: #22c55e; color: white; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; margin-top: 10px; }
+    .content { padding: 28px 24px; }
+    .pickup-card { background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 10px; padding: 20px; margin: 20px 0; }
+    .pickup-card h3 { color: #1e40af; margin: 0 0 12px; font-size: 16px; }
+    .pickup-detail { margin-bottom: 8px; font-size: 14px; }
+    .pickup-detail .icon { margin-right: 8px; }
+    .tracking-box { background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 14px; text-align: center; margin: 16px 0; }
+    .tracking-code { font-family: monospace; font-size: 22px; font-weight: bold; color: #15803d; letter-spacing: 2px; }
+    .info-box { background-color: #fafafa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin: 16px 0; font-size: 14px; }
+    .button-container { text-align: center; margin: 24px 0 12px; }
+    .button { display: inline-block; background-color: #0D2B20; color: white !important; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-weight: bold; font-size: 15px; }
+    .footer { padding: 18px 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">UniHive</div>
+      <h1>🎉 Delivery Booked — Order #${shortOrderId}</h1>
+      <div class="badge">✓ Confirmed</div>
+    </div>
+    <div class="content">
+      <p>Hi <strong>${buyerName || 'there'}</strong>,</p>
+      <p>Great news! Your order has been paid and delivery has been booked via <strong>PickUp Mtaani</strong>. Here's where to collect your parcel:</p>
+
+      <div class="pickup-card">
+        <h3>📍 Your Collection Point</h3>
+        <div class="pickup-detail">
+          <span class="icon">🏪</span>
+          <strong>${pickupPointName || 'Your selected PickUp Mtaani agent'}</strong>
+        </div>
+        ${pickupPointAddress ? `
+        <div class="pickup-detail">
+          <span class="icon">📍</span>
+          <span>${pickupPointAddress}</span>
+        </div>` : ''}
+        ${pickupPointTown ? `
+        <div class="pickup-detail">
+          <span class="icon">🏙️</span>
+          <span>${pickupPointTown}</span>
+        </div>` : ''}
+      </div>
+
+      ${trackingCode ? `
+      <div class="tracking-box">
+        <p style="margin:0 0 6px; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Your Tracking Code</p>
+        <div class="tracking-code">${trackingCode}</div>
+        <p style="margin:6px 0 0; font-size:12px; color:#6b7280;">Show this code when collecting your parcel</p>
+      </div>` : ''}
+
+      <div class="info-box">
+        <p style="margin:0 0 6px; font-size:12px; color:#6b7280; text-transform:uppercase;">Order Summary</p>
+        <p style="margin:0;"><strong>Items:</strong> ${items || 'Your order items'}</p>
+        ${totalAmount ? `<p style="margin:4px 0 0;"><strong>Total:</strong> KES ${parseFloat(totalAmount).toLocaleString()}</p>` : ''}
+      </div>
+
+      <p style="font-size:14px; color:#6b7280;">The seller will drop off your parcel at their nearest PickUp Mtaani agent. Once it arrives at your collection point, you'll be notified. Typical delivery takes 1-3 business days.</p>
+
+      <div class="button-container">
+        <a href="${orderUrl}" class="button">Track Your Order →</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const textContent = `Hi ${buyerName || 'there'},
+
+Your order #${shortOrderId} has been paid and delivery booked via PickUp Mtaani!
+
+YOUR COLLECTION POINT:
+🏪 ${pickupPointName || 'Your selected agent'}
+${pickupPointAddress ? `📍 ${pickupPointAddress}` : ''}
+${pickupPointTown ? `🏙️ ${pickupPointTown}` : ''}
+
+${trackingCode ? `Tracking Code: ${trackingCode}\nShow this code when collecting.\n` : ''}
+Items: ${items || 'Your order items'}
+${totalAmount ? `Total: KES ${parseFloat(totalAmount).toLocaleString()}` : ''}
+
+The seller will drop off your parcel at their nearest agent. Typical delivery: 1-3 business days.
+
+Track your order: ${orderUrl}
+
+© ${new Date().getFullYear()} UniHive`;
+
+    const { data, error } = await resend.emails.send({
+      from: fromAddress,
+      to: buyerEmail,
+      subject: `🎉 Delivery Booked — Order #${shortOrderId} (PickUp Mtaani)`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    if (error) {
+      console.error('❌ Buyer confirmation email failed:', error);
+      return res.status(200).json({ success: false, error: 'Email send failed', details: error });
+    }
+
+    console.log(`✅ Buyer confirmation email → ${buyerEmail} (${data.id})`);
+    return res.status(200).json({ success: true, emailId: data.id });
+
+  } catch (error) {
+    console.error('Error in pickup-mtaani-buyer-confirmation:', error);
+    return res.status(200).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

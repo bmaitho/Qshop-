@@ -29,7 +29,6 @@ const OrderConfirmation = () => {
     try {
       setLoading(true);
       
-      // Fetch order details
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .select('*, delivery_fee, delivery_method, pickup_mtaani_destination_name, pickup_mtaani_destination_address, pickup_mtaani_destination_town, pickup_mtaani_tracking_code')
@@ -39,13 +38,13 @@ const OrderConfirmation = () => {
       if (orderError) throw orderError;
       setOrder(orderData);
 
-      // Fetch order items with seller location for campus pickup display
+      // ✅ FIX: Removed 'town' — column doesn't exist in profiles table
       const { data: itemsData, error: itemsError } = await supabase
         .from('order_items')
         .select(`
           *,
           products(*),
-          seller:seller_id(full_name, campus_location, town)
+          seller:seller_id(full_name, campus_location)
         `)
         .eq('order_id', orderId);
 
@@ -60,7 +59,6 @@ const OrderConfirmation = () => {
   };
 
   const downloadReceipt = () => {
-    // Create a new window with the receipt content
     const printWindow = window.open('', '_blank');
     
     const receiptHTML = `
@@ -70,235 +68,102 @@ const OrderConfirmation = () => {
           <title>Receipt - Order #${orderId.substring(0, 8)}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: Arial, sans-serif; 
-              padding: 40px; 
-              max-width: 800px; 
-              margin: 0 auto;
-              line-height: 1.6;
-            }
-            .header { 
-              text-align: center; 
-              margin-bottom: 30px;
-              border-bottom: 2px solid #333;
-              padding-bottom: 20px;
-            }
-            .success-icon {
-              width: 60px;
-              height: 60px;
-              background: #22c55e;
-              border-radius: 50%;
-              margin: 0 auto 20px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 30px;
-            }
+            body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .success-icon { width: 60px; height: 60px; background: #22c55e; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: white; font-size: 30px; }
             h1 { font-size: 28px; margin-bottom: 10px; }
             .order-id { color: #666; font-size: 14px; }
             .section { margin-bottom: 30px; }
-            .section-title { 
-              font-size: 18px; 
-              font-weight: bold; 
-              margin-bottom: 15px;
-              border-bottom: 1px solid #ddd;
-              padding-bottom: 5px;
-            }
-            .item { 
-              display: flex; 
-              justify-content: space-between; 
-              padding: 10px 0;
-              border-bottom: 1px solid #eee;
-            }
-            .item-details { flex: 1; }
-            .item-name { font-weight: 600; }
-            .item-quantity { color: #666; font-size: 14px; }
-            .totals { 
-              margin-top: 20px; 
-              padding-top: 20px;
-              border-top: 2px solid #333;
-            }
-            .total-row { 
-              display: flex; 
-              justify-content: space-between; 
-              margin-bottom: 8px;
-            }
-            .total-row.final { 
-              font-weight: bold; 
-              font-size: 18px;
-              margin-top: 10px;
-            }
-            .info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 15px;
-            }
-            .info-item { margin-bottom: 10px; }
-            .info-label { 
-              color: #666; 
-              font-size: 14px; 
-              margin-bottom: 3px;
-            }
-            .info-value { font-weight: 500; }
-            .badge {
-              display: inline-block;
-              padding: 4px 12px;
-              border-radius: 12px;
-              font-size: 12px;
-              font-weight: 600;
-            }
-            .badge-success {
-              background: #dcfce7;
-              color: #166534;
-            }
-            .badge-warning {
-              background: #fef3c7;
-              color: #92400e;
-            }
-            .badge-error {
-              background: #fee2e2;
-              color: #991b1b;
-            }
-            .footer {
-              margin-top: 40px;
-              text-align: center;
-              color: #666;
-              font-size: 12px;
-              border-top: 1px solid #ddd;
-              padding-top: 20px;
-            }
-            @media print {
-              body { padding: 20px; }
-            }
+            .section-title { font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+            .item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+            .total { font-size: 20px; font-weight: bold; text-align: right; margin-top: 20px; padding-top: 15px; border-top: 2px solid #333; }
+            .footer { text-align: center; margin-top: 40px; color: #999; font-size: 12px; }
+            .payment-info { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px; }
           </style>
         </head>
         <body>
           <div class="header">
             <div class="success-icon">✓</div>
-            <h1>Order Confirmed</h1>
-            <p>Thank you for your purchase</p>
+            <h1>UniHive Receipt</h1>
             <p class="order-id">Order #${orderId.substring(0, 8)}</p>
+            <p class="order-id">${new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
           </div>
-
+          
           <div class="section">
-            <div class="section-title">Order Summary</div>
+            <h2 class="section-title">Items Ordered</h2>
             ${orderItems.map(item => `
               <div class="item">
-                <div class="item-details">
-                  <div class="item-name">${item.products?.name || 'Product'}</div>
-                  <div class="item-quantity">Quantity: ${item.quantity}</div>
+                <div>
+                  <strong>${item.products?.name || 'Product'}</strong><br>
+                  <small>Qty: ${item.quantity} × KES ${item.price_per_unit?.toFixed(2)}</small>
                 </div>
-                <div class="item-price">KES ${item.subtotal?.toFixed(2)}</div>
+                <div style="text-align: right; font-weight: bold;">KES ${item.subtotal?.toFixed(2)}</div>
               </div>
             `).join('')}
             
-            <div class="totals">
-              <div class="total-row">
-                <span>Products</span>
-                <span>KES ${(parseFloat(order.amount || 0) - parseFloat(order.delivery_fee || 0)).toFixed(2)}</span>
-              </div>
-              ${parseFloat(order.delivery_fee || 0) > 0 ? `
-              <div class="total-row">
-                <span>${order.delivery_method === 'pickup_mtaani' ? 'PickUp Mtaani Delivery' : 'Delivery Fee'}</span>
-                <span>KES ${parseFloat(order.delivery_fee || 0).toFixed(2)}</span>
-              </div>` : ''}
-              <div class="total-row final">
-                <span>Total Paid</span>
-                <span>KES ${order.amount?.toFixed(2)}</span>
-              </div>
-            </div>
+            ${(() => {
+              const deliveryFee = parseFloat(order.delivery_fee || 0);
+              const total = parseFloat(order.amount || 0);
+              const subtotal = total - deliveryFee;
+              return `
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
+                  <div class="item" style="border: none;">
+                    <span>Products Subtotal</span>
+                    <strong>KES ${subtotal.toFixed(2)}</strong>
+                  </div>
+                  ${deliveryFee > 0 ? `
+                    <div class="item" style="border: none;">
+                      <span>Delivery Fee</span>
+                      <strong>KES ${deliveryFee.toFixed(2)}</strong>
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            })()}
+            
+            <div class="total">Total: KES ${parseFloat(order.amount || 0).toFixed(2)}</div>
           </div>
 
           <div class="section">
-            <div class="section-title">Payment Information</div>
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">Payment Method</div>
-                <div class="info-value">M-Pesa</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Payment Status</div>
-                <div class="info-value">
-                  <span class="badge ${
-                    order.payment_status === 'completed' ? 'badge-success' :
-                    order.payment_status === 'pending' ? 'badge-warning' :
-                    'badge-error'
-                  }">
-                    ${order.payment_status === 'completed' ? 'Paid' :
-                      order.payment_status === 'pending' ? 'Pending' :
-                      'Failed'}
-                  </span>
-                </div>
-              </div>
-              ${order.mpesa_receipt ? `
-                <div class="info-item" style="grid-column: 1 / -1;">
-                  <div class="info-label">Transaction ID / Receipt</div>
-                  <div class="info-value">${order.mpesa_receipt}</div>
-                </div>
-              ` : ''}
-              <div class="info-item">
-                <div class="info-label">Date</div>
-                <div class="info-value">${formatDate(order.payment_date || order.created_at)}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">Phone Number</div>
-                <div class="info-value">${order.phone_number || 'Not available'}</div>
-              </div>
+            <h2 class="section-title">Payment Information</h2>
+            <div class="payment-info">
+              <p><strong>Method:</strong> M-Pesa</p>
+              <p><strong>Status:</strong> ${order.payment_status === 'completed' ? 'Paid' : order.payment_status}</p>
+              ${order.mpesa_receipt ? `<p><strong>M-Pesa Receipt:</strong> ${order.mpesa_receipt}</p>` : ''}
+              ${order.phone_number ? `<p><strong>Phone:</strong> ${order.phone_number}</p>` : ''}
             </div>
           </div>
 
+          ${order.delivery_method === 'pickup_mtaani' ? `
+            <div class="section">
+              <h2 class="section-title">Delivery Information</h2>
+              <div class="payment-info">
+                <p><strong>Method:</strong> PickUp Mtaani</p>
+                ${order.pickup_mtaani_destination_name ? `<p><strong>Pickup Point:</strong> ${order.pickup_mtaani_destination_name}</p>` : ''}
+                ${order.pickup_mtaani_destination_address ? `<p><strong>Address:</strong> ${order.pickup_mtaani_destination_address}</p>` : ''}
+                ${order.pickup_mtaani_tracking_code ? `<p><strong>Tracking Code:</strong> ${order.pickup_mtaani_tracking_code}</p>` : ''}
+              </div>
+            </div>
+          ` : ''}
+          
           <div class="footer">
-            <p>This is a computer-generated receipt and does not require a signature.</p>
-            <p>For any inquiries, please contact our support team.</p>
+            <p>Thank you for shopping with UniHive!</p>
+            <p>If you have any questions, please contact us through the app.</p>
           </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() {
-                window.close();
-              }, 100);
-            }
-          </script>
         </body>
       </html>
     `;
     
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
+    printWindow.print();
   };
 
-  const copyReceiptNumber = () => {
-    if (order?.mpesa_receipt) {
-      navigator.clipboard.writeText(order.mpesa_receipt).then(() => {
-        setIsCopied(true);
-        toast.success('Receipt number copied to clipboard');
-        
-        // Reset copied state after 3 seconds
-        setTimeout(() => {
-          setIsCopied(false);
-        }, 3000);
-      });
-    }
-  };
-
-  // Format date for better display
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric'
-      });
-    } catch (error) {
-      return dateString;
-    }
+  const copyOrderId = () => {
+    navigator.clipboard.writeText(orderId.substring(0, 8));
+    setIsCopied(true);
+    toast.success('Order ID copied!');
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   if (loading) {
@@ -338,12 +203,8 @@ const OrderConfirmation = () => {
             </div>
           </div>
           <h1 className="text-2xl font-bold mb-2">Order Confirmed!</h1>
-          <p className="text-gray-600">
-            Thank you for your purchase. Your order has been received.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Order #{orderId.substring(0, 8)}
-          </p>
+          <p className="text-gray-600">Thank you for your purchase. Your order has been received.</p>
+          <p className="text-sm text-gray-500 mt-2">Order #{orderId.substring(0, 8)}</p>
         </div>
 
         <Card className="mb-6">
@@ -354,18 +215,12 @@ const OrderConfirmation = () => {
                 <div key={item.id} className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
                     {item.products?.image_url && (
-                      <img 
-                        src={item.products.image_url} 
-                        alt={item.products.name}
-                        className="w-full h-full object-cover rounded"
-                      />
+                      <img src={item.products.image_url} alt={item.products.name} className="w-full h-full object-cover rounded" />
                     )}
                   </div>
                   <div className="flex-1">
                     <h3 className="font-medium">{item.products?.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      Quantity: {item.quantity}
-                    </p>
+                    <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium">KES {item.subtotal?.toFixed(2)}</p>
@@ -393,8 +248,8 @@ const OrderConfirmation = () => {
                         <span>KES {deliveryFee.toFixed(2)}</span>
                       </div>
                     )}
-                    <div className="flex justify-between font-bold border-t pt-2 mt-2">
-                      <span>Total Paid</span>
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Total</span>
                       <span>KES {total.toFixed(2)}</span>
                     </div>
                   </>
@@ -404,94 +259,42 @@ const OrderConfirmation = () => {
           </CardContent>
         </Card>
 
+        {/* Payment Info */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Payment Information</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Payment Method</p>
-                <p>M-Pesa</p>
+            <h2 className="text-lg font-semibold mb-4">Payment Details</h2>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Payment Method</span>
+                <span>M-Pesa</span>
               </div>
-              <div>
-                <p className="text-gray-600">Payment Status</p>
-                <Badge variant="outline" className={
-                  order.payment_status === 'completed' 
-                    ? 'bg-green-100 text-green-800 border-green-200' 
-                    : order.payment_status === 'pending'
-                    ? 'bg-orange-100 text-orange-800 border-orange-200'
-                    : 'bg-red-100 text-red-800 border-red-200'
-                }>
-                  {order.payment_status === 'completed' ? 'Paid' : 
-                   order.payment_status === 'pending' ? 'Pending' : 
-                   'Failed'}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status</span>
+                <Badge variant={order.payment_status === 'completed' ? 'default' : 'secondary'}>
+                  {order.payment_status === 'completed' ? 'Paid' : order.payment_status}
                 </Badge>
               </div>
-              
               {order.mpesa_receipt && (
-                <div className="col-span-2 mt-2">
-                  <p className="text-gray-600">Transaction ID / Receipt</p>
-                  <div className="flex items-center mt-1">
-                    <p className="font-mono">{order.mpesa_receipt}</p>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button 
-                            onClick={copyReceiptNumber}
-                            className="ml-2 text-gray-500 hover:text-gray-700"
-                          >
-                            {isCopied ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{isCopied ? 'Copied!' : 'Copy receipt number'}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">M-Pesa Receipt</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button onClick={copyOrderId} className="flex items-center gap-1 font-mono text-sm">
+                          {order.mpesa_receipt}
+                          {isCopied ? <CheckCircle className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Copy receipt number</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               )}
-              
-              <div>
-                <p className="text-gray-600">Date</p>
-                <p>{formatDate(order.payment_date || order.created_at)}</p>
-              </div>
-              
-              <div>
-                <p className="text-gray-600">Phone Number</p>
-                <p>{order.phone_number || 'Not available'}</p>
-              </div>
             </div>
-            
-            {order.payment_status === 'pending' && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm">
-                <p className="text-yellow-800">
-                  Your payment is still being processed. We will update the status once confirmed.
-                </p>
-              </div>
-            )}
-            
-            {order.payment_status === 'failed' && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm">
-                <p className="text-red-800">
-                  Payment failed: {order.payment_error || 'An error occurred during payment processing'}
-                </p>
-                <p className="mt-2">
-                  <Link to={`/checkout/${orderId}`}>
-                    <Button size="sm" variant="outline">
-                      Try Payment Again
-                    </Button>
-                  </Link>
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Pickup / Delivery Location */}
+        {/* Delivery / Pickup Info */}
         <Card className="mb-6">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold mb-4">
@@ -533,8 +336,9 @@ const OrderConfirmation = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
+                        {/* ✅ FIX: Removed town reference */}
                         <p className="text-sm text-green-700 font-medium">
-                          {item.seller?.campus_location || item.seller?.town || 'Location not set — check messages'}
+                          {item.seller?.campus_location || 'Location not set — check messages'}
                         </p>
                       </div>
                       {item.seller?.full_name && (
@@ -549,11 +353,7 @@ const OrderConfirmation = () => {
         </Card>
 
         <div className="flex flex-col sm:flex-row gap-4 mt-8">
-          <Button 
-            variant="outline" 
-            className="flex-1"
-            onClick={downloadReceipt}
-          >
+          <Button variant="outline" className="flex-1" onClick={downloadReceipt}>
             <Download className="mr-2 h-4 w-4" />
             Download Receipt
           </Button>

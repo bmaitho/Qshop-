@@ -1,4 +1,4 @@
-// ProductGrid.jsx with improved category handling
+// ProductGrid.jsx with improved category handling and fixed mobile layout
 import React, { useState, useEffect } from 'react';
 import Masonry from 'react-masonry-css';
 import ProductCard from './ProductCard';
@@ -145,11 +145,11 @@ const ProductGrid = ({ category, searchQuery, categoriesMap = {} }) => {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-x-hidden"> {/* Add overflow-x-hidden to container */}
       <Masonry 
         breakpointCols={breakpointColumnsObj}
-        className="masonry-grid -ml-4 w-auto"
-        columnClassName="masonry-grid-column pl-4 bg-clip-padding"
+        className="masonry-grid"
+        columnClassName="masonry-grid-column"
       >
         {products.map((product) => (
           <div key={product.id} className="mb-4">
