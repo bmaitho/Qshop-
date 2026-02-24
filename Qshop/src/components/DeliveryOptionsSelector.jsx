@@ -1,13 +1,68 @@
 // src/components/DeliveryOptionsSelector.jsx
-// ✅ UPDATED VERSION WITH PICKUP MTAANI INTEGRATION
+// ✅ UPDATED VERSION WITH PICKUP MTAANI BRANDED THEMING
+// Features: Yellow brand colors, motorbike icon, map pin, branded buttons
 
 import React, { useState, useEffect } from 'react';
-import { Package, Store, Truck, MapPin, Loader2, Search } from 'lucide-react';
+import { Package, Loader2, Search, MapPin, Navigation, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
+
+// ── PickUp Mtaani Branded SVG Icons ──────────────────────────────────
+
+const PickupMtaaniLogo = ({ className = "h-6 w-6" }) => (
+  <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Shield/Pin shape inspired by PickUp Mtaani's logo */}
+    <path d="M20 2C12.268 2 6 8.268 6 16c0 10 14 22 14 22s14-12 14-22c0-7.732-6.268-14-14-14z" fill="#F5A623" stroke="#E8971E" strokeWidth="1.5"/>
+    <circle cx="20" cy="16" r="6" fill="white"/>
+    <circle cx="20" cy="16" r="3" fill="#F5A623"/>
+  </svg>
+);
+
+const MotorbikeIcon = ({ className = "h-8 w-8" }) => (
+  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Delivery motorbike inspired by PickUp Mtaani's branding */}
+    {/* Back wheel */}
+    <circle cx="12" cy="34" r="6" stroke="#F5A623" strokeWidth="2.5" fill="none"/>
+    <circle cx="12" cy="34" r="2" fill="#F5A623"/>
+    {/* Front wheel */}
+    <circle cx="38" cy="34" r="5" stroke="#F5A623" strokeWidth="2.5" fill="none"/>
+    <circle cx="38" cy="34" r="1.5" fill="#F5A623"/>
+    {/* Body frame */}
+    <path d="M12 34L18 22H28L33 28L38 34" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    {/* Seat */}
+    <path d="M18 22L22 18H28L30 22" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#F5A623"/>
+    {/* Handlebars */}
+    <path d="M33 28L36 24L40 22" stroke="#333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    {/* Package/Box on back */}
+    <rect x="6" y="18" width="10" height="8" rx="1.5" fill="#F5A623" stroke="#E8971E" strokeWidth="1.5"/>
+    <line x1="8" y1="22" x2="14" y2="22" stroke="#E8971E" strokeWidth="1"/>
+    {/* Exhaust */}
+    <path d="M15 30L12 34" stroke="#999" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+const TrackingIcon = ({ className = "h-5 w-5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#F5A623"/>
+    <circle cx="12" cy="9" r="3" fill="white"/>
+  </svg>
+);
+
+// ── Pickup Point Pin Icon (green for selected, gray for unselected) ──
+
+const PointPinIcon = ({ active = false, className = "h-5 w-5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path 
+      d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" 
+      fill={active ? "#22C55E" : "#9CA3AF"}
+    />
+    <circle cx="12" cy="9" r="2.5" fill="white"/>
+  </svg>
+);
+
 
 const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
   const [availableOptions, setAvailableOptions] = useState([]);
@@ -64,15 +119,13 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
 
   const determineAvailableOptions = (sellerIds, locationsBySeller) => {
     const options = [];
-    const isSingleSeller = sellerIds.length === 1;
 
     // OPTION 1: Campus Pickup (Free - Always Available)
     options.push({
       id: 'campus_pickup',
       type: 'campus_pickup',
-      name: 'Campus Pickup (Free)',
+      name: 'Campus Pickup',
       description: 'Collect your order from your campus pickup point',
-      icon: Package,
       fee: 0,
       recommended: true,
       badge: 'Free'
@@ -84,7 +137,6 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
       type: 'pickup_mtaani',
       name: 'PickUp Mtaani Delivery',
       description: 'Delivered to a PickUp Mtaani agent near you (150-350 KES)',
-      icon: Truck,
       fee: 0, // Will be calculated based on location
       requiresPickupPointSelection: true,
       badge: 'Nationwide'
@@ -93,87 +145,53 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
     return options;
   };
 
-  const handleSelectOption = async (option) => {
+  const handleSelectOption = (option) => {
     setSelectedOption(option);
-    setSelectedPickupPoint(null);
-    setDeliveryFee(0);
-
-    // If PickUp Mtaani selected, load pickup points
+    
     if (option.type === 'pickup_mtaani') {
-      await loadPickupPoints();
-    } else {
-      // For campus pickup, notify parent immediately
+      // Load initial pickup points
+      if (pickupPoints.length === 0) {
+        loadPickupPoints();
+      }
+      
+      if (!selectedPickupPoint) {
+        onDeliverySelected({
+          delivery_method: 'pickup_mtaani',
+          delivery_fee: 0,
+          requires_pickup_point_selection: true
+        });
+      }
+    } else if (option.type === 'campus_pickup') {
+      setSelectedPickupPoint(null);
+      setDeliveryFee(0);
       onDeliverySelected({
-        delivery_method: option.type,
+        delivery_method: 'campus_pickup',
         delivery_fee: 0,
-        requires_pickup_point_selection: false,
-        pickup_mtaani_destination_id: null
+        requires_pickup_point_selection: false
       });
     }
   };
 
-  const loadPickupPoints = async (town = '', useGeolocation = false) => {
+  const loadPickupPoints = async (town = null, useGeolocation = false) => {
     try {
       setLoadingPickupPoints(true);
-      
-      // First, ensure pickup points are synced
-      const syncResponse = await fetch(`${backendUrl}/pickup-mtaani/sync-points`);
-      if (!syncResponse.ok) {
-        console.warn('Could not sync pickup points, using cached data');
-      }
-
       let url;
-      
+
       if (useGeolocation && navigator.geolocation) {
-        // Check permission status first
         try {
-          let permissionGranted = false;
-          
-          // Check if Permissions API is available
-          if (navigator.permissions && navigator.permissions.query) {
-            const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-            console.log('📍 Geolocation permission status:', permissionStatus.state);
-            
-            if (permissionStatus.state === 'denied') {
-              toast.error('Location permission is blocked. Please enable it in your browser settings.', { autoClose: 5000 });
-              url = `${backendUrl}/pickup-mtaani/points?limit=50`;
-            } else if (permissionStatus.state === 'granted') {
-              permissionGranted = true;
-            } else {
-              // State is 'prompt' - will ask user
-              toast.info('Please allow location access when prompted...', { autoClose: 3000 });
-              permissionGranted = true; // Try anyway
-            }
-          } else {
-            // Permissions API not available, try anyway
-            permissionGranted = true;
-          }
-          
-          if (permissionGranted) {
-            // Now try to get location
-            toast.info('Getting your location...', { autoClose: 2000 });
-            
-            const position = await new Promise((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(
-                resolve, 
-                reject, 
-                {
-                  timeout: 15000, // 15 seconds
-                  enableHighAccuracy: true,
-                  maximumAge: 0
-                }
-              );
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 300000
             });
-            
-            const { latitude, longitude } = position.coords;
-            console.log('✅ Got location:', latitude, longitude);
-            toast.success('Location found! Searching nearby...', { autoClose: 1000 });
-            
-            // Search by coordinates (within 10km radius)
-            url = `${backendUrl}/pickup-mtaani/points-nearby?lat=${latitude}&lng=${longitude}&radius=10&limit=20`;
-          }
+          });
+
+          const { latitude, longitude } = position.coords;
+          toast.info('📍 Searching nearby...', { autoClose: 1000 });
+          url = `${backendUrl}/pickup-mtaani/points-nearby?lat=${latitude}&lng=${longitude}&radius=10&limit=20`;
         } catch (geoError) {
-          console.error('❌ Geolocation error:', geoError);
+          console.error('Geolocation error:', geoError);
           
           if (geoError.code === 1) {
             toast.error('Location permission denied. Click the 🔒 icon in your address bar to allow location access.', { autoClose: 8000 });
@@ -185,14 +203,12 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
             toast.error('Could not get your location. Showing all points.', { autoClose: 5000 });
           }
           
-          // Fallback to all points
           url = `${backendUrl}/pickup-mtaani/points?limit=50`;
         }
       } else if (useGeolocation && !navigator.geolocation) {
         toast.error('Geolocation not supported by your browser.', { autoClose: 5000 });
         url = `${backendUrl}/pickup-mtaani/points?limit=50`;
       } else {
-        // Town-based search
         url = town 
           ? `${backendUrl}/pickup-mtaani/points/near/${encodeURIComponent(town)}?limit=20`
           : `${backendUrl}/pickup-mtaani/points?limit=50`;
@@ -233,7 +249,6 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
     try {
       setCalculatingFee(true);
 
-      // Get seller's town from first order item
       const firstItem = orderItems[0];
       const { data: sellerProfile } = await supabase
         .from('profiles')
@@ -241,7 +256,7 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
         .eq('id', firstItem.seller_id)
         .single();
 
-      const originTown = sellerProfile?.campus_location || 'Nairobi'; // Default to Nairobi
+      const originTown = sellerProfile?.campus_location || 'Nairobi';
 
       const response = await fetch(`${backendUrl}/pickup-mtaani/calculate-fee`, {
         method: 'POST',
@@ -270,11 +285,9 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
   const handleSelectPickupPoint = async (point) => {
     setSelectedPickupPoint(point);
 
-    // Calculate delivery fee
     const fee = await calculateDeliveryFee(point.town);
     setDeliveryFee(fee);
 
-    // Notify parent component
     onDeliverySelected({
       delivery_method: 'pickup_mtaani',
       delivery_fee: fee,
@@ -303,15 +316,15 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
     <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
       <CardContent className="p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center text-gray-900 dark:text-gray-100">
-          <Truck className="h-5 w-5 mr-2" />
+          <MotorbikeIcon className="h-7 w-7 mr-2" />
           Choose Delivery Method
         </h2>
 
-        {/* Delivery Options */}
+        {/* ── Delivery Options ── */}
         <div className="space-y-3">
           {availableOptions.map(option => {
-            const Icon = option.icon;
             const isSelected = selectedOption?.id === option.id;
+            const isMtaani = option.type === 'pickup_mtaani';
 
             return (
               <div key={option.id} className="space-y-3">
@@ -320,35 +333,54 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
                   onClick={() => handleSelectOption(option)}
                   className={`
                     p-4 border-2 rounded-lg cursor-pointer transition-all
-                    ${isSelected 
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600' 
-                      : 'border-gray-200 dark:border-gray-600 hover:border-green-300 dark:hover:border-green-500 bg-white dark:bg-gray-700/50'}
+                    ${isSelected && isMtaani
+                      ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-500 shadow-sm shadow-yellow-100 dark:shadow-none'
+                      : isSelected
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-700/50'
+                    }
                   `}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">
-                      <Icon className={`h-5 w-5 mt-1 ${isSelected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                      {/* Icon: PickUp Mtaani branded pin OR campus package */}
+                      {isMtaani ? (
+                        <PickupMtaaniLogo className={`h-6 w-6 mt-0.5 flex-shrink-0 ${isSelected ? 'opacity-100' : 'opacity-60'}`} />
+                      ) : (
+                        <Package className={`h-5 w-5 mt-1 flex-shrink-0 ${isSelected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                      )}
+                      
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-gray-900 dark:text-gray-100">{option.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`font-medium ${isSelected && isMtaani ? 'text-yellow-900 dark:text-yellow-100' : 'text-gray-900 dark:text-gray-100'}`}>
+                            {option.name}
+                          </h3>
                           {option.badge && (
-                            <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                            <Badge 
+                              variant="secondary" 
+                              className={`text-xs ${
+                                isMtaani 
+                                  ? 'bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100 border border-yellow-300 dark:border-yellow-700' 
+                                  : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                              }`}
+                            >
                               {option.badge}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                           {option.description}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      {option.type === 'pickup_mtaani' && deliveryFee > 0 ? (
-                        <p className="font-semibold text-green-600 dark:text-green-400">
+
+                    <div className="text-right ml-3 flex-shrink-0">
+                      {isMtaani && deliveryFee > 0 ? (
+                        <p className="font-semibold text-yellow-700 dark:text-yellow-300">
                           KES {deliveryFee}
                         </p>
                       ) : (
-                        <p className="font-semibold text-green-600 dark:text-green-400">
+                        <p className={`font-semibold ${isMtaani ? 'text-yellow-700 dark:text-yellow-300' : 'text-green-600 dark:text-green-400'}`}>
                           {option.fee === 0 ? 'Free' : `KES ${option.fee}`}
                         </p>
                       )}
@@ -356,125 +388,142 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
                   </div>
                 </div>
 
-                {/* PickUp Mtaani Pickup Point Selection */}
-                {isSelected && option.type === 'pickup_mtaani' && (
-                  <div className="ml-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <h4 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100">
+                {/* ── PickUp Mtaani Pickup Point Selection Panel ── */}
+                {isSelected && isMtaani && (
+                  <div className="ml-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-yellow-200 dark:border-yellow-800/50">
+                    
+                    <h4 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <TrackingIcon className="h-4 w-4" />
                       Select Your Pickup Point
                     </h4>
 
-                    {/* Search Bar */}
-                    <form onSubmit={handleSearchTown} className="mb-4">
+                    {/* ── Search Bar (PickUp Mtaani branded) ── */}
+                    <form onSubmit={handleSearchTown} className="mb-3">
                       <div className="flex gap-2">
-                        <Input
-                          type="text"
-                          placeholder="Search by town (e.g., Nairobi, Mombasa)"
-                          value={searchTown}
-                          onChange={(e) => setSearchTown(e.target.value)}
-                          className="flex-1"
-                        />
+                        <div className="relative flex-1">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                          <Input
+                            type="text"
+                            placeholder="Search by town (e.g., Nairobi, Mombasa)"
+                            value={searchTown}
+                            onChange={(e) => setSearchTown(e.target.value)}
+                            className="pl-9 border-gray-300 dark:border-gray-600 focus:border-yellow-400 focus:ring-yellow-400 dark:focus:border-yellow-500"
+                          />
+                        </div>
                         <button
                           type="submit"
                           disabled={loadingPickupPoints}
-                          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                          className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-medium rounded-md disabled:opacity-50 flex items-center gap-2 transition-colors shadow-sm"
                         >
                           {loadingPickupPoints ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Search className="h-4 w-4" />
                           )}
-                          Search
+                          <span className="hidden sm:inline">Search</span>
                         </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => loadPickupPoints('', true)}
-                        disabled={loadingPickupPoints}
-                        className="mt-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
-                      >
-                        <MapPin className="h-4 w-4" />
-                        Find Nearest to Me
-                      </button>
                     </form>
 
-                    {/* Loading State */}
-                    {loadingPickupPoints && (
-                      <div className="text-center py-4">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading pickup points...</p>
-                      </div>
-                    )}
+                    {/* ── Find Nearest to Me Button (PickUp Mtaani styled) ── */}
+                    <button
+                      onClick={() => loadPickupPoints(null, true)}
+                      disabled={loadingPickupPoints}
+                      className="w-full mb-4 py-2.5 px-4 bg-gray-900 dark:bg-yellow-600 hover:bg-gray-800 dark:hover:bg-yellow-700 text-white dark:text-gray-900 font-medium rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Navigation className="h-4 w-4" />
+                      Find Nearest to Me
+                    </button>
 
-                    {/* Pickup Points List */}
-                    {!loadingPickupPoints && pickupPoints.length > 0 && (
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {pickupPoints.map(point => (
-                          <div
-                            key={point.id}
-                            onClick={() => handleSelectPickupPoint(point)}
-                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                              selectedPickupPoint?.id === point.id
-                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start space-x-2 flex-1">
-                                <MapPin className="h-4 w-4 mt-1 text-green-600 dark:text-green-400 flex-shrink-0" />
+                    {/* ── Pickup Points List ── */}
+                    {loadingPickupPoints ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
+                        <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading pickup points...</span>
+                      </div>
+                    ) : pickupPoints.length > 0 ? (
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                        {pickupPoints.map((point, index) => {
+                          const isPointSelected = selectedPickupPoint?.shop_id === point.shop_id;
+                          return (
+                            <div
+                              key={point.shop_id || index}
+                              onClick={() => handleSelectPickupPoint(point)}
+                              className={`
+                                p-3 rounded-lg cursor-pointer transition-all border
+                                ${isPointSelected
+                                  ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 dark:border-yellow-600 shadow-sm'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-yellow-300 dark:hover:border-yellow-700 bg-white dark:bg-gray-700/50 hover:bg-yellow-50/50 dark:hover:bg-yellow-900/10'
+                                }
+                              `}
+                            >
+                              <div className="flex items-start gap-2.5">
+                                <PointPinIcon 
+                                  active={isPointSelected} 
+                                  className="h-5 w-5 mt-0.5 flex-shrink-0" 
+                                />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                    {point.shop_name}
-                                  </p>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                                    {point.street_address}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-500">
-                                    {point.town}
-                                    {point.distance && (
-                                      <span className="ml-2 font-medium text-blue-600 dark:text-blue-400">
-                                        • {point.distance.toFixed(1)} km away
-                                      </span>
+                                  <div className="flex items-center gap-2">
+                                    <p className={`font-medium text-sm truncate ${isPointSelected ? 'text-yellow-900 dark:text-yellow-100' : 'text-gray-900 dark:text-gray-100'}`}>
+                                      {point.shop_name}
+                                    </p>
+                                    {isPointSelected && (
+                                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                                     )}
-                                  </p>
+                                  </div>
+                                  {point.street_address && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                                      {point.street_address}
+                                    </p>
+                                  )}
+                                  {point.town && (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                                      {point.town}
+                                    </p>
+                                  )}
+                                  {point.distance !== undefined && (
+                                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 font-medium">
+                                      📍 {point.distance < 1 ? `${(point.distance * 1000).toFixed(0)}m away` : `${point.distance.toFixed(1)}km away`}
+                                    </p>
+                                  )}
                                 </div>
+                                {calculatingFee && isPointSelected && (
+                                  <Loader2 className="h-4 w-4 animate-spin text-yellow-500 flex-shrink-0" />
+                                )}
                               </div>
-                              
-                              {selectedPickupPoint?.id === point.id && calculatingFee && (
-                                <Loader2 className="h-4 w-4 animate-spin text-green-600 ml-2" />
-                              )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
-                    )}
-
-                    {/* No Results */}
-                    {!loadingPickupPoints && pickupPoints.length === 0 && (
+                    ) : (
                       <div className="text-center py-6">
-                        <Package className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                        <PickupMtaaniLogo className="h-10 w-10 mx-auto mb-2 opacity-30" />
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          No pickup points found. Try searching for your town.
+                          No pickup points loaded yet. Try searching for your town.
                         </p>
                       </div>
                     )}
 
-                    {/* Selected Point Summary */}
+                    {/* ── Selected Point Summary ── */}
                     {selectedPickupPoint && deliveryFee > 0 && (
-                      <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                              Selected: {selectedPickupPoint.shop_name}
-                            </p>
-                            <p className="text-xs text-green-700 dark:text-green-300">
-                              {selectedPickupPoint.town}
-                            </p>
+                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-700">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <PointPinIcon active className="h-5 w-5 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100 truncate">
+                                {selectedPickupPoint.shop_name}
+                              </p>
+                              <p className="text-xs text-yellow-700 dark:text-yellow-300 truncate">
+                                {selectedPickupPoint.town}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-yellow-800 dark:text-yellow-200">
                               KES {deliveryFee}
                             </p>
-                            <p className="text-xs text-green-600 dark:text-green-400">
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400">
                               Delivery Fee
                             </p>
                           </div>
@@ -488,11 +537,12 @@ const DeliveryOptionsSelector = ({ orderItems, onDeliverySelected }) => {
           })}
         </div>
 
-        {/* Minimum Order Notice for PickUp Mtaani */}
+        {/* ── Minimum Order Notice for PickUp Mtaani ── */}
         {selectedOption?.type === 'pickup_mtaani' && (
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              ℹ️ <strong>Minimum order value:</strong> KES 200 for PickUp Mtaani delivery
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 flex items-start gap-2">
+            <MotorbikeIcon className="h-6 w-6 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <strong>Minimum order value:</strong> KES 200 for PickUp Mtaani delivery. Your parcel will be delivered to the selected agent for collection.
             </p>
           </div>
         )}
