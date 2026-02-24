@@ -3,9 +3,9 @@
 // ✅ FIXED: Explicit FK relationship hint for order_items
 // ✅ FIXED: profiles column names (phone not phone_number, no town column)
 
-import { supabase } from '../supabaseClient'
+import { supabase } from '../supabaseClient.js';
 
-const backendUrl = import.meta.env.VITE_API_URL;
+const backendUrl = process.env.VITE_API_URL || process.env.APP_URL;
 
 /**
  * Create a PickUp Mtaani parcel after successful payment
