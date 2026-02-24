@@ -1,205 +1,340 @@
-// src/utils/pickupMtaaniHelper.js
-// Helper functions for PickUp Mtaani integration
-// ✅ FIXED: Explicit FK relationship hint for order_items
-// ✅ FIXED: profiles column names (phone not phone_number, no town column)
-
+// backend/services/pickupMtaaniService.js
+import axios from 'axios';
 import { supabase } from '../supabaseClient.js';
 
-const backendUrl = process.env.VITE_API_URL || process.env.APP_URL;
+const API_KEY = process.env.PICKUP_MTAANI_API_KEY;
+const BASE_URL = process.env.PICKUP_MTAANI_BASE_URL || 'https://api.pickupmtaani.com/api/vv1';
+
+const pickupMtaaniAPI = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    'apiKey': API_KEY,
+    'Content-Type': 'application/json',
+    'accept': 'application/json'
+  },
+  timeout: 30000
+});
+
+// ============================================
+// PICKUP POINTS
+// ============================================
 
 /**
- * Create a PickUp Mtaani parcel after successful payment
- * Called automatically when order is paid and delivery method is pickup_mtaani
+ * Fetch all pickup points from PickUp Mtaani and cache in database
  */
-export const createPickupMtaaniParcel = async (orderId) => {
+export const syncPickupPoints = async () => {
   try {
-    console.log('🚚 Creating PickUp Mtaani parcel for order:', orderId);
+    console.log('🔄 Syncing PickUp Mtaani pickup points...');
+    const response = await pickupMtaaniAPI.get('/agents');
+    const shops = response.data.data || response.data;
 
-    // 1. Fetch order details with delivery info
-    // ✅ FIX: Use explicit FK hint to avoid ambiguous relationship error
-    // ✅ FIX: Use correct column names from profiles table (phone, campus_location — no town column)
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        order_items!fk_order_items_order_id(
-          *,
-          products(name),
-          seller:seller_id(full_name, phone, campus_location)
-        )
-      `)
-      .eq('id', orderId)
-      .single();
-
-    if (orderError) throw orderError;
-
-    // Check if this order uses PickUp Mtaani delivery
-    if (order.delivery_method !== 'pickup_mtaani') {
-      console.log('✓ Order does not use PickUp Mtaani delivery, skipping parcel creation');
-      return { success: true, skipped: true };
+    if (!Array.isArray(shops)) {
+      throw new Error('Invalid response format from PickUp Mtaani API');
     }
 
-    // Check if already has tracking code
-    if (order.pickup_mtaani_tracking_code) {
-      console.log('✓ Order already has tracking code, skipping parcel creation');
-      return { success: true, skipped: true, trackingCode: order.pickup_mtaani_tracking_code };
+    console.log(`📦 Received ${shops.length} pickup points from API`);
+    if (shops.length === 0) {
+      return { success: true, count: 0, points: [] };
     }
 
-    // Validate required delivery info
-    if (!order.pickup_mtaani_destination_id) {
-      throw new Error('No pickup point selected for PickUp Mtaani delivery');
-    }
+    const pointsToInsert = shops
+      .filter(shop => shop.id && shop.business_name)
+      .map(shop => ({
+        shop_id: shop.id.toString(),
+        shop_name: shop.business_name,
+        town: shop.loc?.name || 'Unknown',
+        street_address: shop.agent_description || null,
+        latitude: shop.loc?.lat ? parseFloat(shop.loc.lat) : null,
+        longitude: shop.loc?.lng ? parseFloat(shop.loc.lng) : null,
+        phone_number: shop.phone_number || shop.contact || null,
+        opening_time: shop.opening_hours || null,
+        closing_time: shop.closing_hours || null,
+        is_active: true,
+        last_synced_at: new Date().toISOString()
+      }));
 
-    // 2. Get buyer info
-    // ✅ FIX: Use correct column name 'phone' (not 'phone_number')
-    const { data: buyerProfile, error: buyerError } = await supabase
-      .from('profiles')
-      .select('full_name, phone')
-      .eq('id', order.user_id)
-      .single();
+    const { data, error } = await supabase
+      .from('pickup_mtaani_points')
+      .upsert(pointsToInsert, { onConflict: 'shop_id', ignoreDuplicates: false })
+      .select();
 
-    if (buyerError) throw buyerError;
+    if (error) throw error;
 
-    // 3. Get seller info from first order item
-    const firstItem = order.order_items[0];
-    const seller = firstItem?.seller;
+    console.log(`✅ Successfully synced ${data.length} pickup points`);
+    return { success: true, count: data.length, points: data };
 
-    if (!seller) {
-      throw new Error('Could not find seller information for this order');
-    }
-
-    // 4. Find seller's nearest PickUp Mtaani point (origin)
-    // ✅ FIX: Use campus_location instead of town (profiles has no town column)
-    const sellerLocation = seller.campus_location || 'Nairobi';
-    const originResponse = await fetch(
-      `${backendUrl}/pickup-mtaani/points/near/${encodeURIComponent(sellerLocation)}?limit=1`
-    );
-    const originData = await originResponse.json();
-
-    if (!originData.success || !originData.points || originData.points.length === 0) {
-      throw new Error(`No PickUp Mtaani point found near seller location: ${sellerLocation}`);
-    }
-
-    const originPoint = originData.points[0];
-
-    // 5. Prepare parcel data matching PickUp Mtaani API format
-    const itemDescriptions = order.order_items
-      .map(item => `${item.quantity}x ${item.products.name}`)
-      .join(', ');
-
-    // ✅ FIX: Use seller.phone (not seller.phone_number)
-    const customerPhone = (buyerProfile.phone || order.phone_number || '')
-      .replace(/\+/g, '')
-      .replace(/^0/, '254');
-
-    const parcelData = {
-      businessId: 77680, // TODO: Replace with actual PickUp Mtaani business ID
-      orderNumber: order.id.substring(0, 8).toUpperCase(),
-      senderAgentId: originPoint.shop_id,
-      receiverAgentId: order.pickup_mtaani_destination_id,
-      packageValue: Math.round(order.amount),
-      customerName: buyerProfile.full_name || 'UniHive Buyer',
-      packageName: itemDescriptions.substring(0, 100),
-      customerPhoneNumber: customerPhone,
-      paymentOption: 'Vendor',
-      onDeliveryBalance: 0,
-      paymentNumber: order.id.substring(0, 8).toUpperCase()
+  } catch (error) {
+    console.error('❌ Error syncing pickup points:', error.message);
+    return {
+      success: false,
+      error: error.response?.data?.message || error.message,
+      details: { status: error.response?.status, data: error.response?.data }
     };
+  }
+};
 
-    console.log('📦 Parcel data:', parcelData);
+/**
+ * Get cached pickup points from database with optional filtering
+ */
+export const getPickupPoints = async (filters = {}) => {
+  try {
+    let query = supabase
+      .from('pickup_mtaani_points')
+      .select('*')
+      .eq('is_active', true);
 
-    // 6. Create parcel via backend
-    const response = await fetch(`${backendUrl}/pickup-mtaani/create-parcel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(parcelData)
+    if (filters.town) {
+      query = query.ilike('town', `%${filters.town}%`);
+    }
+    if (filters.search) {
+      query = query.or(`shop_name.ilike.%${filters.search}%,town.ilike.%${filters.search}%`);
+    }
+
+    const { data, error } = await query.order('shop_name');
+    if (error) throw error;
+    return { success: true, points: data };
+
+  } catch (error) {
+    console.error('Error fetching pickup points:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Search for nearest pickup points based on town/location
+ */
+export const searchNearestPoints = async (town, limit = 10) => {
+  try {
+    const { data, error } = await supabase
+      .from('pickup_mtaani_points')
+      .select('*')
+      .eq('is_active', true)
+      .ilike('town', `%${town}%`)
+      .limit(limit);
+
+    if (error) throw error;
+    return { success: true, points: data };
+
+  } catch (error) {
+    console.error('Error searching nearest points:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Search for pickup points near a specific coordinate
+ */
+export const searchNearestPointsByCoordinates = async (latitude, longitude, radiusKm = 10, limit = 20) => {
+  try {
+    const { data: allPoints, error } = await supabase
+      .from('pickup_mtaani_points')
+      .select('*')
+      .eq('is_active', true)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
+
+    if (error) throw error;
+
+    const pointsWithDistance = allPoints.map(point => {
+      const distance = calculateDistance(latitude, longitude, point.latitude, point.longitude);
+      return { ...point, distance };
     });
 
-    const result = await response.json();
+    const nearbyPoints = pointsWithDistance
+      .filter(p => p.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
 
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to create parcel');
+    return { success: true, points: nearbyPoints };
+
+  } catch (error) {
+    console.error('Error searching by coordinates:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// DISTANCE & FEE HELPERS
+// ============================================
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRadians(degrees) {
+  return degrees * (Math.PI / 180);
+}
+
+/**
+ * Calculate delivery fee based on origin and destination agent IDs
+ * Falls back to zone-based pricing if API call fails
+ */
+export const calculateDeliveryFee = async (senderAgentID, receiverAgentID) => {
+  try {
+    // Try PickUp Mtaani API first
+    try {
+      const response = await pickupMtaaniAPI.get('/delivery-charge/agent-package', {
+        params: { senderAgentID, receiverAgentID }
+      });
+      const feeData = response.data.data || response.data;
+      if (feeData && feeData.charge) {
+        console.log('✅ Got delivery fee from API:', feeData.charge);
+        return { success: true, fee: feeData.charge };
+      }
+    } catch (apiError) {
+      console.warn('Could not get fee from API, using fallback:', apiError.message);
     }
 
-    console.log('✅ Parcel created successfully:', result.trackingCode);
+    // Fallback: zone-based pricing
+    const { data: originPoint } = await supabase
+      .from('pickup_mtaani_points')
+      .select('town')
+      .eq('shop_id', senderAgentID)
+      .single();
+
+    const { data: destPoint } = await supabase
+      .from('pickup_mtaani_points')
+      .select('town')
+      .eq('shop_id', receiverAgentID)
+      .single();
+
+    if (!originPoint || !destPoint) {
+      console.log('⚠️ Could not find town info, using default fee');
+      return { success: true, fee: 200 };
+    }
+
+    const origin = originPoint.town.toLowerCase().trim();
+    const destination = destPoint.town.toLowerCase().trim();
+
+    // Same town
+    if (origin === destination) {
+      return { success: true, fee: 150 };
+    }
+
+    const majorCities = ['nairobi', 'mombasa', 'kisumu', 'nakuru', 'eldoret'];
+    const isOriginMajor = majorCities.some(city => origin.includes(city));
+    const isDestMajor = majorCities.some(city => destination.includes(city));
+
+    // Between major cities
+    if (isOriginMajor && isDestMajor) {
+      return { success: true, fee: 300 };
+    }
+    // One major, one minor
+    if (isOriginMajor || isDestMajor) {
+      return { success: true, fee: 250 };
+    }
+    // Both minor towns
+    return { success: true, fee: 350 };
+
+  } catch (error) {
+    console.error('Error calculating delivery fee:', error);
+    return { success: false, error: error.message, fee: 200 };
+  }
+};
+
+// ============================================
+// PARCEL CREATION & TRACKING
+// ============================================
+
+/**
+ * Create a parcel booking with PickUp Mtaani
+ * Uses POST /packages/agent-agent with business ID in query param
+ */
+export const createParcel = async (parcelData) => {
+  try {
+    const {
+      businessId,
+      orderNumber,
+      senderAgentId,
+      receiverAgentId,
+      packageValue,
+      customerName,
+      packageName,
+      customerPhoneNumber,
+      paymentOption = 'Vendor',
+      onDeliveryBalance = 0,
+      paymentNumber = ''
+    } = parcelData;
+
+    const payload = {
+      receiverAgentId: receiverAgentId,
+      senderAgentId: senderAgentId,
+      packageValue: packageValue,
+      customerName: customerName,
+      packageName: packageName,
+      customerPhoneNumber: customerPhoneNumber,
+      paymentOption: paymentOption,
+      on_delivery_balance: onDeliveryBalance,
+      payment_number: paymentNumber || orderNumber
+    };
+
+    console.log('📦 Creating parcel with PickUp Mtaani:', { businessId, payload });
+
+    const response = await pickupMtaaniAPI.post('/packages/agent-agent', payload, {
+      params: { b_id: businessId }
+    });
+
+    const parcelInfo = response.data.data || response.data;
+    console.log('✅ Parcel created successfully:', parcelInfo);
 
     return {
       success: true,
-      trackingCode: result.trackingCode,
-      parcelId: result.parcelId,
-      originPoint: originPoint.shop_name,
-      destinationPoint: order.pickup_mtaani_destination_name
+      packageId: parcelInfo.id || parcelInfo.packageId,
+      trackingCode: parcelInfo.trackingCode || parcelInfo.tracking_code || parcelInfo.code,
+      businessId: businessId,
+      parcelData: parcelInfo
     };
 
   } catch (error) {
-    console.error('❌ Error creating PickUp Mtaani parcel:', error);
-    
-    // Don't throw error - just log it and return failure
-    // The order is already paid, so we don't want to block the flow
+    console.error('❌ Error creating parcel:', error.response?.data || error.message);
     return {
       success: false,
-      error: error.message
+      error: error.response?.data?.message || error.message,
+      details: error.response?.data
     };
   }
 };
 
 /**
- * Track a PickUp Mtaani parcel
+ * Track parcel status
  */
-export const trackPickupMtaaniParcel = async (trackingCode) => {
+export const trackParcel = async (packageId, businessId) => {
   try {
-    const response = await fetch(`${backendUrl}/pickup-mtaani/track/${trackingCode}`);
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to track parcel');
-    }
+    const response = await pickupMtaaniAPI.get('/packages/agent-agent', {
+      params: { id: packageId, b_id: businessId }
+    });
+    const parcelInfo = response.data.data || response.data;
 
     return {
       success: true,
-      status: data.status,
-      parcelData: data.parcelData
+      status: parcelInfo.status,
+      parcelData: parcelInfo
     };
 
   } catch (error) {
-    console.error('Error tracking parcel:', error);
-    return {
-      success: false,
-      error: error.message
-    };
+    console.error('Error tracking parcel:', error.response?.data || error.message);
+    return { success: false, error: error.message };
   }
 };
 
-/**
- * Get order tracking information
- */
-export const getOrderTrackingInfo = async (orderId) => {
-  try {
-    const response = await fetch(`${backendUrl}/pickup-mtaani/order/${orderId}/tracking`);
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'No tracking information available');
-    }
-
-    return {
-      success: true,
-      trackingCode: data.trackingCode,
-      status: data.status,
-      parcelData: data.parcelData
-    };
-
-  } catch (error) {
-    console.error('Error getting order tracking info:', error);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
+// ============================================
+// DEFAULT EXPORT (matches named exports)
+// ============================================
 
 export default {
-  createPickupMtaaniParcel,
-  trackPickupMtaaniParcel,
-  getOrderTrackingInfo
+  syncPickupPoints,
+  getPickupPoints,
+  searchNearestPoints,
+  searchNearestPointsByCoordinates,
+  calculateDeliveryFee,
+  createParcel,
+  trackParcel
 };
