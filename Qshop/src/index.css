@@ -210,6 +210,34 @@
   background: rgba(231, 198, 95, 0.7);
 }
 
+/* ── PickUp Mtaani Pickup Points Scrollbar ── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Dark mode scrollbar */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
 /* ── Light mode card elevation ─────────────────────────────────────────────── */
 /* Cards get a subtle shadow in light mode to lift off the warm background     */
 .light .card, :root:not(.dark) .card,
