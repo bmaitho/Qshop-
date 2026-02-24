@@ -57,7 +57,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              Your Student Marketplace
+              Your Marketplace
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Buy, sell, and discover great deals on fashion, gadgets, and campus must-haves—all in one Hive!
@@ -92,7 +92,7 @@ const Home = () => {
             Featured Shops
           </h2>
           <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Discover top Shops owned by students 
+            Discover top Shops owned by entrepreneurs
           </p>
         </div>
         

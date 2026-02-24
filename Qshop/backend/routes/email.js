@@ -499,7 +499,7 @@ router.post('/pickup-mtaani-seller-dropoff', async (req, res) => {
       </div>
     </div>
     <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Marketplace</p>
     </div>
   </div>
 </body>
@@ -649,7 +649,7 @@ router.post('/pickup-mtaani-buyer-confirmation', async (req, res) => {
       </div>
     </div>
     <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Marketplace</p>
     </div>
   </div>
 </body>

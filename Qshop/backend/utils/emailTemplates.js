@@ -75,14 +75,14 @@ export const confirmationEmailTemplate = (username, confirmationUrl) => {
   <div class="container">
     <div class="logo">
       <h2 style="color: #E7C65F; margin: 0;">UniHive</h2>
-      <p style="margin: 0; color: #0D2B20;">Student Marketplace</p>
+      <p style="margin: 0; color: #0D2B20;">Marketplace</p>
     </div>
     <div class="header">
       <h1>Confirm Your Email Address</h1>
     </div>
     <div class="content">
       <p>Hi ${username || 'there'},</p>
-      <p>Thank you for signing up for UniHive, the student marketplace. Please confirm your email address by clicking the button below:</p>
+      <p>Thank you for signing up for UniHive, the marketplace. Please confirm your email address by clicking the button below:</p>
       <div class="button-container">
         <a href="${confirmationUrl}" class="button">Confirm Email Address</a>
       </div>
@@ -108,7 +108,7 @@ export const confirmationEmailText = (username, confirmationUrl) => {
   return `
 Hi ${username || 'there'},
 
-Thank you for signing up for UniHive, the student marketplace. Please confirm your email address by clicking this link:
+Thank you for signing up for UniHive, the marketplace. Please confirm your email address by clicking this link:
 
 ${confirmationUrl}
 
@@ -201,20 +201,20 @@ export const welcomeEmailTemplate = (username, appUrl) => {
   <div class="container">
     <div class="logo">
       <h2 style="color: #E7C65F; margin: 0;">UniHive</h2>
-      <p style="margin: 0; color: #0D2B20;">Student Marketplace</p>
+      <p style="margin: 0; color: #0D2B20;">Marketplace</p>
     </div>
     <div class="header">
       <h1>Welcome to UniHive!</h1>
     </div>
     <div class="content">
       <p>Hi ${username || 'there'},</p>
-      <p>Thank you for confirming your email address. Your UniHive account is now active, and you can start using our student marketplace.</p>
+      <p>Thank you for confirming your email address. Your UniHive account is now active, and you can start using our marketplace.</p>
       <div class="button-container">
         <a href="${appUrl}" class="button">Visit UniHive</a>
       </div>
       <p>Here are some quick links to help you get started:</p>
       <ul>
-        <li>Browse products in the <a href="${appUrl}/studentmarketplace" class="link">Student Marketplace</a></li>
+        <li>Browse products in the <a href="${appUrl}/studentmarketplace" class="link">Marketplace</a></li>
         <li>Set up your <a href="${appUrl}/profile" class="link">Profile</a></li>
         <li>Start <a href="${appUrl}/myshop" class="link">Selling</a> your own items</li>
       </ul>
@@ -236,12 +236,12 @@ export const welcomeEmailText = (username, appUrl) => {
   return `
 Hi ${username || 'there'},
 
-Thank you for confirming your email address. Your UniHive account is now active, and you can start using our student marketplace.
+Thank you for confirming your email address. Your UniHive account is now active, and you can start using our marketplace.
 
 Visit UniHive: ${appUrl}
 
 Here are some quick links to help you get started:
-- Browse products in the Student Marketplace: ${appUrl}/studentmarketplace
+- Browse products in the Marketplace: ${appUrl}/studentmarketplace
 - Set up your Profile: ${appUrl}/profile
 - Start Selling your own items: ${appUrl}/myshop
 
@@ -336,7 +336,7 @@ export const passwordResetEmailTemplate = (username, resetUrl) => {
   <div class="container">
     <div class="logo">
       <h2 style="color: #E7C65F; margin: 0;">UniHive</h2>
-      <p style="margin: 0; color: #0D2B20;">Student Marketplace</p>
+      <p style="margin: 0; color: #0D2B20;">Marketplace</p>
     </div>
     <div class="header">
       <h1>Reset Your Password</h1>
@@ -911,7 +911,7 @@ export const newMessageEmailTemplate = (recipientName, senderName, messagePrevie
       </div>
     </div>
     <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} UniHive — The Student Marketplace</p>
+      <p>&copy; ${new Date().getFullYear()} UniHive — The Marketplace</p>
       <p>You received this because someone messaged you on UniHive.</p>
     </div>
   </div>

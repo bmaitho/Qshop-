@@ -192,7 +192,7 @@ const ProfileCompletion = ({ token }) => {
       <div className="max-w-md w-full px-4">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary dark:text-primary">UniHive</h1>
-          <p className="text-foreground/80 dark:text-foreground/80 mt-2">Student Marketplace</p>
+          <p className="text-foreground/80 dark:text-foreground/80 mt-2">Marketplace</p>
         </div>
         
         <Card className="bg-card dark:bg-card border-border dark:border-border">

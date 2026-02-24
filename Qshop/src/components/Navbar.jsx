@@ -148,7 +148,7 @@ const Navbar = () => {
   const navLinks = [
     { name: 'Home', path: '/home' },
     { 
-      name: 'Student Marketplace', 
+      name: 'Marketplace',
       path: '/studentmarketplace',
       highlight: false
     },
