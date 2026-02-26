@@ -23,7 +23,6 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
-import { getProductCardUrl } from '../utils/ImageUtils';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -117,8 +116,6 @@ const ProductCard = ({
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [imageError, setImageError] = useState(false);
   const navigate = useNavigate();
-  
-  const aspectRatioClass = "aspect-[4/3]";
 
   useEffect(() => {
     const status = isInWishlist(product.id);
@@ -195,17 +192,15 @@ const ProductCard = ({
 
   const getStatusBadge = () => {
     const statusConfig = {
-      active: { color: 'bg-green-500', text: 'Active' },
-      pending: { color: 'bg-yellow-500', text: 'Pending' },
-      sold: { color: 'bg-blue-500', text: 'Sold' },
-      inactive: { color: 'bg-gray-500', text: 'Inactive' }
+      active: { label: 'Active', variant: 'default', className: 'bg-green-500' },
+      inactive: { label: 'Inactive', variant: 'secondary', className: 'bg-gray-500' },
+      sold: { label: 'Sold', variant: 'destructive', className: 'bg-red-500' }
     };
-
-    const config = statusConfig[product.status] || statusConfig.active;
     
+    const config = statusConfig[product.status] || statusConfig.active;
     return (
-      <Badge className={`${config.color} text-white text-xs`}>
-        {config.text}
+      <Badge className={`${config.className} text-white text-xs`}>
+        {config.label}
       </Badge>
     );
   };
@@ -223,21 +218,15 @@ const ProductCard = ({
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              handleStatusChange(e, product.status === 'active' ? 'inactive' : 'active');
-            }}
-          >
-            {product.status === 'active' ? 'Mark as Inactive' : 'Mark as Active'}
+        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onClick={(e) => handleStatusChange(e, product.status === 'active' ? 'inactive' : 'active')}>
+            {product.status === 'active' ? 'Deactivate' : 'Activate'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
+          <DropdownMenuItem 
             className="text-red-600"
             onClick={(e) => {
-              e.stopPropagation();
-              if (window.confirm("Are you sure you want to delete this listing? This action cannot be undone.")) {
+              if (window.confirm('Are you sure you want to delete this product?')) {
                 handleDeleteClick(e);
               }
             }}
@@ -263,11 +252,12 @@ const ProductCard = ({
 
   return (
     <div 
-      className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden h-full cursor-pointer text-white`}
+      className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden cursor-pointer text-white flex flex-col`}
       onClick={handleProductClick}
     >
-      <div className="relative">
-        <div className={`${aspectRatioClass} w-full overflow-hidden bg-gray-100 dark:bg-gray-700`}>
+      {/* ── Image section ── fixed aspect ratio, never collapses ── */}
+      <div className="relative flex-shrink-0">
+        <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-700">
           <img 
             src={product.image_url || "/api/placeholder/400/300"} 
             alt={product.name}
@@ -295,13 +285,16 @@ const ProductCard = ({
         )}
       </div>
       
-      <div className="p-4 flex flex-col h-[calc(100%-33%)]">
-        <h3 className="font-serif font-medium text-sm line-clamp-1 text-primary dark:text-gray-100 mb-2">
+      {/* ── Content section ── flex-grow so it fills remaining space ── */}
+      <div className="p-3 sm:p-4 flex flex-col flex-grow min-h-0">
+        {/* Product name */}
+        <h3 className="font-serif font-medium text-sm line-clamp-1 text-primary dark:text-gray-100 mb-1.5">
           {product.name}
         </h3>
         
-        <div className="mb-3">
-          <span className="text-base font-bold block" style={{ color: '#E7C65F' }}>
+        {/* Price */}
+        <div className="mb-2">
+          <span className="text-sm sm:text-base font-bold block" style={{ color: '#E7C65F' }}>
             KES {product.price?.toLocaleString()}
           </span>
           {product.original_price && (
@@ -311,31 +304,34 @@ const ProductCard = ({
           )}
         </div>
         
-        <p className="text-xs text-primary/70 dark:text-gray-300 mb-3">
+        {/* Description */}
+        <p className="text-xs text-primary/70 dark:text-gray-300 mb-2">
           {truncateToThreeWords(product.description) || "No description available"}
         </p>
         
-        <div className="mb-3">
-          <div className="flex items-center gap-1 mb-2">
-            <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400" />
-            <span className="text-xs text-primary/70 dark:text-gray-400">
+        {/* Meta info */}
+        <div className="mb-2">
+          <div className="flex items-center gap-1 mb-1">
+            <Tag className="h-3 w-3 text-primary/60 dark:text-gray-400 flex-shrink-0" />
+            <span className="text-xs text-primary/70 dark:text-gray-400 truncate">
               {product.condition}
             </span>
           </div>
           
-          {/* NEW: Show shop locations instead of campus location */}
+          {/* Shop locations */}
           <ProductLocationsCompact productId={product.id} />
           
-          {/* FALLBACK: Show old campus location if no shop locations */}
+          {/* Fallback campus location */}
           {product.location && !product.id && (
             <div className="flex items-center gap-1 text-xs text-primary/60 dark:text-gray-500">
-              <MapPin className="h-3 w-3" />
-              <span>{product.location}</span>
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{product.location}</span>
             </div>
           )}
         </div>
         
-        <div className="mt-auto">
+        {/* ── Bottom actions ── mt-auto pushes to bottom of flex column ── */}
+        <div className="mt-auto pt-1">
           {product.seller_id && !isOwner && (
             <button 
               className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mb-2 block"
@@ -347,7 +343,7 @@ const ProductCard = ({
           
           {!isOwner && (
             <Button 
-              className="w-full text-sm py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80"
+              className="w-full py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80"
               onClick={handleAddToCart}
               disabled={product.status !== 'active'}
             >
