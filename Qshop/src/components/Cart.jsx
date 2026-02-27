@@ -205,7 +205,7 @@ const Cart = () => {
         supabase
           .from('orders')
           .select('id, created_at')
-          .eq('buyer_user_id', user.id)
+          .eq('user_id', user.id)
           .eq('payment_status', 'pending')
           .gte('created_at', thirtyMinutesAgo)
           .order('created_at', { ascending: false })
@@ -214,7 +214,7 @@ const Cart = () => {
         supabase
           .from('orders')
           .update({ payment_status: 'cancelled' })
-          .eq('buyer_user_id', user.id)
+          .eq('user_id', user.id)
           .eq('payment_status', 'pending')
           .lt('created_at', thirtyMinutesAgo)
       ]);
@@ -249,7 +249,7 @@ const Cart = () => {
 
         await Promise.all([
           supabase.from('order_items').insert(orderItems),
-          supabase.from('orders').update({ total_amount: newTotal }).eq('id', orderId)
+          supabase.from('orders').update({ amount: newTotal }).eq('id', orderId)
         ]);
 
       } else {
@@ -261,9 +261,11 @@ const Cart = () => {
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert([{
-            buyer_user_id: user.id,
-            total_amount: totalAmount,
-            payment_status: 'pending'
+            user_id: user.id,
+            amount: totalAmount,
+            payment_status: 'pending',
+            order_status: 'pending_payment',
+            created_at: new Date().toISOString()
           }])
           .select('id')
           .single();

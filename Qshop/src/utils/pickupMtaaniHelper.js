@@ -2,6 +2,7 @@
 // ✅ FIXED: Uses coordinate-based nearest-origin endpoint instead of text town search
 // ✅ FIXED: Explicit FK relationship hint for order_items
 // ✅ FIXED: profiles column names (phone not phone_number, no town column)
+// ✅ FIXED: paymentOption lowercase 'vendor' (API requires lowercase)
 // ✅ NEW: Saves origin point name/address so seller knows where to drop off
 // ✅ NEW: Sends email to seller with drop-off instructions + buyer confirmation
 
@@ -57,7 +58,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
     const seller = firstItem?.seller;
     if (!seller) throw new Error('Could not find seller information');
 
-    // 4. ✅ FIXED: Use smart coordinate-based nearest-origin endpoint
+    // 4. Use smart coordinate-based nearest-origin endpoint
     const productId = firstItem.products?.id || firstItem.product_id;
     const originResponse = await fetch(
       `${backendUrl}/pickup-mtaani/nearest-origin/${seller.id}?productId=${productId}&limit=1`
@@ -89,7 +90,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
       customerName: buyerProfile.full_name || 'UniHive Buyer',
       packageName: itemDescriptions.substring(0, 100),
       customerPhoneNumber: customerPhone,
-      paymentOption: 'Vendor',
+      paymentOption: 'vendor',  // ✅ FIX: lowercase required by PickUp Mtaani API
       onDeliveryBalance: 0,
       paymentNumber: order.id.substring(0, 8).toUpperCase()
     };
@@ -103,7 +104,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
     const result = await response.json();
     if (!result.success) throw new Error(result.error || 'Failed to create parcel');
 
-    console.log('✅ Parcel created:', result.trackingCode);
+    console.log('✅ Parcel created:', result.trackingCode || result.packageId);
 
     // 7. Save origin details to order
     await supabase
@@ -120,15 +121,16 @@ export const createPickupMtaaniParcel = async (orderId) => {
       .eq('id', orderId);
 
     // 8. Send emails
+    const trackingCode = result.trackingCode || result.packageId;
     await sendPickupMtaaniEmails({
       order, orderItems: order.order_items, seller, buyerProfile,
-      originPoint, trackingCode: result.trackingCode, itemDescriptions
+      originPoint, trackingCode, itemDescriptions
     });
 
     return {
       success: true,
-      trackingCode: result.trackingCode,
-      parcelId: result.parcelId,
+      trackingCode,
+      parcelId: result.parcelId || result.packageId,
       originPoint: originPoint.shop_name,
       destinationPoint: order.pickup_mtaani_destination_name
     };
