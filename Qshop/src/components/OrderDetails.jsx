@@ -196,28 +196,25 @@ const MessageThread = ({ messages, currentUserId, orderItem, onNewMessage }) => 
 
 // ─── PickUp Mtaani Tracking ───────────────────────────────────────────────────
 
-const TrackingCard = ({ order, onRefresh, trackingData, loading }) => {
-  if (order.delivery_method !== 'pickup_mtaani') return null;
+const TrackingCard = ({ order, parcels = [], onRefresh, loading }) => {
+  const hasParcels = parcels.length > 0;
+  const multiSeller = parcels.length > 1;
 
-  const statusLabel = TRACKING_LABELS[order.pickup_mtaani_status]
-    || order.pickup_mtaani_status
-    || 'Waiting for update';
-
-  const dotColor =
-    order.pickup_mtaani_status === 'delivered'      ? 'bg-green-500' :
-    order.pickup_mtaani_status === 'at_destination' ? 'bg-blue-500'  :
-    order.pickup_mtaani_status === 'in_transit'     ? 'bg-amber-500' :
-                                                      'bg-gray-300 dark:bg-gray-600';
   return (
     <Card className="border-blue-100 dark:border-blue-900/40 dark:bg-gray-800">
       <CardHeader className="pb-1 pt-3 px-4">
         <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-2">
           <Truck className="h-4 w-4" /> PickUp Mtaani Delivery
+          {multiSeller && (
+            <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+              {parcels.length} parcels
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-3">
 
-        {/* Pickup point */}
+        {/* Pickup point (shared — buyer's destination) */}
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3">
           <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mb-1">
             <MapPin className="h-3 w-3" /> Your Collection Point
@@ -237,44 +234,70 @@ const TrackingCard = ({ order, onRefresh, trackingData, loading }) => {
           )}
         </div>
 
-        {/* Tracking code */}
-        {order.pickup_mtaani_tracking_code ? (
-          <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/40 rounded-xl px-3 py-2.5">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">Tracking Code</p>
-              <p className="font-mono font-bold text-base text-gray-900 dark:text-gray-100 tracking-widest">
-                {order.pickup_mtaani_tracking_code}
-              </p>
+        {/* Per-seller parcel tracking */}
+        {hasParcels ? (
+          <div className="space-y-2">
+            {parcels.map((parcel, idx) => {
+              const statusColor =
+                parcel.status === 'delivered'       ? 'bg-green-500' :
+                parcel.status === 'at_destination'  ? 'bg-blue-500'  :
+                parcel.status === 'in_transit'      ? 'bg-amber-500' :
+                                                      'bg-gray-300 dark:bg-gray-600';
+              const statusLabel = TRACKING_LABELS[parcel.status] || parcel.status || 'Pending';
+
+              return (
+                <div key={parcel.trackingCode || idx} className="bg-gray-50 dark:bg-gray-900/40 rounded-xl px-3 py-2.5">
+                  {multiSeller && (
+                    <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                      From: {parcel.sellerName || `Seller ${idx + 1}`}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      {!multiSeller && (
+                        <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">Tracking Code</p>
+                      )}
+                      <p className="font-mono font-bold text-base text-gray-900 dark:text-gray-100 tracking-widest">
+                        {parcel.trackingCode}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${statusColor}`} />
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">{statusLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Refresh button */}
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading} className="h-7 px-2 text-xs">
+                <RefreshCw className={`h-3 w-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading} className="h-8 w-8 p-0">
-              <RefreshCw className={`h-3.5 w-3.5 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-3 py-2.5">
-            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-            Tracking code will appear once the seller drops off your parcel.
-          </div>
-        )}
-
-        {/* Status dot */}
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
-          <p className="text-xs text-gray-600 dark:text-gray-400">{statusLabel}</p>
-        </div>
-
-        {/* Live parcel data if available */}
-        {trackingData && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/30 rounded-xl p-3 space-y-1 border dark:border-gray-700">
-            {['status', 'current_location', 'updated_at', 'estimated_delivery'].map((k) =>
-              trackingData[k] ? (
-                <div key={k} className="flex justify-between gap-2">
-                  <span className="text-gray-400 capitalize">{k.replace(/_/g, ' ')}</span>
-                  <span className="text-gray-700 dark:text-gray-300 text-right">{String(trackingData[k])}</span>
-                </div>
-              ) : null
-            )}
-          </div>
+          /* Fallback: order-level tracking (backward compat) */
+          order.pickup_mtaani_tracking_code ? (
+            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-900/40 rounded-xl px-3 py-2.5">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">Tracking Code</p>
+                <p className="font-mono font-bold text-base text-gray-900 dark:text-gray-100 tracking-widest">
+                  {order.pickup_mtaani_tracking_code}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading} className="h-8 w-8 p-0">
+                <RefreshCw className={`h-3.5 w-3.5 text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-3 py-2.5">
+              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+              Tracking code will appear once the seller drops off your parcel.
+            </div>
+          )
         )}
       </CardContent>
     </Card>
@@ -411,6 +434,7 @@ const OrderDetails = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [trackingData, setTrackingData] = useState(null);
   const [loadingTracking, setLoadingTracking] = useState(false);
+  const [trackingParcels, setTrackingParcels] = useState([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
@@ -425,6 +449,19 @@ const OrderDetails = () => {
         .from('orders').select('*').eq('id', orderId).single();
       if (orderErr) throw orderErr;
       setOrder(orderData);
+
+      // Load per-seller tracking parcels for pickup_mtaani orders
+      if (orderData.delivery_method === 'pickup_mtaani') {
+        try {
+          const trackRes = await fetch(`${import.meta.env.VITE_API_URL}/pickup-mtaani/order/${orderId}/tracking`);
+          const trackData = await trackRes.json();
+          if (trackData.success && trackData.parcels) {
+            setTrackingParcels(trackData.parcels);
+          }
+        } catch (e) {
+          console.error('Failed to load tracking parcels:', e);
+        }
+      }
 
       // Order items — NO shop_name in profiles join
       const { data: items, error: itemsErr } = await supabase
@@ -464,13 +501,14 @@ const OrderDetails = () => {
   };
 
   const handleRefreshTracking = async () => {
-    if (!order?.pickup_mtaani_tracking_code) return;
     setLoadingTracking(true);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/pickup-mtaani/order/${orderId}/tracking`);
       const data = await res.json();
       if (data.success) {
-        setTrackingData(data.parcelData);
+        if (data.parcels && data.parcels.length > 0) {
+          setTrackingParcels(data.parcels);
+        }
         const { data: fresh } = await supabase.from('orders').select('*').eq('id', orderId).single();
         if (fresh) setOrder(fresh);
       }
@@ -649,8 +687,8 @@ const OrderDetails = () => {
               <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Delivery Tracking</p>
               <TrackingCard
                 order={order}
+                parcels={trackingParcels}
                 onRefresh={handleRefreshTracking}
-                trackingData={trackingData}
                 loading={loadingTracking}
               />
             </div>

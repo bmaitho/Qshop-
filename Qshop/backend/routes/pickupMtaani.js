@@ -3,6 +3,7 @@
 // ✅ FIX 2: Fixed FK ambiguity in confirm-parcel-creation (order_items!fk_order_items_order_id)
 // ✅ FIX 3: Fixed paymentOption 'Vendor' → 'vendor' (lowercase required by API)
 // ✅ FIX 4: Smart origin point selection using campus coordinates in confirm-parcel-creation
+// ✅ V2: Multi-seller support — one parcel per seller in confirm-parcel-creation + order tracking
 
 import express from 'express';
 import {
@@ -580,59 +581,152 @@ router.get('/track/:trackingCode', async (req, res) => {
   }
 });
 
+// ============================================
+// ✅ V2: ORDER TRACKING — Multi-Seller Support
+// ============================================
+
 /**
  * GET /api/pickup-mtaani/order/:orderId/tracking
+ * Returns tracking info for all parcels in an order (one per seller).
  */
 router.get('/order/:orderId/tracking', async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
+    // Get order-level info
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('pickup_mtaani_tracking_code, pickup_mtaani_parcel_id, pickup_mtaani_status, pickup_mtaani_business_id, pickup_mtaani_origin_id, pickup_mtaani_origin_name, pickup_mtaani_destination_id, pickup_mtaani_destination_name, delivery_method')
       .eq('id', orderId)
       .single();
-    
+
     if (orderError || !order) {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
-    
+
     if (order.delivery_method !== 'pickup_mtaani') {
       return res.status(400).json({ success: false, error: 'Not a PickUp Mtaani order' });
     }
-    
-    if (!order.pickup_mtaani_parcel_id && !order.pickup_mtaani_tracking_code) {
+
+    // Get per-seller tracking from order_items
+    const { data: items } = await supabase
+      .from('order_items')
+      .select('id, seller_id, pickup_mtaani_tracking_code, pickup_mtaani_parcel_id, pickup_mtaani_status, pickup_mtaani_business_id, pickup_mtaani_origin_name, pickup_mtaani_origin_address')
+      .eq('order_id', orderId)
+      .not('pickup_mtaani_tracking_code', 'is', null);
+
+    // Group by seller for unique parcels
+    const sellerParcels = new Map();
+    for (const item of (items || [])) {
+      if (!item.pickup_mtaani_tracking_code) continue;
+      if (!sellerParcels.has(item.seller_id)) {
+        sellerParcels.set(item.seller_id, {
+          sellerId: item.seller_id,
+          trackingCode: item.pickup_mtaani_tracking_code,
+          parcelId: item.pickup_mtaani_parcel_id,
+          status: item.pickup_mtaani_status,
+          businessId: item.pickup_mtaani_business_id,
+          originName: item.pickup_mtaani_origin_name,
+          originAddress: item.pickup_mtaani_origin_address
+        });
+      }
+    }
+
+    // If we have per-seller parcels, try live tracking for each
+    const parcels = [];
+    for (const [sellerId, parcel] of sellerParcels) {
+      let liveStatus = parcel.status;
+      let parcelData = null;
+
+      if (parcel.parcelId && parcel.businessId) {
+        try {
+          const trackResult = await trackParcel(parcel.parcelId, parcel.businessId);
+          if (trackResult.success) {
+            liveStatus = trackResult.status;
+            parcelData = trackResult.parcelData;
+
+            // Update order_items with latest status
+            await supabase
+              .from('order_items')
+              .update({ pickup_mtaani_status: liveStatus })
+              .eq('order_id', orderId)
+              .eq('seller_id', sellerId)
+              .not('pickup_mtaani_tracking_code', 'is', null);
+          }
+        } catch (e) {
+          console.error(`Tracking failed for parcel ${parcel.trackingCode}:`, e.message);
+        }
+      }
+
+      // Get seller name
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', sellerId)
+        .single();
+
+      parcels.push({
+        sellerId,
+        sellerName: sellerProfile?.full_name || 'Seller',
+        trackingCode: parcel.trackingCode,
+        parcelId: parcel.parcelId,
+        status: liveStatus,
+        originName: parcel.originName,
+        originAddress: parcel.originAddress,
+        parcelData
+      });
+    }
+
+    // Fallback: if no per-seller data, use order-level (backward compat)
+    if (parcels.length === 0 && order.pickup_mtaani_tracking_code) {
+      let liveStatus = order.pickup_mtaani_status || 'pending_pickup';
+      let parcelData = null;
+
+      if (order.pickup_mtaani_parcel_id && order.pickup_mtaani_business_id) {
+        const trackResult = await trackParcel(order.pickup_mtaani_parcel_id, order.pickup_mtaani_business_id);
+        if (trackResult.success) {
+          liveStatus = trackResult.status;
+          parcelData = trackResult.parcelData;
+        }
+      }
+
+      parcels.push({
+        sellerId: null,
+        sellerName: 'Seller',
+        trackingCode: order.pickup_mtaani_tracking_code,
+        parcelId: order.pickup_mtaani_parcel_id,
+        status: liveStatus,
+        originName: order.pickup_mtaani_origin_name,
+        parcelData
+      });
+    }
+
+    if (parcels.length === 0) {
       return res.status(200).json({
         success: true,
         trackingCode: null,
         status: 'awaiting_parcel_creation',
-        message: 'Parcel has not been created yet'
+        message: 'Parcel(s) have not been created yet',
+        parcels: []
       });
     }
-    
-    // Try live tracking
-    let trackingResult = { success: false };
-    if (order.pickup_mtaani_parcel_id && order.pickup_mtaani_business_id) {
-      trackingResult = await trackParcel(order.pickup_mtaani_parcel_id, order.pickup_mtaani_business_id);
-    }
-    
+
     return res.status(200).json({
       success: true,
-      trackingCode: order.pickup_mtaani_tracking_code,
-      parcelId: order.pickup_mtaani_parcel_id,
-      originName: order.pickup_mtaani_origin_name,
+      // Backward compat fields
+      trackingCode: order.pickup_mtaani_tracking_code || parcels[0]?.trackingCode,
+      parcelId: order.pickup_mtaani_parcel_id || parcels[0]?.parcelId,
+      originName: order.pickup_mtaani_origin_name || parcels[0]?.originName,
       destinationName: order.pickup_mtaani_destination_name,
-      status: trackingResult.success ? trackingResult.status : order.pickup_mtaani_status,
-      parcelData: trackingResult.parcelData
+      status: parcels[0]?.status || 'pending_pickup',
+      // New multi-seller fields
+      parcels,
+      totalParcels: parcels.length
     });
-    
+
   } catch (error) {
-    console.error('Error fetching order tracking:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      message: error.message
-    });
+    console.error('Error in order tracking:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -788,18 +882,19 @@ router.get('/test-connection', async (req, res) => {
 });
 
 // ============================================
-// ✅ FIX 2: CONFIRM PARCEL CREATION (FK + paymentOption + smart origin)
+// ✅ V2: CONFIRM PARCEL CREATION — Multi-Seller Support
 // ============================================
 
 /**
  * POST /api/pickup-mtaani/confirm-parcel-creation/:orderId
- * Manually trigger parcel creation for an order. Useful for retries.
+ * Creates one parcel PER SELLER for multi-shop orders.
+ * Stores tracking info on order_items (per-seller) + order (backward compat).
  */
 router.post('/confirm-parcel-creation/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
 
-    // ✅ FIX 2a: Use explicit FK hint to avoid ambiguity error
+    // 1. Fetch order with items
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('*, order_items!fk_order_items_order_id(*, products(name))')
@@ -812,26 +907,11 @@ router.post('/confirm-parcel-creation/:orderId', async (req, res) => {
     }
 
     if (order.delivery_method !== 'pickup_mtaani') {
-      return res.status(400).json({
-        success: false,
-        error: 'Order does not use PickUp Mtaani delivery'
-      });
-    }
-
-    if (order.pickup_mtaani_tracking_code) {
-      return res.status(200).json({
-        success: true,
-        skipped: true,
-        message: 'Parcel already created',
-        trackingCode: order.pickup_mtaani_tracking_code
-      });
+      return res.status(400).json({ success: false, error: 'Order does not use PickUp Mtaani delivery' });
     }
 
     if (!order.pickup_mtaani_destination_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'No destination pickup point set for this order'
-      });
+      return res.status(400).json({ success: false, error: 'No destination pickup point set for this order' });
     }
 
     // Fetch buyer profile
@@ -841,107 +921,180 @@ router.post('/confirm-parcel-creation/:orderId', async (req, res) => {
       .eq('id', order.user_id)
       .single();
 
-    // Find seller
-    const firstItem = order.order_items?.[0];
-    if (!firstItem) {
-      return res.status(400).json({ success: false, error: 'No order items found' });
-    }
-
-    const { data: sellerProfile } = await supabase
-      .from('profiles')
-      .select('full_name, phone, campus_location')
-      .eq('id', firstItem.seller_id)
-      .single();
-
-    // ✅ FIX 2b: Smart origin point selection using campus coordinates
-    let originPoint = null;
-
-    if (sellerProfile?.campus_location) {
-      const coords = getCampusCoordinates(sellerProfile.campus_location);
-      if (coords) {
-        console.log(`📍 Seller campus "${sellerProfile.campus_location}" → ${coords.latitude}, ${coords.longitude}`);
-        const nearbyResult = await searchNearestPointsByCoordinates(coords.latitude, coords.longitude, 20, 1);
-        if (nearbyResult.success && nearbyResult.points.length > 0) {
-          originPoint = nearbyResult.points[0];
-          console.log(`📍 Found nearby origin: "${originPoint.shop_name}" (${originPoint.distance?.toFixed(2)}km)`);
-        }
-      }
-    }
-
-    // Fallback to any active point
-    if (!originPoint) {
-      const { data: fallbackPoints } = await supabase
-        .from('pickup_mtaani_points')
-        .select('shop_id, shop_name')
-        .eq('is_active', true)
-        .not('latitude', 'is', null)
-        .limit(1);
-
-      originPoint = fallbackPoints?.[0];
-    }
-
-    if (!originPoint) {
-      return res.status(500).json({ success: false, error: 'No origin PickUp Mtaani point found' });
-    }
-
     const businessId = process.env.PICKUP_MTAANI_BUSINESS_ID
       ? parseInt(process.env.PICKUP_MTAANI_BUSINESS_ID)
       : 77680;
-
-    const itemDescription = order.order_items
-      .map(i => `${i.quantity}x ${i.products?.name || 'Item'}`)
-      .join(', ')
-      .substring(0, 100);
 
     const customerPhone = (buyer?.phone || order.phone_number || '')
       .replace(/\+/g, '')
       .replace(/^0/, '254');
 
-    const parcelData = {
-      businessId,
-      orderNumber: order.id.substring(0, 8).toUpperCase(),
-      senderAgentId: originPoint.shop_id,
-      receiverAgentId: order.pickup_mtaani_destination_id,
-      packageValue: Math.round(order.amount || 0),
-      customerName: buyer?.full_name || 'UniHive Customer',
-      packageName: itemDescription || 'UniHive Order',
-      customerPhoneNumber: customerPhone,
-      paymentOption: 'vendor',  // ✅ FIX 3: lowercase
-      onDeliveryBalance: 0,
-      paymentNumber: order.id.substring(0, 8).toUpperCase()
-    };
-
-    console.log('📦 Creating parcel:', parcelData);
-
-    const result = await createParcel(parcelData);
-
-    if (!result.success) {
-      return res.status(500).json({
-        success: false,
-        error: 'PickUp Mtaani parcel creation failed',
-        details: result
-      });
+    // 2. Group order items by seller
+    const sellerGroups = new Map();
+    for (const item of (order.order_items || [])) {
+      const sid = item.seller_id;
+      if (!sid) continue;
+      if (!sellerGroups.has(sid)) {
+        sellerGroups.set(sid, []);
+      }
+      sellerGroups.get(sid).push(item);
     }
 
-    // Update order with tracking info
-    await supabase
-      .from('orders')
-      .update({
-        pickup_mtaani_tracking_code: result.trackingCode,
-        pickup_mtaani_parcel_id: result.packageId,
-        pickup_mtaani_status: 'pending_pickup',
-        pickup_mtaani_origin_id: originPoint.shop_id,
-        pickup_mtaani_origin_name: originPoint.shop_name,
-        pickup_mtaani_business_id: businessId,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId);
+    if (sellerGroups.size === 0) {
+      return res.status(400).json({ success: false, error: 'No order items found' });
+    }
+
+    console.log(`📦 Order ${orderId} has ${sellerGroups.size} seller(s)`);
+
+    const results = [];
+    let firstTrackingCode = null;
+    let firstOriginPoint = null;
+
+    // 3. Create one parcel per seller
+    for (const [sellerId, items] of sellerGroups) {
+      try {
+        // Check if these items already have tracking (retry safety)
+        const alreadyTracked = items.some(i => i.pickup_mtaani_tracking_code);
+        if (alreadyTracked) {
+          console.log(`✓ Seller ${sellerId} items already tracked, skipping`);
+          results.push({ sellerId, success: true, skipped: true });
+          continue;
+        }
+
+        // Get seller profile
+        const { data: sellerProfile } = await supabase
+          .from('profiles')
+          .select('full_name, phone, campus_location')
+          .eq('id', sellerId)
+          .single();
+
+        // Find origin point for this seller
+        let originPoint = null;
+
+        if (sellerProfile?.campus_location) {
+          const coords = getCampusCoordinates(sellerProfile.campus_location);
+          if (coords) {
+            console.log(`📍 Seller "${sellerProfile.full_name}" campus → ${coords.latitude}, ${coords.longitude}`);
+            const nearbyResult = await searchNearestPointsByCoordinates(coords.latitude, coords.longitude, 20, 1);
+            if (nearbyResult.success && nearbyResult.points.length > 0) {
+              originPoint = nearbyResult.points[0];
+            }
+          }
+        }
+
+        // Fallback to any active point
+        if (!originPoint) {
+          const { data: fallbackPoints } = await supabase
+            .from('pickup_mtaani_points')
+            .select('shop_id, shop_name, street_address, town')
+            .eq('is_active', true)
+            .not('latitude', 'is', null)
+            .limit(1);
+          originPoint = fallbackPoints?.[0];
+        }
+
+        if (!originPoint) {
+          console.error(`⚠️ No origin point for seller ${sellerId}`);
+          results.push({ sellerId, success: false, error: 'No origin point found' });
+          continue;
+        }
+
+        // Build parcel data for this seller's items
+        const itemDescription = items
+          .map(i => `${i.quantity}x ${i.products?.name || 'Item'}`)
+          .join(', ')
+          .substring(0, 100);
+
+        const sellerSubtotal = items.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
+
+        const parcelData = {
+          businessId,
+          orderNumber: `${order.id.substring(0, 6)}-${sellerId.substring(0, 2)}`.toUpperCase(),
+          senderAgentId: originPoint.shop_id,
+          receiverAgentId: order.pickup_mtaani_destination_id,
+          packageValue: Math.round(sellerSubtotal || 0),
+          customerName: buyer?.full_name || 'UniHive Customer',
+          packageName: itemDescription || 'UniHive Order',
+          customerPhoneNumber: customerPhone,
+          paymentOption: 'vendor',
+          onDeliveryBalance: 0,
+          paymentNumber: `${order.id.substring(0, 6)}-${sellerId.substring(0, 2)}`.toUpperCase()
+        };
+
+        console.log(`📦 Creating parcel for seller ${sellerProfile?.full_name || sellerId}:`, parcelData);
+        const result = await createParcel(parcelData);
+
+        if (!result.success) {
+          console.error(`⚠️ Parcel failed for seller ${sellerId}:`, result.error);
+          results.push({ sellerId, success: false, error: result.error });
+          continue;
+        }
+
+        const trackingCode = result.trackingCode;
+        const parcelId = result.packageId;
+
+        // Track first seller for backward compat
+        if (!firstTrackingCode) {
+          firstTrackingCode = trackingCode;
+          firstOriginPoint = originPoint;
+        }
+
+        // Update order_items with per-seller tracking
+        const itemIds = items.map(i => i.id);
+        await supabase
+          .from('order_items')
+          .update({
+            pickup_mtaani_tracking_code: trackingCode,
+            pickup_mtaani_parcel_id: parcelId,
+            pickup_mtaani_origin_id: originPoint.shop_id,
+            pickup_mtaani_origin_name: originPoint.shop_name,
+            pickup_mtaani_origin_address: originPoint.street_address || originPoint.town,
+            pickup_mtaani_status: 'pending_pickup',
+            pickup_mtaani_business_id: businessId,
+            updated_at: new Date().toISOString()
+          })
+          .in('id', itemIds);
+
+        results.push({
+          sellerId,
+          sellerName: sellerProfile?.full_name,
+          success: true,
+          trackingCode,
+          parcelId
+        });
+
+        console.log(`✅ Parcel for seller "${sellerProfile?.full_name}": ${trackingCode}`);
+
+      } catch (sellerErr) {
+        console.error(`⚠️ Error for seller ${sellerId}:`, sellerErr.message);
+        results.push({ sellerId, success: false, error: sellerErr.message });
+      }
+    }
+
+    // 4. Update order-level tracking (backward compat)
+    if (firstTrackingCode) {
+      await supabase
+        .from('orders')
+        .update({
+          pickup_mtaani_tracking_code: firstTrackingCode,
+          pickup_mtaani_parcel_id: results.find(r => r.success && r.parcelId)?.parcelId || null,
+          pickup_mtaani_status: 'pending_pickup',
+          pickup_mtaani_origin_id: firstOriginPoint?.shop_id,
+          pickup_mtaani_origin_name: firstOriginPoint?.shop_name,
+          pickup_mtaani_business_id: businessId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+    }
+
+    const successCount = results.filter(r => r.success && !r.skipped).length;
+    const skippedCount = results.filter(r => r.skipped).length;
 
     return res.status(200).json({
-      success: true,
-      message: 'Parcel created successfully',
-      trackingCode: result.trackingCode,
-      parcelId: result.packageId
+      success: successCount > 0 || skippedCount > 0,
+      message: `Created ${successCount} parcel(s), ${skippedCount} skipped`,
+      parcels: results,
+      trackingCode: firstTrackingCode // backward compat
     });
 
   } catch (error) {

@@ -302,25 +302,73 @@ const OrderConfirmation = () => {
             </h2>
 
             {order.delivery_method === 'pickup_mtaani' ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm font-semibold text-blue-800 mb-1">Your PickUp Mtaani Collection Point</p>
-                <p className="font-medium text-gray-900">{order.pickup_mtaani_destination_name || 'Pending assignment'}</p>
-                {order.pickup_mtaani_destination_address && (
-                  <p className="text-sm text-gray-600 mt-0.5">{order.pickup_mtaani_destination_address}</p>
-                )}
-                {order.pickup_mtaani_destination_town && (
-                  <p className="text-sm text-gray-500">{order.pickup_mtaani_destination_town}</p>
-                )}
-                {order.pickup_mtaani_tracking_code ? (
-                  <div className="mt-3 bg-white border border-blue-200 rounded p-2">
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Tracking Code</p>
-                    <p className="font-mono font-bold text-gray-900">{order.pickup_mtaani_tracking_code}</p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-amber-600 mt-2">
-                    ⏳ Tracking code will be added once the seller drops off your parcel.
-                  </p>
-                )}
+              <div className="space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-blue-800 mb-1">Your PickUp Mtaani Collection Point</p>
+                  <p className="font-medium text-gray-900">{order.pickup_mtaani_destination_name || 'Pending assignment'}</p>
+                  {order.pickup_mtaani_destination_address && (
+                    <p className="text-sm text-gray-600 mt-0.5">{order.pickup_mtaani_destination_address}</p>
+                  )}
+                  {order.pickup_mtaani_destination_town && (
+                    <p className="text-sm text-gray-500">{order.pickup_mtaani_destination_town}</p>
+                  )}
+                </div>
+
+                {/* Per-seller tracking codes */}
+                {(() => {
+                  const sellerParcels = new Map();
+                  for (const item of orderItems) {
+                    if (item.pickup_mtaani_tracking_code && !sellerParcels.has(item.seller_id)) {
+                      sellerParcels.set(item.seller_id, {
+                        trackingCode: item.pickup_mtaani_tracking_code,
+                        originName: item.pickup_mtaani_origin_name,
+                        sellerName: item.seller?.full_name || 'Seller',
+                        status: item.pickup_mtaani_status
+                      });
+                    }
+                  }
+
+                  if (sellerParcels.size > 0) {
+                    return (
+                      <div className="space-y-2">
+                        {sellerParcels.size > 1 && (
+                          <p className="text-xs text-gray-500">
+                            Your order has {sellerParcels.size} parcels from different sellers:
+                          </p>
+                        )}
+                        {Array.from(sellerParcels.entries()).map(([sellerId, parcel]) => (
+                          <div key={sellerId} className="bg-white border border-blue-200 rounded p-3">
+                            {sellerParcels.size > 1 && (
+                              <p className="text-xs text-gray-500 mb-1">From: {parcel.sellerName}</p>
+                            )}
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">Tracking Code</p>
+                            <p className="font-mono font-bold text-gray-900">{parcel.trackingCode}</p>
+                            {parcel.originName && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Drop-off: {parcel.originName}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  if (order.pickup_mtaani_tracking_code) {
+                    return (
+                      <div className="bg-white border border-blue-200 rounded p-2">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Tracking Code</p>
+                        <p className="font-mono font-bold text-gray-900">{order.pickup_mtaani_tracking_code}</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <p className="text-xs text-amber-600 mt-2">
+                      ⏳ Tracking code will be added once the seller drops off your parcel.
+                    </p>
+                  );
+                })()}
               </div>
             ) : (
               <div className="space-y-3">

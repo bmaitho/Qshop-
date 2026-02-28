@@ -427,7 +427,7 @@ const SellerOrderDetail = () => {
         </CardContent>
       </Card>
 
-      {/* PickUp Mtaani Drop-off Instructions */}
+      {/* PickUp Mtaani Drop-off Instructions — reads from orderItem (per-seller) */}
       {order?.delivery_method === 'pickup_mtaani' && (
         <Card className="mb-6 border-2 border-blue-300 dark:border-blue-700">
           <CardHeader>
@@ -437,30 +437,30 @@ const SellerOrderDetail = () => {
             </h3>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Drop-off location */}
+            {/* Drop-off location — from orderItem (this seller's origin) or fallback to order */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
               <p className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wide font-semibold mb-2">
                 Your Drop-off Point
               </p>
               <p className="font-bold text-lg text-gray-900 dark:text-gray-100">
-                {order.pickup_mtaani_origin_name || 'Pending — check back soon'}
+                {orderItem.pickup_mtaani_origin_name || order.pickup_mtaani_origin_name || 'Pending — check back soon'}
               </p>
-              {order.pickup_mtaani_origin_address && (
+              {(orderItem.pickup_mtaani_origin_address || order.pickup_mtaani_origin_address) && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
                   <MapPin className="h-3.5 w-3.5" />
-                  {order.pickup_mtaani_origin_address}
+                  {orderItem.pickup_mtaani_origin_address || order.pickup_mtaani_origin_address}
                 </p>
               )}
             </div>
 
-            {/* Tracking code */}
-            {order.pickup_mtaani_tracking_code ? (
+            {/* Tracking code — from orderItem (this seller's parcel) or fallback to order */}
+            {(orderItem.pickup_mtaani_tracking_code || order.pickup_mtaani_tracking_code) ? (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 text-center">
                 <p className="text-xs text-green-600 dark:text-green-400 uppercase tracking-wide font-semibold mb-1">
-                  Tracking Code
+                  Your Tracking Code
                 </p>
                 <p className="font-mono font-bold text-2xl text-green-800 dark:text-green-200 tracking-widest">
-                  {order.pickup_mtaani_tracking_code}
+                  {orderItem.pickup_mtaani_tracking_code || order.pickup_mtaani_tracking_code}
                 </p>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                   Share this with the PickUp Mtaani agent when dropping off
@@ -498,8 +498,8 @@ const SellerOrderDetail = () => {
               </p>
               <ul className="text-sm text-amber-700 dark:text-amber-300 mt-1 space-y-1 ml-4 list-disc">
                 <li>Package the item securely</li>
-                <li>Take it to <strong>{order.pickup_mtaani_origin_name || 'your nearest PickUp Mtaani agent'}</strong></li>
-                <li>Give the agent tracking code: <strong>{order.pickup_mtaani_tracking_code || 'pending'}</strong></li>
+                <li>Take it to <strong>{orderItem.pickup_mtaani_origin_name || order.pickup_mtaani_origin_name || 'your nearest PickUp Mtaani agent'}</strong></li>
+                <li>Give the agent tracking code: <strong>{orderItem.pickup_mtaani_tracking_code || order.pickup_mtaani_tracking_code || 'pending'}</strong></li>
                 <li>Please drop off within <strong>48 hours</strong></li>
               </ul>
             </div>
