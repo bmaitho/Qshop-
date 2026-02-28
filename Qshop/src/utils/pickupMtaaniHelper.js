@@ -112,7 +112,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
         const originPoint = originData.points[0];
         console.log(`📍 Seller "${seller.full_name}" → Origin: "${originPoint.shop_name}" (${originPoint.distance_km}km)`);
 
-        // 4b. Prepare parcel data for this seller's items
+        // 4b. Prepare parcel data — includes sellerId + itemIds for backend
         const itemDescriptions = items
           .map(item => `${item.quantity}x ${item.products?.name || 'Product'}`)
           .join(', ');
@@ -121,6 +121,8 @@ export const createPickupMtaaniParcel = async (orderId) => {
 
         const customerPhone = (buyerProfile.phone || order.phone_number || '')
           .replace(/\+/g, '').replace(/^0/, '254');
+
+        const itemIds = items.map(i => i.id);
 
         const parcelData = {
           orderId: order.id,
@@ -134,10 +136,13 @@ export const createPickupMtaaniParcel = async (orderId) => {
           customerPhoneNumber: customerPhone,
           paymentOption: 'vendor',
           onDeliveryBalance: 0,
-          paymentNumber: `${order.id.substring(0, 6)}-${seller.id.substring(0, 2)}`.toUpperCase()
+          paymentNumber: `${order.id.substring(0, 6)}-${seller.id.substring(0, 2)}`.toUpperCase(),
+          // per-seller tracking fields — backend handles the order_items update
+          sellerId: seller.id,
+          itemIds: itemIds
         };
 
-        // 4c. Create parcel via backend
+        // 4c. Create parcel via backend (also updates order_items server-side)
         const response = await fetch(`${backendUrl}/pickup-mtaani/create-parcel`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -161,21 +166,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
           firstOriginPoint = originPoint;
         }
 
-        // 4d. Update order_items with per-seller tracking info
-        const itemIds = items.map(i => i.id);
-        await supabase
-          .from('order_items')
-          .update({
-            pickup_mtaani_tracking_code: trackingCode,
-            pickup_mtaani_parcel_id: parcelId,
-            pickup_mtaani_origin_id: originPoint.shop_id,
-            pickup_mtaani_origin_name: originPoint.shop_name,
-            pickup_mtaani_origin_address: originPoint.street_address || originPoint.town,
-            pickup_mtaani_status: 'pending_pickup',
-            pickup_mtaani_business_id: 77680,
-            updated_at: new Date().toISOString()
-          })
-          .in('id', itemIds);
+        // 4d. REMOVED — order_items update is handled server-side in /create-parcel
 
         // 4e. Send drop-off email to this seller
         try {

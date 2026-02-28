@@ -26,6 +26,7 @@ import {
   Star
 } from 'lucide-react';
 import { getDisplayInfo } from '../utils/communicationUtils';
+import { sendMessageEmail } from '../utils/sendMessageEmail';
 
 const SellerOrderDetail = () => {
   const { id } = useParams();
@@ -269,7 +270,17 @@ const SellerOrderDetail = () => {
         .eq('id', id);
 
       if (updateError) throw updateError;
-      
+
+      // Send email notification to buyer (fire-and-forget)
+      sendMessageEmail({
+        recipientId: orderItem.buyer_user_id,
+        senderName: senderInfo.name,
+        messageText: message.trim(),
+        orderItemId: orderItem.id,
+        orderId: orderItem.order_id,
+        productId: orderItem.product_id,
+      });
+
       setMessage('');
       toast.success("Message sent successfully! Waiting for buyer response.");
       fetchOrderDetails();

@@ -464,6 +464,22 @@ router.post('/calculate-fee', async (req, res) => {
 
 /**
  * POST /api/pickup-mtaani/create-parcel
+ *
+ * Body params:
+ *   orderId          — required
+ *   businessId       — required
+ *   senderAgentId    — required
+ *   receiverAgentId  — required
+ *   packageValue     — required
+ *   customerName     — required
+ *   customerPhoneNumber — required
+ *   orderNumber      — optional
+ *   packageName      — optional
+ *   paymentOption    — optional, defaults to 'vendor'
+ *   onDeliveryBalance — optional
+ *   paymentNumber    — optional
+ *   sellerId         — optional, seller UUID for per-seller tracking
+ *   itemIds          — optional, array of order_item UUIDs for this seller
  */
 router.post('/create-parcel', async (req, res) => {
   try {
@@ -479,17 +495,19 @@ router.post('/create-parcel', async (req, res) => {
       customerPhoneNumber,
       paymentOption,
       onDeliveryBalance,
-      paymentNumber
+      paymentNumber,
+      // per-seller fields
+      sellerId,
+      itemIds
     } = req.body;
-    
-    if (!orderId || !businessId || !senderAgentId || !receiverAgentId || 
+
+    if (!orderId || !businessId || !senderAgentId || !receiverAgentId ||
         !packageValue || !customerName || !customerPhoneNumber) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
-    
-    console.log(`📦 Creating parcel for order ${orderNumber || orderId}...`);
-    
-    // ✅ FIX 3: Force lowercase paymentOption
+
+    console.log(`📦 Creating parcel for order ${orderNumber || orderId}${sellerId ? ` (seller: ${sellerId.substring(0,8)})` : ''}...`);
+
     const result = await createParcel({
       businessId,
       orderNumber: orderNumber || orderId,
@@ -503,7 +521,7 @@ router.post('/create-parcel', async (req, res) => {
       onDeliveryBalance: onDeliveryBalance || 0,
       paymentNumber: paymentNumber || orderNumber || orderId
     });
-    
+
     if (!result.success) {
       return res.status(500).json({
         success: false,
@@ -511,32 +529,105 @@ router.post('/create-parcel', async (req, res) => {
         details: result.details
       });
     }
-    
-    // Update order in database
+
+    const trackingCode = result.trackingCode;
+    const packageId = result.packageId;
+
+    // Look up origin point details for seller display
+    let originName = null;
+    let originAddress = null;
+    try {
+      const { data: originPoint } = await supabase
+        .from('pickup_mtaani_points')
+        .select('shop_name, street_address, town')
+        .eq('shop_id', senderAgentId)
+        .single();
+      if (originPoint) {
+        originName = originPoint.shop_name;
+        originAddress = originPoint.street_address || originPoint.town;
+      }
+    } catch (e) {
+      console.warn('Could not fetch origin point details:', e.message);
+    }
+
+    // Update orders table (backward compat)
     const { error: updateError } = await supabase
       .from('orders')
       .update({
-        pickup_mtaani_tracking_code: result.trackingCode,
-        pickup_mtaani_parcel_id: result.packageId,
+        pickup_mtaani_tracking_code: trackingCode,
+        pickup_mtaani_parcel_id: packageId,
         pickup_mtaani_business_id: businessId,
         pickup_mtaani_origin_id: senderAgentId,
+        pickup_mtaani_origin_name: originName,
+        pickup_mtaani_origin_address: originAddress,
         pickup_mtaani_destination_id: receiverAgentId,
         pickup_mtaani_status: 'pending_pickup'
       })
       .eq('id', orderId);
-    
+
     if (updateError) {
       console.error('Error updating order with tracking info:', updateError);
     }
-    
+
+    // Update order_items with per-seller tracking
+    const trackingData = {
+      pickup_mtaani_tracking_code: trackingCode,
+      pickup_mtaani_parcel_id: packageId,
+      pickup_mtaani_business_id: businessId,
+      pickup_mtaani_origin_id: senderAgentId,
+      pickup_mtaani_origin_name: originName,
+      pickup_mtaani_origin_address: originAddress,
+      pickup_mtaani_status: 'pending_pickup',
+      updated_at: new Date().toISOString()
+    };
+
+    if (itemIds && Array.isArray(itemIds) && itemIds.length > 0) {
+      // Per-seller: update only this seller's items
+      const { error: itemsError, count } = await supabase
+        .from('order_items')
+        .update(trackingData)
+        .in('id', itemIds);
+
+      if (itemsError) {
+        console.error('Error updating order_items (per-seller):', itemsError);
+      } else {
+        console.log(`✅ Updated ${count || itemIds.length} order_items for seller ${sellerId?.substring(0,8) || 'unknown'}`);
+      }
+    } else if (sellerId) {
+      // Fallback: update by seller_id + order_id
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .update(trackingData)
+        .eq('order_id', orderId)
+        .eq('seller_id', sellerId);
+
+      if (itemsError) {
+        console.error('Error updating order_items (by seller_id):', itemsError);
+      } else {
+        console.log(`✅ Updated order_items for seller ${sellerId.substring(0,8)} on order ${orderId.substring(0,8)}`);
+      }
+    } else {
+      // Last resort: update all items in this order
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .update(trackingData)
+        .eq('order_id', orderId);
+
+      if (itemsError) {
+        console.error('Error updating order_items (all items):', itemsError);
+      } else {
+        console.log(`✅ Updated ALL order_items for order ${orderId.substring(0,8)}`);
+      }
+    }
+
     return res.status(200).json({
       success: true,
-      trackingCode: result.trackingCode,
-      packageId: result.packageId,
+      trackingCode,
+      packageId,
       businessId: result.businessId,
       message: 'Parcel created successfully'
     });
-    
+
   } catch (error) {
     console.error('Error in create-parcel endpoint:', error);
     return res.status(500).json({
