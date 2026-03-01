@@ -817,7 +817,7 @@ const SignUp = () => {
                 <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a   
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf"
+                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(3).pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
