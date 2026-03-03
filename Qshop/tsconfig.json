@@ -26,6 +26,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "backend/utils", "backend/supabaseClient.js"],
+  "include": ["src", "backend/utils", "backend/supabaseClient.js", "backend/script.js"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
