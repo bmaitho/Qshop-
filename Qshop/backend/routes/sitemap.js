@@ -6,8 +6,8 @@ const router = express.Router();
 router.get('/sitemap.xml', async (req, res) => {
   try {
     const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY
+      process.env.VITE_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     // Fetch active products
