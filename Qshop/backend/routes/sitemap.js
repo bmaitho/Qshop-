@@ -26,18 +26,13 @@ router.get('/sitemap.xml', async (req, res) => {
     let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://unihive.shop/</loc>
+    <loc>https://unihive.shop/home</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://unihive.shop/products</loc>
+    <loc>https://unihive.shop/studentmarketplace</loc>
     <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://unihive.shop/shops</loc>
-    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 `;
@@ -47,7 +42,7 @@ router.get('/sitemap.xml', async (req, res) => {
       products.forEach(product => {
         const lastmod = new Date(product.updated_at).toISOString().split('T')[0];
         sitemap += `  <url>
-    <loc>https://unihive.shop/products/${product.id}</loc>
+    <loc>https://unihive.shop/product/${product.id}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -61,7 +56,7 @@ router.get('/sitemap.xml', async (req, res) => {
       shops.forEach(shop => {
         const lastmod = new Date(shop.updated_at).toISOString().split('T')[0];
         sitemap += `  <url>
-    <loc>https://unihive.shop/shops/${shop.id}</loc>
+    <loc>https://unihive.shop/seller/${shop.id}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>

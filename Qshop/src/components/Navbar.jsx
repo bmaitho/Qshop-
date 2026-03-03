@@ -327,7 +327,7 @@ const Navbar = () => {
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <Link to="/">
+                <Link to="/auth">
                   <Button className="bg-secondary text-primary hover:bg-secondary/90 dark:bg-secondary dark:text-primary dark:hover:bg-secondary/90">Sign In</Button>
                 </Link>
               )}

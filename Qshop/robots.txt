@@ -1,8 +1,15 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard
+Disallow: /auth
 Disallow: /checkout
 Disallow: /orders
 Disallow: /messages
+Disallow: /profile
+Disallow: /myshop
+Disallow: /my-orders
+Disallow: /subscription
+Disallow: /admin
+Disallow: /cart
+Disallow: /wishlist
 
 Sitemap: https://unihive.shop/sitemap.xml
