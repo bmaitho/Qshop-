@@ -204,7 +204,59 @@ export const handleCallback = async (req, res) => {
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
       console.log(`Looking for order with CheckoutRequestID: ${CheckoutRequestID}`);
 
-      // Find the order by the CheckoutRequestID
+      // ── Check service_bookings first (services checkout)
+      const { data: serviceBookings } = await supabase
+        .from('service_bookings')
+        .select('*')
+        .eq('checkout_request_id', CheckoutRequestID);
+
+      if (serviceBookings && serviceBookings.length > 0) {
+        const booking = serviceBookings[0];
+        if (ResultCode === 0 && CallbackMetadata) {
+          const items = CallbackMetadata.Item || [];
+          const mpesaReceiptNumber = items.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
+          const phoneNumber = items.find(i => i.Name === 'PhoneNumber')?.Value;
+          const amount = items.find(i => i.Name === 'Amount')?.Value;
+
+          const newStatus = booking.payment_type === 'deposit' ? 'balance_due' : 'confirmed';
+
+          await supabase
+            .from('service_bookings')
+            .update({
+              payment_status: 'completed',
+              booking_status: newStatus,
+              mpesa_receipt: mpesaReceiptNumber,
+              amount_paid: amount || booking.amount_due,
+              phone_number: phoneNumber ? phoneNumber.toString() : booking.phone_number,
+              payment_date: new Date().toISOString(),
+            })
+            .eq('id', booking.id);
+
+          // Insert payment audit record
+          await supabase
+            .from('service_booking_payments')
+            .insert({
+              booking_id: booking.id,
+              payment_type: booking.payment_type,
+              amount: booking.amount_due,
+              mpesa_receipt: mpesaReceiptNumber,
+              checkout_request_id: CheckoutRequestID,
+              status: 'completed',
+              paid_at: new Date().toISOString(),
+            });
+
+          console.log(`✅ Service booking ${booking.id} confirmed. Status: ${newStatus}`);
+        } else {
+          await supabase
+            .from('service_bookings')
+            .update({ payment_status: 'failed', booking_status: 'cancelled' })
+            .eq('id', booking.id);
+          console.log(`❌ Service booking ${booking.id} payment failed: ${ResultDesc}`);
+        }
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+
+      // ── Fall through to regular orders lookup
       const { data: orders, error: orderError } = await supabase
         .from('orders')
         .select('*')

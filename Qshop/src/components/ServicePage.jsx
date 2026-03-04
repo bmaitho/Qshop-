@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import GoodsServicesToggle from "./GoodsServicesToggle";
+import ServiceCheckout from "./ServiceCheckout";
 
 // ─── Supabase client ───────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -622,6 +623,8 @@ export default function ServicesPage() {
   const [components, setComponents] = useState([]);
   const [selected, setSelected] = useState({}); // { category_id: [component_id] }
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPaymentType, setCheckoutPaymentType] = useState('full');
 
   useEffect(() => {
     fetchProviders();
@@ -938,7 +941,7 @@ export default function ServicesPage() {
                       <button
                         className="cta-btn cta-deposit"
                         disabled={!requiredCatsMet()}
-                        onClick={() => alert(`Deposit booking: ${fmt(deposit)} — Connect to checkout flow`)}
+                        onClick={() => { setCheckoutPaymentType('deposit'); setCheckoutOpen(true); }}
                       >
                         Pay Deposit<br />
                         <span style={{ fontSize: "12px", fontWeight: 400 }}>{fmt(deposit)}</span>
@@ -946,7 +949,7 @@ export default function ServicesPage() {
                       <button
                         className="cta-btn cta-full"
                         disabled={!requiredCatsMet()}
-                        onClick={() => alert(`Full booking: ${fmt(total)} — Connect to checkout flow`)}
+                        onClick={() => { setCheckoutPaymentType('full'); setCheckoutOpen(true); }}
                       >
                         Pay in Full<br />
                         <span style={{ fontSize: "12px", fontWeight: 400 }}>{fmt(total)}</span>
@@ -963,6 +966,17 @@ export default function ServicesPage() {
               </div>
             </div>
           </div>
+        )}
+        {/* ── Service Checkout */}
+        {checkoutOpen && activeService && (
+          <ServiceCheckout
+            service={activeService}
+            selectedComps={getSelectedComponents()}
+            total={total}
+            deposit={deposit}
+            paymentType={checkoutPaymentType}
+            onClose={() => setCheckoutOpen(false)}
+          />
         )}
       </div>
     </>
