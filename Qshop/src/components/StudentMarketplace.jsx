@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Filter, Search } from 'lucide-react';
+import GoodsServicesToggle from './GoodsServicesToggle';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +166,7 @@ const StudentMarketplace = ({ token }) => {
             <h1 className="text-xl md:text-2xl font-bold text-primary dark:text-gray-100">
               Welcome, {token?.user?.user_metadata?.full_name || 'Student'}
             </h1>
+            <GoodsServicesToggle variant="light" />
             
             {!isMobile && (
               <Sheet>

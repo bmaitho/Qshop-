@@ -30,6 +30,7 @@ import WholesalerCodes from './components/admin/WholesalerCodes';
 import SubscriptionPage from './components/SubscriptionPage';
 import SellerOrderDetail from './components/SellerOrderDetail';
 import BuyerOrders from './components/BuyerOrders';
+import ServicePage from './components/ServicePage';
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -46,6 +47,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/product/:id" element={<ProductDetails token={token} />} />
       <Route path="/category/:categoryName" element={<CategoryPage token={token} />} />
       <Route path="/seller/:id" element={<SellerProfile />} />
+      <Route path="/services" element={<ServicePage />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
@@ -58,7 +60,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/cart" element={token ? <Cart token={token} /> : <Navigate to="/auth" replace />} />
       <Route path="/wishlist" element={token ? <Wishlist token={token} /> : <Navigate to="/auth" replace />} />
       <Route path="/profile" element={token ? <Profile token={token} /> : <Navigate to="/auth" replace />} />
-      <Route path="/myshop" element={token ? <MyShop token={token} /> : <Navigate to="/auth" replace />} />
+      <Route path="/myshop" element={<MyShop token={token} />} />
       <Route path="/checkout/:orderId" element={token ? <Checkout /> : <Navigate to="/auth" replace />} />
       <Route path="/order-confirmation/:orderId" element={token ? <OrderConfirmation /> : <Navigate to="/auth" replace />} />
       <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" replace />} />

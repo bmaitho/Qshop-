@@ -1,6 +1,6 @@
 // src/components/MyShop.jsx
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Settings,
@@ -48,6 +48,7 @@ const isUUID = (str) => {
 };
 
 const MyShop = () => {
+  const navigate = useNavigate();
   const [shopData, setShopData] = useState(null);
   const [products, setProducts] = useState([]);
   const [statistics, setStatistics] = useState({
@@ -513,6 +514,93 @@ const MyShop = () => {
       </div>
     );
   }, [products, productsLoading]);
+
+  // Guest preview — shown to unauthenticated visitors
+  if (!loading && !currentUser) {
+    return (
+      <>
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 py-8 mt-12 mb-16">
+          {/* Sign-up banner */}
+          <div className="mb-6 rounded-xl bg-[#113b1e] text-white px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p className="font-semibold text-lg">Want to experience UniHive?</p>
+              <p className="text-white/70 text-sm mt-0.5">Sign up to open your own shop and start selling.</p>
+            </div>
+            <Button
+              className="bg-[#e7c65f] text-[#113b1e] hover:bg-[#e7c65f]/90 shrink-0"
+              onClick={() => navigate('/auth')}
+            >
+              Sign Up — It's Free
+            </Button>
+          </div>
+
+          {/* Blurred layout preview */}
+          <div className="select-none pointer-events-none blur-[2px] opacity-60">
+            {/* Shop Header */}
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h1 className="text-2xl font-bold mb-2">My Shop</h1>
+                <div className="flex items-center gap-6 mb-4">
+                  <div className="text-center"><div className="font-bold">—</div><div className="text-sm text-gray-600">Listings</div></div>
+                  <div className="text-center"><div className="font-bold">—</div><div className="text-sm text-gray-600">Pending Orders</div></div>
+                  <div className="text-center"><div className="font-bold text-orange-600">Seller</div><div className="text-sm text-gray-600">Account Type</div></div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" disabled><Settings className="w-4 h-4 mr-2" />Customize Shop</Button>
+                <Button disabled><Plus className="w-4 h-4 mr-2" />Add Product</Button>
+              </div>
+            </div>
+
+            {/* Stats cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {[
+                { label: 'Active Listings', icon: Package },
+                { label: 'Total Sales', icon: ShoppingBag },
+                { label: 'Revenue', icon: DollarSign },
+                { label: 'Pending Orders', icon: Clock },
+              ].map(({ label, icon: Icon }) => (
+                <Card key={label} className="shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3">
+                    <CardTitle className="text-sm font-medium">{label}</CardTitle>
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="text-2xl font-bold">—</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div className="w-full max-w-2xl mx-auto flex rounded-md border border-border overflow-hidden mb-6">
+              <div className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary text-primary-foreground text-sm font-medium">
+                <Package className="w-4 h-4" /> Products
+              </div>
+              <div className="flex-1 flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+                <ShoppingBag className="w-4 h-4" /> Orders
+              </div>
+            </div>
+
+            {/* Skeleton product cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden border border-primary/10">
+                  <div className="aspect-[4/3] bg-gray-200 dark:bg-gray-700" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-full mt-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -25,7 +25,7 @@ const FeaturedShops = () => {
         .from('shops')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(18);
       
       if (shopsError) throw shopsError;
       
@@ -65,7 +65,7 @@ const FeaturedShops = () => {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(10)].map((_, index) => (
+        {[...Array(6)].map((_, index) => (
           <div key={index} className="animate-pulse">
             <div className="bg-primary/5 dark:bg-gray-700 h-60 rounded-t-lg"></div>
             <div className="space-y-3 p-4 bg-white dark:bg-gray-800 border border-primary/10 dark:border-gray-700 rounded-b-lg">

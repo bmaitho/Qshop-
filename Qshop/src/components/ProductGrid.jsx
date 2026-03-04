@@ -236,11 +236,8 @@ const ProductGrid = ({ category, searchQuery, categoriesMap = {} }) => {
 
   return (
     <div className="w-full">
-      {/* Product count + shuffle control */}
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-primary/60 dark:text-gray-400">
-          Showing {visibleProducts.length} of {displayProducts.length} products
-        </p>
+      {/* Shuffle control */}
+      <div className="flex items-center justify-end mb-3">
         <button
           onClick={handleReshuffle}
           className="flex items-center gap-1.5 text-xs text-primary/60 dark:text-gray-400 hover:text-primary dark:hover:text-gray-200 transition-colors px-2 py-1 rounded-md hover:bg-primary/5 dark:hover:bg-gray-700"
@@ -271,7 +268,7 @@ const ProductGrid = ({ category, searchQuery, categoriesMap = {} }) => {
             onClick={handleLoadMore}
             className="px-8 py-2 text-sm border-primary/20 dark:border-gray-600 hover:bg-primary/5 dark:hover:bg-gray-700"
           >
-            Load More ({displayProducts.length - visibleCount} remaining)
+            Load More
           </Button>
         </div>
       )}

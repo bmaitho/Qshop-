@@ -6,6 +6,7 @@ import Navbar from './Navbar';
 import { Button } from "@/components/ui/button";
 import { Store, ShoppingBag, Sparkles, Shirt, Coffee, BookOpen, Laptop, Headphones, Car, Pencil, GraduationCap } from 'lucide-react';
 import FeaturedShops from './FeaturedShops';
+import GoodsServicesToggle from './GoodsServicesToggle';
 
 // Import local images for categories
 import TextbooksImage from '../assets/categories/textbooks.jpg';
@@ -56,6 +57,9 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-[#113b1e] to-[#0a2412] opacity-90"></div>
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <GoodsServicesToggle />
+            </div>
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
               Your Marketplace
             </h1>
