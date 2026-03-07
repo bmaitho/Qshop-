@@ -63,7 +63,8 @@ export default function ServiceCheckout({ service, selectedComps, total, deposit
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) throw new Error('Please log in to complete this booking');
 
-      const commissionAmount = Math.ceil((total * service.commission_rate) / 100);
+      const commissionRate = service.commission_rate ?? 5.00;
+      const commissionAmount = Math.ceil((total * commissionRate) / 100);
 
       // Insert service_booking record
       const { data: booking, error: bookingError } = await supabase
@@ -78,7 +79,7 @@ export default function ServiceCheckout({ service, selectedComps, total, deposit
             category_id: c.category_id,
           })),
           subtotal: total,
-          commission_rate: service.commission_rate,
+          commission_rate: commissionRate,
           commission_amount: commissionAmount,
           payment_type: paymentType,
           deposit_percentage: paymentType === 'deposit' ? service.deposit_percentage : null,

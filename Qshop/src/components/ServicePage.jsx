@@ -776,7 +776,7 @@ export default function ServicesPage() {
                       <div
                         key={service.id}
                         className="active-service"
-                        onClick={() => openService(service)}
+                        onClick={() => openService({ ...service, commission_rate: provider.commission_rate })}
                       >
                         <div className="service-label">
                           {service.status === "sold_out" ? "🔴 SOLD OUT" : "🟢 BOOKING OPEN"}
@@ -808,7 +808,7 @@ export default function ServicesPage() {
                       {activeServices.length > 0 && (
                         <button
                           className="book-btn"
-                          onClick={() => openService(activeServices[0])}
+                          onClick={() => openService({ ...activeServices[0], commission_rate: provider.commission_rate })}
                         >
                           Build Package →
                         </button>
