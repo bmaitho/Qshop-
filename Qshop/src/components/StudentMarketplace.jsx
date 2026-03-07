@@ -166,7 +166,6 @@ const StudentMarketplace = ({ token }) => {
             <h1 className="text-xl md:text-2xl font-bold text-primary dark:text-gray-100">
               Welcome, {token?.user?.user_metadata?.full_name || 'Student'}
             </h1>
-            <GoodsServicesToggle variant="light" />
             
             {!isMobile && (
               <Sheet>
@@ -181,6 +180,11 @@ const StudentMarketplace = ({ token }) => {
                 </SheetContent>
               </Sheet>
             )}
+          </div>
+
+          {/* Toggle — full-width centred row, never clips */}
+          <div className="flex justify-center py-1">
+            <GoodsServicesToggle variant="light" />
           </div>
           
           {/* Only show search on desktop - mobile has search in navbar */}

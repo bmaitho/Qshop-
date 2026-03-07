@@ -57,9 +57,6 @@ const Home = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-[#113b1e] to-[#0a2412] opacity-90"></div>
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
           <div className="text-center">
-            <div className="flex justify-center mb-6">
-              <GoodsServicesToggle />
-            </div>
             <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
               Your Marketplace
             </h1>
@@ -84,6 +81,10 @@ const Home = () => {
                 Open Your Shop
                 <Sparkles className="ml-2 h-5 w-5" />
               </Button>
+            </div>
+            {/* Toggle sits below the CTAs with generous breathing room */}
+            <div className="flex justify-center mt-10">
+              <GoodsServicesToggle />
             </div>
           </div>
         </div>
