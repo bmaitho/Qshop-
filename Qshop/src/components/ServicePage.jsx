@@ -729,15 +729,14 @@ export default function ServicesPage() {
       <style>{styles}</style>
       <div className="services-root">
 
-        {/* ── Toggle */}
-        <div className="mode-toggle-wrap">
-          <GoodsServicesToggle />
-        </div>
-
         {/* ── Hero */}
         <div className="services-hero">
           <h1>Experiences & Services</h1>
           <p>Curated trips, events, and experiences — book directly through UniHive.</p>
+          {/* ── Toggle below subtitle */}
+          <div className="mode-toggle-wrap" style={{ padding: '24px 20px 0' }}>
+            <GoodsServicesToggle />
+          </div>
         </div>
 
         {/* ── Provider grid */}
