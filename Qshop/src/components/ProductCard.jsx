@@ -252,7 +252,7 @@ const ProductCard = ({
 
   return (
     <div 
-      className={`${className} bg-olive-700 dark:bg-olive-900 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden cursor-pointer text-white flex flex-col`}
+      className={`${className} bg-card text-card-foreground rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-primary/10 dark:border-gray-700 overflow-hidden cursor-pointer flex flex-col`}
       onClick={handleProductClick}
     >
       {/* ── Image section ── fixed aspect ratio, never collapses ── */}

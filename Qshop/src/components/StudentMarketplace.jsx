@@ -184,7 +184,7 @@ const StudentMarketplace = ({ token }) => {
 
           {/* Toggle — full-width centred row, never clips */}
           <div className="flex justify-center py-1">
-            <GoodsServicesToggle variant="light" />
+            <GoodsServicesToggle />
           </div>
           
           {/* Only show search on desktop - mobile has search in navbar */}

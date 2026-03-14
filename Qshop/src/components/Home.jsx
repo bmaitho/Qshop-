@@ -84,7 +84,7 @@ const Home = () => {
             </div>
             {/* Toggle sits below the CTAs with generous breathing room */}
             <div className="flex justify-center mt-10">
-              <GoodsServicesToggle />
+              <GoodsServicesToggle variant="dark" />
             </div>
           </div>
         </div>

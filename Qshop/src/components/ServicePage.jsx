@@ -26,6 +26,28 @@ const styles = `
     --radius: 16px;
   }
 
+  /* ── Light mode overrides ── */
+  .light {
+    --bg: #f4f1ec;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: rgba(17,59,30,0.12);
+    --accent: #e7c65f;
+    --accent2: #b8922a;
+    --text: #113b1e;
+    --muted: #4a7060;
+    --green: #16a34a;
+    --radius: 16px;
+  }
+
+  .light .feature-pill {
+    background: rgba(17,59,30,0.06);
+  }
+
+  .light .badge-tag.popular { color: #16a34a; border-color: rgba(22,163,74,0.3); background: rgba(22,163,74,0.1); }
+  .light .badge-tag.modern  { color: #0284c7; border-color: rgba(2,132,199,0.3); background: rgba(2,132,199,0.1); }
+  .light .badge-tag.luxury  { color: #7c3aed; border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.1); }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   .services-root {
@@ -85,7 +107,7 @@ const styles = `
     font-size: clamp(28px, 6vw, 48px);
     font-weight: 800;
     line-height: 1.1;
-    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    background: linear-gradient(135deg, var(--text) 30%, var(--accent));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 10px;
@@ -132,6 +154,10 @@ const styles = `
     display: flex;
     align-items: flex-end;
     padding: 16px;
+  }
+
+  .light .card-banner {
+    background: linear-gradient(135deg, #1a5c30 0%, #22763d 50%, #2d8f4e 100%);
   }
 
   .card-banner::before {
@@ -707,6 +733,13 @@ export default function ServicesPage() {
       .every((c) => (selected[c.id] || []).length > 0);
   }
 
+  // SGR Transport must always be paid in full — no deposit allowed
+  function hasSGRSelected() {
+    const sgrCat = categories.find((c) => c.name === "SGR Transport");
+    if (!sgrCat) return false;
+    return (selected[sgrCat.id] || []).length > 0;
+  }
+
   function getMinPrice(provider) {
     const comps = provider.services?.flatMap(
       (s) => s.service_component_categories?.flatMap((cat) => cat.service_components || []) || []
@@ -930,21 +963,29 @@ export default function ServicesPage() {
                       </div>
                     </div>
 
-                    {activeService.allows_deposit && (
+                    {activeService.allows_deposit && !hasSGRSelected() && (
                       <div className="deposit-note">
                         💡 Pay a deposit of <strong>{fmt(deposit)}</strong> ({activeService.deposit_percentage}%) to secure your spot now. Balance due before the trip.
                       </div>
                     )}
 
-                    <div className="cta-row">
-                      <button
-                        className="cta-btn cta-deposit"
-                        disabled={!requiredCatsMet()}
-                        onClick={() => { setCheckoutPaymentType('deposit'); setCheckoutOpen(true); }}
-                      >
-                        Pay Deposit<br />
-                        <span style={{ fontSize: "12px", fontWeight: 400 }}>{fmt(deposit)}</span>
-                      </button>
+                    {hasSGRSelected() && (
+                      <div className="deposit-note" style={{ borderColor: 'rgba(231,198,95,0.4)' }}>
+                        🚊 SGR tickets must be paid in full at the time of booking.
+                      </div>
+                    )}
+
+                    <div className="cta-row" style={hasSGRSelected() ? { gridTemplateColumns: '1fr' } : {}}>
+                      {!hasSGRSelected() && (
+                        <button
+                          className="cta-btn cta-deposit"
+                          disabled={!requiredCatsMet()}
+                          onClick={() => { setCheckoutPaymentType('deposit'); setCheckoutOpen(true); }}
+                        >
+                          Pay Deposit<br />
+                          <span style={{ fontSize: "12px", fontWeight: 400 }}>{fmt(deposit)}</span>
+                        </button>
+                      )}
                       <button
                         className="cta-btn cta-full"
                         disabled={!requiredCatsMet()}
