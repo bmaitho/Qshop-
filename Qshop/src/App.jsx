@@ -27,6 +27,7 @@ import Checkout from './components/Checkout';
 import OrderConfirmation from './components/OrderConfirmation';
 import OrderDetails from './components/OrderDetails';
 import WholesalerCodes from './components/admin/WholesalerCodes';
+import AdminServicesPanel from './components/AdminServicesPanel';
 import SubscriptionPage from './components/SubscriptionPage';
 import SellerOrderDetail from './components/SellerOrderDetail';
 import BuyerOrders from './components/BuyerOrders';
@@ -66,6 +67,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/orders/:orderId" element={token ? <OrderDetails /> : <Navigate to="/auth" replace />} />
       <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/codes" element={token ? <WholesalerCodes /> : <Navigate to="/auth" replace />} />
+      <Route path="/admin/services" element={token ? <AdminServicesPanel /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
 
       <Route path="*" element={<NotFound />} />

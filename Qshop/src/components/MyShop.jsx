@@ -39,6 +39,7 @@ import ShopLocationsManager from './ShopLocationsManager'; // Import Shop Locati
 
 // Lazy load the SellerOrders component
 const SellerOrders = React.lazy(() => import('./SellerOrders'));
+const MyServices = React.lazy(() => import('./MyServices'));
 
 // Function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -823,10 +824,14 @@ const MyShop = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="listings">
               <Package className="w-4 h-4 mr-2" />
               <span className={isMobile ? "text-xs" : ""}>Products</span>
+            </TabsTrigger>
+            <TabsTrigger value="services">
+              <Star className="w-4 h-4 mr-2" />
+              <span className={isMobile ? "text-xs" : ""}>My Services</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="orders-tab">
               <ShoppingBag className="w-4 h-4 mr-2" />
@@ -849,6 +854,18 @@ const MyShop = () => {
             {productGrid}
           </TabsContent>
           
+          {/* My Services Tab */}
+          <TabsContent value="services" className="mt-6">
+            <Suspense fallback={
+              <div className="text-center py-10">
+                <div className="animate-spin w-8 h-8 border-2 border-primary rounded-full border-t-transparent mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading services...</p>
+              </div>
+            }>
+              {activeTab === 'services' && currentUser && <MyServices userId={currentUser.id} />}
+            </Suspense>
+          </TabsContent>
+
           {/* Orders Tab - Lazy loaded */}
           <TabsContent value="orders" className="mt-6">
             <Suspense fallback={

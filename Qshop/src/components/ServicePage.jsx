@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import GoodsServicesToggle from "./GoodsServicesToggle";
 import ServiceCheckout from "./ServiceCheckout";
+import UserServiceBookingModal from "./UserServiceBookingModal";
 
 // ─── Supabase client ───────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -652,8 +653,14 @@ export default function ServicesPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPaymentType, setCheckoutPaymentType] = useState('full');
 
+  // User gig services
+  const [userServices, setUserServices] = useState([]);
+  const [userServicesLoading, setUserServicesLoading] = useState(true);
+  const [bookingService, setBookingService] = useState(null); // service being booked
+
   useEffect(() => {
     fetchProviders();
+    fetchUserServices();
   }, []);
 
   async function fetchProviders() {
@@ -664,6 +671,18 @@ export default function ServicesPage() {
       .eq("is_active", true);
     setProviders(providerData || []);
     setLoading(false);
+  }
+
+  async function fetchUserServices() {
+    setUserServicesLoading(true);
+    const { data } = await supabase
+      .from("user_services")
+      .select("*, profiles(id, full_name, phone), user_service_availabilities(*)")
+      .eq("approval_status", "approved")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+    setUserServices(data || []);
+    setUserServicesLoading(false);
   }
 
   async function openService(service) {
@@ -851,6 +870,67 @@ export default function ServicesPage() {
               );
             })}
           </div>
+        )}
+
+        {/* ── Individual Gig Services ── */}
+        {!userServicesLoading && userServices.length > 0 && (
+          <>
+            <div style={{ padding: '32px 24px 0', maxWidth: '1200px', margin: '0 auto' }}>
+              <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
+                ✨ Individual Services
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>
+                Services offered by UniHive community members
+              </p>
+            </div>
+            <div className="provider-grid">
+              {userServices.map((svc) => (
+                <div className="provider-card" key={svc.id}>
+                  <div className="card-banner" style={{ overflow: 'hidden', padding: 0 }}>
+                    {Array.isArray(svc.images) && svc.images[0] ? (
+                      <img src={svc.images[0]} alt={svc.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span className="card-banner-emoji">🛠️</span>
+                    )}
+                  </div>
+                  <div className="card-body">
+                    <div className="provider-name">{svc.title}</div>
+                    <div className="provider-tagline">{svc.category}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '8px' }}>
+                      By {svc.profiles?.full_name || 'Community Member'}
+                      {svc.is_remote ? ' · 🌐 Remote' : svc.location ? ` · 📍 ${svc.location}` : ''}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', marginBottom: '12px' }}>
+                      {svc.description.length > 100 ? svc.description.slice(0, 100) + '…' : svc.description}
+                    </div>
+                    <div className="price-range">
+                      <div>
+                        <div className="price-from">Price</div>
+                        <div className="price-value">
+                          {fmt(svc.price)}
+                          <span style={{ fontSize: '12px', fontWeight: 400, color: 'var(--muted)' }}>
+                            {svc.price_type === 'per_hour' ? '/hr' : svc.price_type === 'per_session' ? '/session' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <button className="book-btn" onClick={() => setBookingService(svc)}>
+                        Book Now →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── User service booking modal ── */}
+        {bookingService && (
+          <UserServiceBookingModal
+            service={bookingService}
+            sellerProfile={bookingService.profiles}
+            onClose={() => setBookingService(null)}
+          />
         )}
 
         {/* ── Service detail sheet */}
