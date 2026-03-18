@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from '../components/SupabaseClient';
 import { getBannerUrl } from '../utils/ImageUtils';
 import ProductCard from './ProductCard';
+import ShareButton from './ShareButton';
 import Navbar from './Navbar';
 
 const SellerProfile = () => {
@@ -170,9 +171,16 @@ const SellerProfile = () => {
               </div>
               
               <div className="flex-1 text-center md:text-left">
-                <h1 className="text-2xl font-bold mb-2 text-primary dark:text-gray-100">
-                  {shop?.shop_name || seller?.full_name || "Seller"}
-                </h1>
+                <div className="flex items-center justify-center md:justify-between gap-2 mb-2">
+                  <h1 className="text-2xl font-bold text-primary dark:text-gray-100">
+                    {shop?.shop_name || seller?.full_name || "Seller"}
+                  </h1>
+                  <ShareButton
+                    url={`https://unihive.shop/seller/${id}`}
+                    title={`${shop?.shop_name || seller?.full_name || 'Shop'} on UniHive`}
+                    description={shop?.description || 'Check out this shop on UniHive marketplace'}
+                  />
+                </div>
                 
                 {seller?.campus_location && (
                   <div className="flex items-center gap-2 justify-center md:justify-start mb-2">

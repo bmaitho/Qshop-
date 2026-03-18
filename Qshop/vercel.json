@@ -5,6 +5,50 @@
       "destination": "https://unihive-wba0.onrender.com/sitemap.xml"
     },
     {
+      "source": "/seller/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=seller/:id"
+    },
+    {
+      "source": "/product/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=product/:id"
+    },
+    {
+      "source": "/services",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=services"
+    },
+    {
+      "source": "/home",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=home"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
