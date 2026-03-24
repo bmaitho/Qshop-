@@ -23,6 +23,7 @@ import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
+import ShareButton from './ShareButton';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -342,14 +343,24 @@ const ProductCard = ({
           )}
           
           {!isOwner && (
-            <Button 
-              className="w-full py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80"
-              onClick={handleAddToCart}
-              disabled={product.status !== 'active'}
-            >
-              <ShoppingCart className="h-3 w-3 mr-1" />
-              {product.status === 'active' ? 'Add to Cart' : 'Not Available'}
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                className="flex-1 py-1.5 h-auto text-xs bg-secondary text-primary hover:bg-secondary/90 dark:hover:bg-secondary/80"
+                onClick={handleAddToCart}
+                disabled={product.status !== 'active'}
+              >
+                <ShoppingCart className="h-3 w-3 mr-1" />
+                {product.status === 'active' ? 'Add to Cart' : 'Not Available'}
+              </Button>
+              <ShareButton
+                url={`https://unihive.shop/product/${product.id}`}
+                title={`${product.name} — KSh ${product.price?.toLocaleString()} | UniHive`}
+                description={product.description?.substring(0, 80)}
+                variant="outline"
+                size="sm"
+                className="px-2 h-auto py-1.5 flex-shrink-0"
+              />
+            </div>
           )}
         </div>
       </div>

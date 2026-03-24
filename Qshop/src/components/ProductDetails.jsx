@@ -24,6 +24,7 @@ import { getProductDetailUrl } from '../utils/ImageUtils';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 import MessageDialog from './MessageDialog';
+import ShareButton from './ShareButton';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -407,20 +408,29 @@ const ProductDetails = () => {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                   {product.name}
                 </h1>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleWishlist}
-                  className="flex-shrink-0"
-                >
-                  <Heart
-                    className={`h-6 w-6 ${
-                      isInWishlist(product.id)
-                        ? 'fill-red-500 text-red-500'
-                        : 'text-gray-600 dark:text-gray-400'
-                    }`}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <ShareButton
+                    url={`https://unihive.shop/product/${product.id}`}
+                    title={`${product.name} — KSh ${product.price?.toLocaleString()} | UniHive`}
+                    description={product.description?.substring(0, 100)}
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
                   />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleWishlist}
+                  >
+                    <Heart
+                      className={`h-6 w-6 ${
+                        isInWishlist(product.id)
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-gray-600 dark:text-gray-400'
+                      }`}
+                    />
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
