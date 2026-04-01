@@ -444,8 +444,8 @@ const SignUp = () => {
               {submitting ? 'Sending...' : 'Resend Email'}
             </Button>
             
-            <Link 
-              to="/login" 
+            <Link
+              to="/auth"
               className="inline-block text-primary hover:underline"
             >
               Back to Login
@@ -868,7 +868,7 @@ const SignUp = () => {
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:underline">
+            <Link to="/auth" className="text-primary hover:underline">
               Sign in
             </Link>
           </p>
