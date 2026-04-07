@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://vycftqpspmxdohfbkqjb.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SITE_URL = 'https://unihive.shop';
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -18,11 +18,45 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;');
 }
 
+/**
+ * Detect MIME type from URL extension
+ */
+function getImageMimeType(url) {
+  if (!url) return 'image/jpeg';
+  const lower = url.toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.gif')) return 'image/gif';
+  return 'image/jpeg'; // default for .jpg, .jpeg, and unknown
+}
+
+/**
+ * Ensure image URL is compatible with social media crawlers.
+ * - WhatsApp/Facebook have issues with WebP format
+ * - Falls back to default OG image for unsupported formats
+ */
+function getSafeImageUrl(imageUrl) {
+  if (!imageUrl) return DEFAULT_OG_IMAGE;
+
+  // WebP is not reliably supported by WhatsApp/Facebook OG crawlers
+  if (imageUrl.toLowerCase().endsWith('.webp')) {
+    return DEFAULT_OG_IMAGE;
+  }
+
+  // Ensure the URL is absolute
+  if (imageUrl.startsWith('/')) {
+    return `${SITE_URL}${imageUrl}`;
+  }
+
+  return imageUrl;
+}
+
 function buildOgHtml({ title, description, image, url, type = 'website' }) {
   const safeTitle = escapeHtml(title);
   const safeDesc = escapeHtml(description);
   const safeImage = escapeHtml(image);
   const safeUrl = escapeHtml(url);
+  const imageType = getImageMimeType(image);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -37,6 +71,11 @@ function buildOgHtml({ title, description, image, url, type = 'website' }) {
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
   <meta property="og:image" content="${safeImage}" />
+  <meta property="og:image:url" content="${safeImage}" />
+  <meta property="og:image:secure_url" content="${safeImage}" />
+  <meta property="og:image:type" content="${imageType}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta property="og:url" content="${safeUrl}" />
   <meta property="og:site_name" content="UniHive" />
 
@@ -92,7 +131,7 @@ export default async function handler(req, res) {
         const desc = shop.description
           ? `${shop.description}${productCount ? ` • ${productCount} product${productCount !== 1 ? 's' : ''} available` : ''}`
           : `Check out ${shop.shop_name} on UniHive${productCount ? ` — ${productCount} product${productCount !== 1 ? 's' : ''} available` : ''}`;
-        const image = shop.banner_url || DEFAULT_OG_IMAGE;
+        const image = getSafeImageUrl(shop.banner_url);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');
@@ -128,7 +167,7 @@ export default async function handler(req, res) {
         const desc = product.description
           ? product.description.substring(0, 200)
           : `${product.name}${shopName ? ` by ${shopName}` : ''} on UniHive marketplace`;
-        const image = product.image_url || DEFAULT_OG_IMAGE;
+        const image = getSafeImageUrl(product.image_url);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');
