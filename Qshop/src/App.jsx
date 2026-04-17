@@ -32,6 +32,10 @@ import SubscriptionPage from './components/SubscriptionPage';
 import SellerOrderDetail from './components/SellerOrderDetail';
 import BuyerOrders from './components/BuyerOrders';
 import ServicePage from './components/ServicePage';
+import EventsPage from './components/EventsPage';
+import EventPage from './components/EventPage';
+import MyTickets from './components/MyTickets';
+import VerifyTicket from './components/VerifyTicket';
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -49,6 +53,9 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/category/:categoryName" element={<CategoryPage token={token} />} />
       <Route path="/seller/:id" element={<SellerProfile />} />
       <Route path="/services" element={<ServicePage />} />
+      <Route path="/events" element={<EventsPage token={token} />} />
+      <Route path="/events/:slug" element={<EventPage token={token} />} />
+      <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
@@ -69,6 +76,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/admin/codes" element={token ? <WholesalerCodes /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/services" element={token ? <AdminServicesPanel /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
+      <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
