@@ -256,6 +256,65 @@ export const handleCallback = async (req, res) => {
         return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
       }
 
+      // ── Check event_tickets (event ticketing)
+      const { data: eventTickets } = await supabase
+        .from('event_tickets')
+        .select('*')
+        .eq('mpesa_checkout_request_id', CheckoutRequestID);
+
+      if (eventTickets && eventTickets.length > 0) {
+        const ticket = eventTickets[0];
+        if (ResultCode === 0 && CallbackMetadata) {
+          const items = CallbackMetadata.Item || [];
+          const mpesaReceiptNumber = items.find(i => i.Name === 'MpesaReceiptNumber')?.Value;
+          const phoneNumber = items.find(i => i.Name === 'PhoneNumber')?.Value;
+          const amount = items.find(i => i.Name === 'Amount')?.Value;
+
+          await supabase
+            .from('event_tickets')
+            .update({
+              payment_status: 'completed',
+              mpesa_receipt: mpesaReceiptNumber,
+              amount_paid: amount || ticket.amount_paid,
+              phone_number: phoneNumber ? phoneNumber.toString() : ticket.phone_number,
+            })
+            .eq('id', ticket.id);
+
+          // Increment tickets_sold on the event + update tier sold count
+          const { data: eventData } = await supabase
+            .from('events')
+            .select('tickets_sold, ticket_tiers')
+            .eq('id', ticket.event_id)
+            .single();
+
+          if (eventData) {
+            const updatedTiers = (eventData.ticket_tiers || []).map(t => {
+              if (t.name === ticket.tier) {
+                return { ...t, sold: (t.sold || 0) + 1 };
+              }
+              return t;
+            });
+
+            await supabase
+              .from('events')
+              .update({
+                tickets_sold: (eventData.tickets_sold || 0) + 1,
+                ticket_tiers: updatedTiers,
+              })
+              .eq('id', ticket.event_id);
+          }
+
+          console.log(`✅ Event ticket ${ticket.id} confirmed. Receipt: ${mpesaReceiptNumber}`);
+        } else {
+          await supabase
+            .from('event_tickets')
+            .update({ payment_status: 'failed' })
+            .eq('id', ticket.id);
+          console.log(`❌ Event ticket ${ticket.id} payment failed: ${ResultDesc}`);
+        }
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+
       // ── Fall through to regular orders lookup
       const { data: orders, error: orderError } = await supabase
         .from('orders')
@@ -507,6 +566,45 @@ export const checkTransactionStatus = async (req, res) => {
     
     if (!orders || orders.length === 0) {
       console.log(`No order found with CheckoutRequestID: ${checkoutRequestId}`);
+      
+      // Check service_bookings
+      const { data: bookings } = await supabase
+        .from('service_bookings')
+        .select('id, payment_status, booking_status, mpesa_receipt')
+        .eq('checkout_request_id', checkoutRequestId);
+
+      if (bookings && bookings.length > 0) {
+        const booking = bookings[0];
+        return res.json({
+          success: true,
+          data: {
+            orderId: booking.id,
+            paymentStatus: booking.payment_status,
+            orderStatus: booking.booking_status,
+            receipt: booking.mpesa_receipt
+          }
+        });
+      }
+
+      // Check event_tickets
+      const { data: tickets } = await supabase
+        .from('event_tickets')
+        .select('id, payment_status, mpesa_receipt')
+        .eq('mpesa_checkout_request_id', checkoutRequestId);
+
+      if (tickets && tickets.length > 0) {
+        const ticket = tickets[0];
+        return res.json({
+          success: true,
+          data: {
+            orderId: ticket.id,
+            paymentStatus: ticket.payment_status,
+            orderStatus: ticket.payment_status === 'completed' ? 'confirmed' : ticket.payment_status,
+            receipt: ticket.mpesa_receipt
+          }
+        });
+      }
+
       return res.status(404).json({
         success: false,
         error: 'Order not found'
