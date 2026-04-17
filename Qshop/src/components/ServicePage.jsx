@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
 import GoodsServicesToggle from "./GoodsServicesToggle";
 import ServiceCheckout from "./ServiceCheckout";
@@ -643,6 +644,7 @@ const CATEGORY_ICONS = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function ServicesPage() {
+  const navigate = useNavigate();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeService, setActiveService] = useState(null);
@@ -652,6 +654,7 @@ export default function ServicesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutPaymentType, setCheckoutPaymentType] = useState('full');
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
 
   // User gig services
   const [userServices, setUserServices] = useState([]);
@@ -661,7 +664,22 @@ export default function ServicesPage() {
   useEffect(() => {
     fetchProviders();
     fetchUserServices();
+    fetchUpcomingEvents();
   }, []);
+
+  async function fetchUpcomingEvents() {
+    try {
+      const { data } = await supabase
+        .from('events')
+        .select('*')
+        .in('status', ['upcoming', 'live'])
+        .order('event_date', { ascending: true })
+        .limit(3);
+      setUpcomingEvents(data || []);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+    }
+  }
 
   async function fetchProviders() {
     setLoading(true);
@@ -790,6 +808,74 @@ export default function ServicesPage() {
             <GoodsServicesToggle />
           </div>
         </div>
+
+        {/* ── Events & Tickets Section ── */}
+        {upcomingEvents.length > 0 && (
+          <div style={{ padding: '0 24px 8px', maxWidth: '1100px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                🎟️ Events & Tickets
+              </h2>
+              <button
+                onClick={() => navigate('/events')}
+                style={{
+                  background: 'none', border: 'none', color: 'var(--accent)',
+                  fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '4px 0'
+                }}
+              >
+                View all →
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+              {upcomingEvents.map((evt) => {
+                const spotsLeft = evt.max_capacity ? evt.max_capacity - (evt.tickets_sold || 0) : null;
+                return (
+                  <div
+                    key={evt.id}
+                    onClick={() => navigate(`/events/${evt.slug}`)}
+                    style={{
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)', overflow: 'hidden', cursor: 'pointer',
+                      transition: 'transform 0.2s, border-color 0.2s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(231,198,95,0.4)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                  >
+                    {evt.image_url && (
+                      <div style={{ height: '120px', overflow: 'hidden' }}>
+                        <img src={evt.image_url} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    )}
+                    <div style={{ padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                        <span style={{
+                          fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px',
+                          background: evt.price === 0 ? 'rgba(34,197,94,0.15)' : 'rgba(231,198,95,0.15)',
+                          color: evt.price === 0 ? '#22c55e' : '#E7C65F',
+                        }}>
+                          {evt.price === 0 ? 'FREE' : `KES ${evt.price}`}
+                        </span>
+                        {spotsLeft !== null && spotsLeft <= 20 && spotsLeft > 0 && (
+                          <span style={{ fontSize: '10px', color: '#f97316', fontWeight: 600 }}>
+                            {spotsLeft} spots left
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)', marginBottom: '4px', lineHeight: 1.3 }}>
+                        {evt.title}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <span>📅 {new Date(evt.event_date + 'T00:00:00').toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })}</span>
+                        {evt.event_time && <span>🕐 {(() => { const [h,m] = evt.event_time.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr-12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`; })()}</span>}
+                        {evt.venue && <span>📍 {evt.venue}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Provider grid */}
         {loading ? (
