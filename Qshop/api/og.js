@@ -8,6 +8,8 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://vycftqpspmxdohfbk
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SITE_URL = 'https://unihive.shop';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.jpg`;
+const DEFAULT_OG_WIDTH = 1200;
+const DEFAULT_OG_HEIGHT = 630;
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -24,17 +26,12 @@ function escapeHtml(str) {
 function getImageMimeType(url) {
   if (!url) return 'image/jpeg';
   const lower = url.toLowerCase();
-  if (lower.includes('.png')) return 'image/png';
-  if (lower.includes('.webp')) return 'image/webp';
-  if (lower.includes('.gif')) return 'image/gif';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
   return 'image/jpeg'; // default for .jpg, .jpeg, and unknown
 }
 
-/**
- * Ensure image URL is compatible with social media crawlers.
- * - WhatsApp/Facebook have issues with WebP format
- * - Falls back to default OG image for unsupported formats
- */
 async function isImageUrlValid(url) {
   try {
     const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
@@ -49,37 +46,32 @@ async function isImageUrlValid(url) {
 async function getSafeImageUrl(imageUrl) {
   if (!imageUrl) return DEFAULT_OG_IMAGE;
 
-  // Avoid WebP for FB/WA crawlers
-  if (imageUrl.toLowerCase().endsWith('.webp')) {
-    return DEFAULT_OG_IMAGE;
-  }
-
   // Convert relative to absolute
   if (imageUrl.startsWith('/')) {
     imageUrl = `${SITE_URL}${imageUrl}`;
   }
 
-  // Verify the URL actually serves an image, otherwise fallback
+  // Avoid WebP for FB/WA crawlers (they sometimes have issues)
+  if (imageUrl.toLowerCase().endsWith('.webp')) {
+    return DEFAULT_OG_IMAGE;
+  }
+
+  // Verify the URL actually serves an image
   const ok = await isImageUrlValid(imageUrl);
   return ok ? imageUrl : DEFAULT_OG_IMAGE;
 }
 
-function buildOgHtml({ title, description, image, url, type = 'website' }) {
+function buildOgHtml({ title, description, image, url, type = 'website', width = DEFAULT_OG_WIDTH, height = DEFAULT_OG_HEIGHT }) {
   const safeTitle = escapeHtml(title);
   const safeDesc = escapeHtml(description);
   const safeImage = escapeHtml(image);
   const safeUrl = escapeHtml(url);
   const imageType = getImageMimeType(image);
 
-  return `<!DOCTYPE html>
-<html lang="en">
+  return `<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${safeTitle}</title>
-  <meta name="description" content="${safeDesc}" />
-
-  <!-- Open Graph -->
+  <meta charset="utf-8" />
   <meta property="og:type" content="${type}" />
   <meta property="og:title" content="${safeTitle}" />
   <meta property="og:description" content="${safeDesc}" />
@@ -87,23 +79,13 @@ function buildOgHtml({ title, description, image, url, type = 'website' }) {
   <meta property="og:image:url" content="${safeImage}" />
   <meta property="og:image:secure_url" content="${safeImage}" />
   <meta property="og:image:type" content="${imageType}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  <meta property="og:image:width" content="${width}" />
+  <meta property="og:image:height" content="${height}" />
   <meta property="og:url" content="${safeUrl}" />
   <meta property="og:site_name" content="UniHive" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${safeTitle}" />
-  <meta name="twitter:description" content="${safeDesc}" />
-  <meta name="twitter:image" content="${safeImage}" />
-
-  <!-- Redirect real users to the SPA (crawlers won't follow this) -->
-  <meta http-equiv="refresh" content="0;url=${safeUrl}" />
-  <link rel="canonical" href="${safeUrl}" />
 </head>
 <body>
-  <p>Redirecting to <a href="${safeUrl}">${safeTitle}</a>...</p>
+  <script>window.location.replace("${safeUrl}")</script>
 </body>
 </html>`;
 }
