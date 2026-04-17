@@ -38,7 +38,8 @@ const SellerProfile = () => {
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .select('*')
-        .eq('id', id);
+        .eq('id', id)
+        .eq('status', 'active');
       
       if (shopError) {
         console.error('Error fetching shop data:', shopError);

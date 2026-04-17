@@ -35,20 +35,33 @@ function getImageMimeType(url) {
  * - WhatsApp/Facebook have issues with WebP format
  * - Falls back to default OG image for unsupported formats
  */
-function getSafeImageUrl(imageUrl) {
+async function isImageUrlValid(url) {
+  try {
+    const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    if (!res.ok) return false;
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    return ct.startsWith('image/');
+  } catch (err) {
+    return false;
+  }
+}
+
+async function getSafeImageUrl(imageUrl) {
   if (!imageUrl) return DEFAULT_OG_IMAGE;
 
-  // WebP is not reliably supported by WhatsApp/Facebook OG crawlers
+  // Avoid WebP for FB/WA crawlers
   if (imageUrl.toLowerCase().endsWith('.webp')) {
     return DEFAULT_OG_IMAGE;
   }
 
-  // Ensure the URL is absolute
+  // Convert relative to absolute
   if (imageUrl.startsWith('/')) {
-    return `${SITE_URL}${imageUrl}`;
+    imageUrl = `${SITE_URL}${imageUrl}`;
   }
 
-  return imageUrl;
+  // Verify the URL actually serves an image, otherwise fallback
+  const ok = await isImageUrlValid(imageUrl);
+  return ok ? imageUrl : DEFAULT_OG_IMAGE;
 }
 
 function buildOgHtml({ title, description, image, url, type = 'website' }) {
@@ -131,11 +144,12 @@ export default async function handler(req, res) {
         const desc = shop.description
           ? `${shop.description}${productCount ? ` • ${productCount} product${productCount !== 1 ? 's' : ''} available` : ''}`
           : `Check out ${shop.shop_name} on UniHive${productCount ? ` — ${productCount} product${productCount !== 1 ? 's' : ''} available` : ''}`;
-        const image = getSafeImageUrl(shop.banner_url);
+        const imageUrl = shop?.banner_url || DEFAULT_OG_IMAGE;
+        const safeImage = await getSafeImageUrl(imageUrl);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');
-        return res.status(200).send(buildOgHtml({ title, description: desc, image, url }));
+        return res.status(200).send(buildOgHtml({ title, description: desc, image: safeImage, url }));
       }
     }
 
@@ -167,11 +181,12 @@ export default async function handler(req, res) {
         const desc = product.description
           ? product.description.substring(0, 200)
           : `${product.name}${shopName ? ` by ${shopName}` : ''} on UniHive marketplace`;
-        const image = getSafeImageUrl(product.image_url);
+        const imageUrl = product?.image_url || DEFAULT_OG_IMAGE;
+        const safeImage = await getSafeImageUrl(imageUrl);
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');
-        return res.status(200).send(buildOgHtml({ title, description: desc, image, url, type: 'product' }));
+        return res.status(200).send(buildOgHtml({ title, description: desc, image: safeImage, url, type: 'product' }));
       }
     }
 

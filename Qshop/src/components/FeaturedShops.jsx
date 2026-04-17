@@ -24,6 +24,7 @@ const FeaturedShops = () => {
       const { data: shopsData, error: shopsError } = await supabase
         .from('shops')
         .select('*')
+        .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(18);
       
