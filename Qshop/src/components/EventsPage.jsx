@@ -143,7 +143,7 @@ const EventsPage = ({ token }) => {
                           KES {event.price}
                         </span>
                       )}
-                      {spotsLeft !== null && (
+                     {false && spotsLeft !== null && (
                         <span className={`text-xs ${spotsLeft <= 10 ? 'text-orange-500' : 'text-foreground/40'}`}>
                           {spotsLeft > 0 ? `${spotsLeft} spots left` : 'Sold out'}
                         </span>
