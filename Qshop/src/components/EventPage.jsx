@@ -402,7 +402,7 @@ const EventPage = ({ token }) => {
                   <span>{event.venue}</span>
                 </div>
               )}
-              {event.max_capacity && (
+              {false && event.max_capacity && (
                 <div className="flex items-center gap-3 text-foreground/70 text-sm sm:text-base">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <Users className="w-4 h-4 text-primary" />
@@ -416,7 +416,7 @@ const EventPage = ({ token }) => {
             </div>
 
             {/* Progress bar */}
-            {event.max_capacity && (
+           {false && event.max_capacity && (
               <div className="mb-6">
                 <div className="w-full h-2 bg-foreground/10 rounded-full overflow-hidden">
                   <div
@@ -515,7 +515,7 @@ const EventPage = ({ token }) => {
                             <p className="text-xl font-bold text-foreground mt-1">
                               {tier.price === 0 ? 'FREE' : fmt(tier.price)}
                             </p>
-                            {tierSpotsLeft !== null && (
+                           {false && tierSpotsLeft !== null && (
                               <p className={`text-xs mt-1.5 ${
                                 tierSoldOut ? 'text-red-500' :
                                 tierSpotsLeft <= 10 ? 'text-orange-500' : 'text-foreground/40'
