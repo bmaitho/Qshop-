@@ -12,6 +12,22 @@ dist
 dist-ssr
 *.local
 
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+backend/.env
+backend/.env.*
+
+# Large binaries (don't commit, use releases instead)
+*.deb
+*.dmg
+*.exe
+*.msi
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
