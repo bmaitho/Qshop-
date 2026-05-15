@@ -120,15 +120,21 @@ const MyTickets = () => {
         <p className="text-sm text-foreground/50 mb-6">{tickets.length} ticket{tickets.length !== 1 ? 's' : ''}</p>
 
         {tickets.length === 0 ? (
-          <div className="text-center py-16">
-            <Ticket className="w-16 h-16 mx-auto mb-4 text-foreground/20" />
-            <p className="text-foreground/50 mb-2">No tickets yet</p>
-            <button
-              onClick={() => navigate('/events')}
-              className="text-primary hover:underline text-sm"
-            >
-              Browse events →
-            </button>
+          <div className="text-center py-10">
+            <div className="bg-gradient-to-br from-[#0D2B20] to-[#0D2B20]/90 rounded-2xl p-8 border border-[#E7C65F]/30 shadow-lg">
+              <Ticket className="w-14 h-14 mx-auto mb-4 text-[#E7C65F]" />
+              <h2 className="text-xl font-bold text-white mb-2">No tickets yet</h2>
+              <p className="text-white/70 text-sm mb-6 max-w-sm mx-auto">
+                You haven't grabbed a ticket yet. Head over to The Hive to see what's coming up.
+              </p>
+              <button
+                onClick={() => navigate('/events')}
+                className="inline-flex items-center gap-2 bg-[#E7C65F] hover:bg-[#E7C65F]/90 text-[#0D2B20] font-semibold px-6 py-3 rounded-xl transition-colors"
+              >
+                <Ticket className="w-4 h-4" />
+                Go to The Hive
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

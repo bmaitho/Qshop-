@@ -11,7 +11,8 @@ import {
   Search,
   MessageCircle,
   HelpCircle,
-  Settings
+  Settings,
+  Ticket
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -191,6 +192,12 @@ const Navbar = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link to="/my-tickets" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
+            <Ticket className="mr-2 h-4 w-4" style={goldIconStyle} />
+            <span style={goldTextStyle}>My Tickets</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link to="/profile?tab=settings" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
             <Settings className="mr-2 h-4 w-4" style={goldIconStyle} />
             <span style={goldTextStyle}>Settings</span>
@@ -263,6 +270,19 @@ const Navbar = () => {
                 </TooltipContent>
               </Tooltip>
               
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link to="/my-tickets" className="relative tickets-icon">
+                    <Button variant="ghost" size="icon" className="hover:bg-accent dark:hover:bg-accent">
+                      <Ticket className="h-5 w-5" style={goldIconStyle} />
+                    </Button>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>My Tickets</p>
+                </TooltipContent>
+              </Tooltip>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link to="/wishlist" className="wishlist-icon relative">

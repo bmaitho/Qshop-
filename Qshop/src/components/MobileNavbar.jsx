@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun, MessageCircle, Settings } from 'lucide-react';
+import { ShoppingCart, Home, Search, User, Heart, Store, Moon, Sun, MessageCircle, Settings, Ticket } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useTheme } from './ThemeContext';
@@ -84,6 +84,12 @@ const MobileNavbar = () => {
               </a>
             </div>
             
+            <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
+              <a href="/my-tickets" className="relative tickets-icon" aria-label="My Tickets">
+                <Ticket size={18} style={goldIconStyle} />
+              </a>
+            </div>
+
             <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
               <a href="/profile?tab=messages" className="relative message-icon" aria-label="Messages">
                 <MessageCircle size={18} style={goldIconStyle} />
