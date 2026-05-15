@@ -938,3 +938,161 @@ View the conversation: ${conversationUrl}
 © ${new Date().getFullYear()} UniHive. All rights reserved.
 `;
 };
+
+// ─── Event Ticket Confirmation ───────────────────────────────────────────────
+/**
+ * @param {Object} t
+ * @param {string} t.attendeeName
+ * @param {string} t.eventTitle
+ * @param {string} t.eventDate        - ISO date string (YYYY-MM-DD) or formatted
+ * @param {string} [t.eventTime]      - "HH:MM" 24h, optional
+ * @param {string} [t.venue]
+ * @param {string} t.tierName
+ * @param {number} t.amountPaid
+ * @param {string} [t.mpesaReceipt]
+ * @param {string} t.ticketToken      - UUID, used in verify URL
+ * @param {string} t.verifyUrl        - Full URL to /verify-ticket/<token>
+ * @param {boolean} [t.isGuest]       - If true, add "claim your account" CTA
+ * @param {string} [t.attendeeEmail]  - For the claim-account link prefill
+ */
+export const eventTicketConfirmationTemplate = (t) => {
+  const fmtKes = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+  const fmtDate = (d) => {
+    if (!d) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      try {
+        return new Date(d + 'T00:00:00').toLocaleDateString('en-KE', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+      } catch { return d; }
+    }
+    return d;
+  };
+  const fmtTime = (timeStr) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':');
+    const hour = parseInt(h, 10);
+    if (isNaN(hour)) return timeStr;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const display = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return `${display}:${m} ${ampm}`;
+  };
+
+  const claimAccountBlock = t.isGuest ? `
+    <div style="margin-top:32px;padding:20px;background:#FFF9E6;border:1px solid #E7C65F;border-radius:12px;">
+      <p style="margin:0 0 8px 0;font-size:14px;color:#0D2B20;font-weight:600;">
+        Save this ticket to a UniHive account
+      </p>
+      <p style="margin:0 0 12px 0;font-size:13px;color:#555;line-height:1.5;">
+        Create a free account with this same email (${t.attendeeEmail || ''}) and your ticket will appear in <strong>My Tickets</strong> automatically. Useful for future events.
+      </p>
+      <a href="https://unihive.shop/auth?email=${encodeURIComponent(t.attendeeEmail || '')}"
+         style="display:inline-block;padding:10px 18px;background:#0D2B20;color:#E7C65F;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
+        Set up account →
+      </a>
+    </div>
+  ` : '';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your UniHive Ticket — ${t.eventTitle}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;color:#333;">
+  <div style="max-width:600px;margin:0 auto;padding:24px;">
+    <div style="background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+      <!-- Hero -->
+      <div style="background:#0D2B20;color:#E7C65F;padding:28px 24px;text-align:center;">
+        <p style="margin:0;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.8;">UniHive Ticket</p>
+        <h1 style="margin:8px 0 0 0;font-family:'Playfair Display',Georgia,serif;font-size:26px;color:#E7C65F;font-weight:700;">
+          ${t.eventTitle}
+        </h1>
+      </div>
+
+      <!-- Greeting -->
+      <div style="padding:24px 24px 8px 24px;">
+        <p style="margin:0;font-size:15px;color:#333;">
+          Hi ${t.attendeeName || 'there'},
+        </p>
+        <p style="margin:12px 0 0 0;font-size:15px;line-height:1.6;color:#444;">
+          You're in! 🎉 Your ticket is confirmed. <strong>Show the QR code below at the entrance</strong> — or open this email on your phone when you arrive.
+        </p>
+      </div>
+
+      <!-- QR -->
+      <div style="text-align:center;padding:24px;">
+        <div style="display:inline-block;padding:16px;background:#ffffff;border:2px solid #0D2B20;border-radius:14px;">
+          <img src="cid:ticket-qr" alt="Your ticket QR code" width="220" height="220" style="display:block;width:220px;height:220px;" />
+        </div>
+        <p style="margin:12px 0 0 0;font-size:11px;color:#888;word-break:break-all;font-family:monospace;">
+          ${t.ticketToken}
+        </p>
+      </div>
+
+      <!-- Event details -->
+      <div style="padding:0 24px 16px 24px;">
+        <div style="background:#FAFAF7;border:1px solid #ECECEC;border-radius:12px;padding:18px;">
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <tr><td style="padding:6px 0;color:#888;width:90px;">Event</td><td style="padding:6px 0;color:#0D2B20;font-weight:600;">${t.eventTitle}</td></tr>
+            ${t.eventDate ? `<tr><td style="padding:6px 0;color:#888;">Date</td><td style="padding:6px 0;color:#0D2B20;">${fmtDate(t.eventDate)}</td></tr>` : ''}
+            ${t.eventTime ? `<tr><td style="padding:6px 0;color:#888;">Time</td><td style="padding:6px 0;color:#0D2B20;">${fmtTime(t.eventTime)}</td></tr>` : ''}
+            ${t.venue ? `<tr><td style="padding:6px 0;color:#888;">Venue</td><td style="padding:6px 0;color:#0D2B20;">${t.venue}</td></tr>` : ''}
+            ${t.tierName ? `<tr><td style="padding:6px 0;color:#888;">Tier</td><td style="padding:6px 0;color:#0D2B20;font-weight:600;">${t.tierName}</td></tr>` : ''}
+            <tr><td style="padding:6px 0;color:#888;">Amount</td><td style="padding:6px 0;color:#0D2B20;font-weight:600;">${fmtKes(t.amountPaid)}</td></tr>
+            ${t.mpesaReceipt ? `<tr><td style="padding:6px 0;color:#888;">Receipt</td><td style="padding:6px 0;color:#0D2B20;font-family:monospace;">${t.mpesaReceipt}</td></tr>` : ''}
+          </table>
+        </div>
+      </div>
+
+      <!-- View ticket online -->
+      <div style="padding:8px 24px 24px 24px;text-align:center;">
+        <a href="${t.verifyUrl}"
+           style="display:inline-block;padding:12px 22px;background:#0D2B20;color:#E7C65F;text-decoration:none;border-radius:10px;font-size:14px;font-weight:600;">
+          View ticket online
+        </a>
+        <p style="margin:12px 0 0 0;font-size:12px;color:#888;line-height:1.5;">
+          If the QR code above doesn't display, use this link or scan it from this email.
+        </p>
+      </div>
+
+      ${claimAccountBlock}
+
+      <!-- Footer -->
+      <div style="padding:16px 24px 24px 24px;border-top:1px solid #ECECEC;margin-top:8px;">
+        <p style="margin:0;font-size:11px;color:#999;text-align:center;line-height:1.6;">
+          Save this email — your QR code is your entry pass.<br/>
+          Questions? Reply to this email or contact <a href="mailto:mwendatulley@gmail.com" style="color:#0D2B20;">support</a>.<br/>
+          © ${new Date().getFullYear()} UniHive
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+};
+
+export const eventTicketConfirmationText = (t) => {
+  const fmtKes = (n) => `KES ${Number(n || 0).toLocaleString()}`;
+  return `Your UniHive Ticket — ${t.eventTitle}
+
+Hi ${t.attendeeName || 'there'},
+
+You're in! Your ticket is confirmed.
+
+EVENT DETAILS
+Event: ${t.eventTitle}
+${t.eventDate ? `Date: ${t.eventDate}\n` : ''}${t.eventTime ? `Time: ${t.eventTime}\n` : ''}${t.venue ? `Venue: ${t.venue}\n` : ''}${t.tierName ? `Tier: ${t.tierName}\n` : ''}Amount: ${fmtKes(t.amountPaid)}
+${t.mpesaReceipt ? `Receipt: ${t.mpesaReceipt}\n` : ''}
+View / scan your ticket online (your QR is also attached as an image):
+${t.verifyUrl}
+
+Ticket token: ${t.ticketToken}
+
+${t.isGuest ? `\nWant to save this ticket to a UniHive account? Sign up with this same email at https://unihive.shop/auth — your ticket will appear automatically.\n` : ''}
+Save this email — your QR is your entry pass.
+
+© ${new Date().getFullYear()} UniHive
+`;
+};

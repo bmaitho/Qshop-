@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { getDisplayInfo } from '../utils/communicationUtils';
 import { sendMessageEmail } from '../utils/sendMessageEmail';
-import { triggerPayment } from '../Services/mpesaService';
 
 const SellerOrderDetail = () => {
   const { id } = useParams();

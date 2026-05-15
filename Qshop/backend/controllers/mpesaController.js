@@ -304,7 +304,38 @@ export const handleCallback = async (req, res) => {
               .eq('id', ticket.event_id);
           }
 
+          // Increment promo code usage if one was applied
+          if (ticket.promo_code_id) {
+            const { error: promoErr } = await supabase.rpc('increment_promo_code_usage', {
+              p_promo_code_id: ticket.promo_code_id,
+            });
+            if (promoErr) {
+              console.error('Failed to increment promo usage:', promoErr);
+            } else {
+              console.log(`🏷️  Promo code ${ticket.promo_code_id} usage incremented`);
+            }
+          }
+
           console.log(`✅ Event ticket ${ticket.id} confirmed. Receipt: ${mpesaReceiptNumber}`);
+
+          // Fire-and-forget the confirmation email (with QR). Doesn't block the
+          // M-Pesa callback response — failures are recorded on the ticket and
+          // can be retried via /api/email/event-ticket-resend/:ticketId.
+          try {
+            const selfUrl =
+              process.env.SELF_URL ||
+              process.env.BACKEND_URL ||
+              'https://unihive-wba0.onrender.com';
+            fetch(`${selfUrl}/api/email/event-ticket-confirmation`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticketId: ticket.id }),
+            }).catch((err) =>
+              console.error(`Ticket email kickoff failed for ${ticket.id}:`, err.message)
+            );
+          } catch (e) {
+            console.error('Could not kick off ticket email:', e.message);
+          }
         } else {
           await supabase
             .from('event_tickets')

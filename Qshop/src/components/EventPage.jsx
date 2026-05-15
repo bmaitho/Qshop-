@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
 import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
+import { initGuestTicket } from '../Services/eventTicketService';
 import Navbar from './Navbar';
 import MobileNavbar from './MobileNavbar';
 import QRCode from './QRCode';
@@ -18,13 +19,23 @@ const EventPage = ({ token }) => {
 
   // Purchase flow state
   const [selectedTier, setSelectedTier] = useState(null);
-  const [step, setStep] = useState('select'); // select | phone | processing | success | failed
+  const [step, setStep] = useState('select'); // select | details | processing | success | failed
+  const [buyerName, setBuyerName] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [currentUser, setCurrentUser] = useState(null); // null = guest, else auth user
+  const [createdTicket, setCreatedTicket] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [checkoutRequestId, setCheckoutRequestId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [mpesaReceipt, setMpesaReceipt] = useState('');
   const pollingRef = useRef(null);
+
+  // Promo code state
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+  const [promoError, setPromoError] = useState('');
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -54,9 +65,26 @@ const EventPage = ({ token }) => {
         if (available) setSelectedTier(available);
       }
 
-      // Check if user already has a ticket
+      // Check if user already has a ticket (only when logged in)
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        setCurrentUser(user);
+
+        // Prefill buyer form from profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, email, phone')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profile) {
+          if (profile.full_name) setBuyerName(profile.full_name);
+          if (profile.email || user.email) setBuyerEmail(profile.email || user.email);
+          if (profile.phone) setPhoneNumber(profile.phone);
+        } else if (user.email) {
+          setBuyerEmail(user.email);
+        }
+
         const { data: ticket } = await supabase
           .from('event_tickets')
           .select('*')
@@ -76,26 +104,25 @@ const EventPage = ({ token }) => {
   };
 
   const handleBuyTicket = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error('Please log in to buy a ticket');
-      navigate('/auth');
-      return;
-    }
-
     if (!selectedTier) {
       toast.error('Please select a ticket tier');
       return;
     }
 
-    // If free event, skip payment
+    // Free tickets are still logged-in only (out of scope for guest checkout)
     if (selectedTier.price === 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.info('Please sign in to claim a free ticket');
+        navigate('/auth');
+        return;
+      }
       await claimFreeTicket(user);
       return;
     }
 
-    // Show phone input
-    setStep('phone');
+    // Paid ticket → details step (guest checkout supported)
+    setStep('details');
   };
 
   const claimFreeTicket = async (user) => {
@@ -142,55 +169,63 @@ const EventPage = ({ token }) => {
     }
   };
 
-  const handlePay = async () => {
-    if (!phoneNumber || phoneNumber.replace(/\D/g, '').length < 9) {
-      toast.error('Enter a valid phone number');
-      return;
+  const validateDetails = () => {
+    if (!buyerName || buyerName.trim().length < 2) {
+      toast.error('Please enter your full name');
+      return false;
     }
+    if (!buyerEmail || !/^\S+@\S+\.\S+$/.test(buyerEmail)) {
+      toast.error('Please enter a valid email');
+      return false;
+    }
+    if (!phoneNumber || phoneNumber.replace(/\D/g, '').length < 9) {
+      toast.error('Please enter a valid M-Pesa phone number');
+      return false;
+    }
+    return true;
+  };
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const handlePay = async () => {
+    if (!validateDetails()) return;
 
     setProcessing(true);
     setStep('processing');
+    setErrorMsg('');
 
     try {
-      // Check existing ticket
-      const { data: existing } = await supabase
-        .from('event_tickets')
-        .select('id')
-        .eq('event_id', event.id)
-        .eq('user_id', user.id)
-        .eq('payment_status', 'completed')
-        .maybeSingle();
+      // 1. Create / resolve user + insert pending ticket via backend
+      const initRes = await initGuestTicket({
+        eventId: event.id,
+        tierName: selectedTier.name,
+        name: buyerName.trim(),
+        email: buyerEmail.trim().toLowerCase(),
+        phone: phoneNumber,
+      });
 
-      if (existing) {
-        toast.info('You already have a ticket!');
-        fetchEvent();
-        return;
+      if (!initRes.success) {
+        if (initRes.status === 409 && initRes.existingTicketToken) {
+          toast.info('You already have a ticket for this event. Check your email!');
+          navigate(`/verify-ticket/${initRes.existingTicketToken}`);
+          return;
+        }
+        throw new Error(initRes.error || 'Could not start checkout');
       }
 
-      // Create pending ticket
-      const { data: ticket, error: ticketError } = await supabase
-        .from('event_tickets')
-        .insert({
-          event_id: event.id,
-          user_id: user.id,
-          amount_paid: selectedTier.price,
-          payment_status: 'pending',
-          tier: selectedTier.name,
-          phone_number: phoneNumber,
-        })
-        .select()
-        .single();
+      const ticketId = initRes.ticketId;
+      setCreatedTicket({ id: ticketId, token: initRes.ticketToken });
 
-      if (ticketError) throw ticketError;
+      // 2. Initiate STK Push
+      const promoStillValid = appliedPromo &&
+        appliedPromo.tier_name &&
+        appliedPromo.tier_name.toLowerCase() === selectedTier.name.toLowerCase();
+      const amountToCharge = promoStillValid
+        ? appliedPromo.discounted_price
+        : selectedTier.price;
 
-      // Initiate STK Push
       const response = await initiateMpesaPayment(
         phoneNumber,
-        selectedTier.price,
-        ticket.id,
+        amountToCharge,
+        ticketId,
         `UniHive-${event.slug}`
       );
 
@@ -201,14 +236,14 @@ const EventPage = ({ token }) => {
 
       setCheckoutRequestId(checkoutId);
 
-      // Save checkout ID to ticket
+      // 3. Save checkout ID on the ticket
       await supabase
         .from('event_tickets')
         .update({ mpesa_checkout_request_id: checkoutId })
-        .eq('id', ticket.id);
+        .eq('id', ticketId);
 
-      // Start polling
-      startPolling(checkoutId, ticket.id);
+      // 4. Poll for completion
+      startPolling(checkoutId, ticketId);
 
     } catch (err) {
       console.error('Payment error:', err);
@@ -216,6 +251,60 @@ const EventPage = ({ token }) => {
       setStep('failed');
       setProcessing(false);
     }
+  };
+
+  // ── Promo code handlers ──
+  const handleApplyPromo = async () => {
+    if (!promoCodeInput.trim()) {
+      setPromoError('Enter a code');
+      return;
+    }
+    if (!selectedTier || selectedTier.price <= 0) {
+      setPromoError('Select a paid tier first');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Please log in to apply a promo code');
+      navigate('/auth');
+      return;
+    }
+
+    setValidatingPromo(true);
+    setPromoError('');
+
+    try {
+      const { data, error } = await supabase.rpc('validate_promo_code', {
+        p_code: promoCodeInput.trim(),
+        p_event_id: event.id,
+        p_tier_name: selectedTier.name,
+        p_price: selectedTier.price,
+      });
+
+      if (error) throw error;
+
+      if (!data?.valid) {
+        setPromoError(data?.error || 'Invalid code');
+        setAppliedPromo(null);
+        return;
+      }
+
+      setAppliedPromo({ ...data, tier_name: selectedTier.name });
+      toast.success(`${data.discount_percent}% off applied — ${data.owner_name}'s code 🎉`);
+    } catch (err) {
+      console.error('Promo validation error:', err);
+      setPromoError('Could not validate code. Try again.');
+      setAppliedPromo(null);
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCodeInput('');
+    setPromoError('');
   };
 
   const startPolling = (checkoutId, ticketId) => {
@@ -276,10 +365,11 @@ const EventPage = ({ token }) => {
 
   const resetPurchase = () => {
     setStep('select');
-    setPhoneNumber('');
+    // keep buyer fields prefilled so they don't re-type if they retry
     setProcessing(false);
     setErrorMsg('');
     setCheckoutRequestId(null);
+    setCreatedTicket(null);
     if (pollingRef.current) clearInterval(pollingRef.current);
   };
 
@@ -536,6 +626,63 @@ const EventPage = ({ token }) => {
                   </div>
                 )}
 
+                {/* ── Promo code input (only for paid tiers) ── */}
+                {selectedTier && selectedTier.price > 0 && !soldOut && (
+                  <div className="space-y-2">
+                    {!appliedPromo ? (
+                      <>
+                        <label className="text-xs font-semibold text-foreground/40 uppercase tracking-wider flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5" /> Promo code
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={promoCodeInput}
+                            onChange={(e) => { setPromoCodeInput(e.target.value.toUpperCase()); setPromoError(''); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleApplyPromo(); }}
+                            placeholder="Enter code"
+                            disabled={validatingPromo}
+                            className="flex-1 px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:border-primary uppercase tracking-wider font-mono"
+                          />
+                          <button
+                            onClick={handleApplyPromo}
+                            disabled={validatingPromo || !promoCodeInput.trim()}
+                            className="px-4 py-2.5 rounded-xl border border-primary text-primary text-sm font-semibold hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {validatingPromo ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                          </button>
+                        </div>
+                        {promoError && (
+                          <p className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {promoError}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-xl p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-green-700 dark:text-green-400">
+                              {appliedPromo.discount_percent}% off applied
+                            </p>
+                            <p className="text-xs text-green-600/80 dark:text-green-400/70">
+                              {appliedPromo.owner_name}'s code · Save {fmt(appliedPromo.discount_amount)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleRemovePromo}
+                          className="text-green-600/60 hover:text-green-700 dark:hover:text-green-400 p-1"
+                          aria-label="Remove promo"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {soldOut ? (
                   <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/15 rounded-xl p-3">
                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -550,9 +697,15 @@ const EventPage = ({ token }) => {
                       disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <Ticket className="w-5 h-5" />
-                    {selectedTier?.price > 0
-                      ? `Buy Ticket — ${fmt(selectedTier.price)}`
-                      : 'Claim Free Ticket'}
+                    {selectedTier?.price > 0 ? (
+                      appliedPromo && appliedPromo.tier_name?.toLowerCase() === selectedTier.name.toLowerCase() ? (
+                        <span className="flex items-center gap-2">
+                          Buy Ticket —
+                          <span className="line-through opacity-60">{fmt(selectedTier.price)}</span>
+                          <span>{fmt(appliedPromo.discounted_price)}</span>
+                        </span>
+                      ) : `Buy Ticket — ${fmt(selectedTier.price)}`
+                    ) : 'Claim Free Ticket'}
                   </button>
                 )}
 
@@ -565,23 +718,61 @@ const EventPage = ({ token }) => {
                 </button>
               </div>
 
-            ) : step === 'phone' ? (
-              /* ── Phone input ── */
+            ) : step === 'details' ? (
+              /* ── Buyer details (name + email + phone) ── */
               <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground bg-muted rounded-xl p-3">
-                  <PhoneCall className="w-4 h-4 shrink-0" />
-                  <p>Enter the M-Pesa number to receive the STK push. You'll get a prompt on your phone.</p>
+                <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted rounded-xl p-3">
+                  <Mail className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>We'll send your ticket and QR code to your email. {!currentUser && 'No account needed — just enter your details below.'}</p>
                 </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-1 block text-foreground">Full Name</label>
+                  <div className="relative">
+                    <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={buyerName}
+                      onChange={e => setBuyerName(e.target.value)}
+                      placeholder="Jane Doe"
+                      autoComplete="name"
+                      className="w-full border border-input rounded-lg pl-9 pr-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-1 block text-foreground">Email</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="email"
+                      value={buyerEmail}
+                      onChange={e => setBuyerEmail(e.target.value)}
+                      placeholder="jane@example.com"
+                      autoComplete="email"
+                      className="w-full border border-input rounded-lg pl-9 pr-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Your QR code and receipt are sent here.</p>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium mb-1 block text-foreground">M-Pesa Phone Number</label>
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={e => setPhoneNumber(e.target.value)}
-                    placeholder="0712345678"
-                    className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
+                  <div className="relative">
+                    <PhoneCall className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={e => setPhoneNumber(e.target.value)}
+                      placeholder="0712345678"
+                      autoComplete="tel"
+                      className="w-full border border-input rounded-lg pl-9 pr-3 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">You'll get an STK push prompt to pay.</p>
                 </div>
+
                 <div className="bg-muted rounded-xl p-4 text-sm space-y-1">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Ticket</span>
@@ -618,17 +809,58 @@ const EventPage = ({ token }) => {
               <div className="text-center py-8 space-y-4">
                 <CheckCircle className="w-14 h-14 mx-auto text-green-500" />
                 <p className="font-bold text-lg text-foreground">Ticket Confirmed!</p>
+
+                {/* QR shown inline */}
+                {(existingTicket || createdTicket) && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="bg-white p-4 rounded-2xl shadow-sm">
+                      <QRCode
+                        value={`${window.location.origin}/verify-ticket/${existingTicket?.ticket_token || createdTicket?.token}`}
+                        size={isMobile ? 180 : 220}
+                        fgColor="#000000"
+                        bgColor="#ffffff"
+                      />
+                    </div>
+                    <p className="text-xs text-foreground/50">Show this QR at the entrance</p>
+                  </div>
+                )}
+
                 <div className="bg-muted rounded-xl p-4 text-sm space-y-1 text-left">
                   <div className="flex justify-between"><span className="text-muted-foreground">Event</span><span className="font-medium text-foreground">{event.title}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Tier</span><span className="font-medium text-foreground">{selectedTier?.name}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-medium text-foreground">{fmt(selectedTier?.price)}</span></div>
                   {mpesaReceipt && <div className="flex justify-between"><span className="text-muted-foreground">Receipt</span><span className="font-medium text-foreground">{mpesaReceipt}</span></div>}
                 </div>
+
+                <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/40 rounded-xl p-3 flex items-start gap-2 text-left">
+                  <Mail className="w-4 h-4 shrink-0 mt-0.5 text-green-600" />
+                  <p className="text-xs text-green-700 dark:text-green-400">
+                    We've also emailed your QR code to <strong>{buyerEmail}</strong>. Check spam if you don't see it.
+                  </p>
+                </div>
+
+                {!currentUser && (
+                  <div className="bg-[#FFF9E6] border border-[#E7C65F]/60 rounded-xl p-3 text-left">
+                    <p className="text-xs text-foreground/80 mb-2">
+                      Want to save this ticket for next time? Create a UniHive account with this same email and it'll appear in <strong>My Tickets</strong> automatically.
+                    </p>
+                    <button
+                      onClick={() => navigate(`/auth?email=${encodeURIComponent(buyerEmail)}`)}
+                      className="text-xs font-semibold text-[#0D2B20] underline hover:no-underline"
+                    >
+                      Set up account →
+                    </button>
+                  </div>
+                )}
+
                 <button
-                  onClick={() => { resetPurchase(); fetchEvent(); }}
+                  onClick={() => {
+                    if (currentUser) navigate('/my-tickets');
+                    else resetPurchase();
+                  }}
                   className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90"
                 >
-                  View My Ticket
+                  {currentUser ? 'View My Tickets' : 'Done'}
                 </button>
               </div>
 
@@ -638,7 +870,7 @@ const EventPage = ({ token }) => {
                 <XCircle className="w-14 h-14 mx-auto text-red-500" />
                 <p className="font-bold text-lg text-foreground">Payment Failed</p>
                 <p className="text-sm text-muted-foreground">{errorMsg || 'Please try again.'}</p>
-                <button onClick={() => setStep('phone')} className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90">
+                <button onClick={() => setStep('details')} className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90">
                   Try Again
                 </button>
                 <button onClick={resetPurchase} className="w-full text-sm text-muted-foreground hover:text-foreground">Cancel</button>

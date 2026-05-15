@@ -696,4 +696,349 @@ Track your order: ${orderUrl}
   }
 });
 
+// ─── Event Ticket Confirmation ───────────────────────────────────────────────
+// Sends the branded QR-attached confirmation email for a paid event ticket.
+// Updates event_tickets.confirmation_email_status with sent/failed.
+//
+// Body: { ticketId: uuid }
+// Used by: M-Pesa callback (fire-and-forget), the resend endpoint below, and
+// the one-time backfill endpoint further down.
+const sendEventTicketEmail = async (ticketId) => {
+  const { Resend } = await import('resend');
+  const QRCodeLib = (await import('qrcode')).default;
+  const {
+    eventTicketConfirmationTemplate,
+    eventTicketConfirmationText,
+  } = await import('../utils/emailTemplates.js');
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const APP_URL = process.env.APP_URL || 'https://unihive.shop';
+  const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
+
+  // 1. Fetch the ticket
+  const { data: ticket, error: tErr } = await supabase
+    .from('event_tickets')
+    .select('*')
+    .eq('id', ticketId)
+    .maybeSingle();
+
+  if (tErr || !ticket) {
+    throw new Error(tErr?.message || 'Ticket not found');
+  }
+  if (ticket.payment_status !== 'completed') {
+    throw new Error(`Ticket payment_status is "${ticket.payment_status}", not "completed"`);
+  }
+
+  // 2. Bump attempts BEFORE we try to send (so partial failures still record)
+  const attemptsNext = (ticket.confirmation_email_attempts || 0) + 1;
+  await supabase
+    .from('event_tickets')
+    .update({ confirmation_email_attempts: attemptsNext })
+    .eq('id', ticket.id);
+
+  // 3. Fetch event
+  const { data: event, error: eErr } = await supabase
+    .from('events')
+    .select('id, title, slug, event_date, event_time, venue')
+    .eq('id', ticket.event_id)
+    .maybeSingle();
+  if (eErr || !event) throw new Error('Event not found for ticket');
+
+  // 4. Resolve recipient email + name. Try profiles first, then auth.users.
+  let recipientEmail = null;
+  let recipientName = ticket.guest_name || null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', ticket.user_id)
+    .maybeSingle();
+
+  if (profile?.email) recipientEmail = profile.email;
+  if (!recipientName && profile?.full_name) recipientName = profile.full_name;
+
+  if (!recipientEmail) {
+    // Fall back to auth.users (profiles.email can be null even when auth has it)
+    const { data: authUser } = await supabase.auth.admin.getUserById(ticket.user_id);
+    if (authUser?.user?.email) {
+      recipientEmail = authUser.user.email;
+      if (!recipientName) recipientName = authUser.user.user_metadata?.full_name || null;
+    }
+  }
+
+  if (!recipientEmail) {
+    throw new Error('No email address resolvable for this ticket');
+  }
+
+  const verifyUrl = `${APP_URL}/verify-ticket/${ticket.ticket_token}`;
+
+  // 5. Generate the QR PNG buffer
+  const qrBuffer = await QRCodeLib.toBuffer(verifyUrl, {
+    type: 'png',
+    errorCorrectionLevel: 'M',
+    margin: 1,
+    width: 440, // rendered as 220 in email; 2x for retina
+    color: { dark: '#000000', light: '#FFFFFF' },
+  });
+
+  // 6. Build templates
+  const isGuest = !!ticket.guest_purchase;
+  const tplArgs = {
+    attendeeName: recipientName,
+    attendeeEmail: recipientEmail,
+    eventTitle: event.title,
+    eventDate: event.event_date,
+    eventTime: event.event_time,
+    venue: event.venue,
+    tierName: ticket.tier,
+    amountPaid: ticket.amount_paid,
+    mpesaReceipt: ticket.mpesa_receipt,
+    ticketToken: ticket.ticket_token,
+    verifyUrl,
+    isGuest,
+  };
+
+  const html = eventTicketConfirmationTemplate(tplArgs);
+  const text = eventTicketConfirmationText(tplArgs);
+
+  // 7. Send via Resend, embedding the QR with content_id reference
+  const { data: sendData, error: sendErr } = await resend.emails.send({
+    from: fromAddress,
+    to: recipientEmail,
+    subject: `🎫 Your ticket to ${event.title}`,
+    html,
+    text,
+    attachments: [
+      {
+        filename: 'ticket-qr.png',
+        content: qrBuffer.toString('base64'),
+        content_id: 'ticket-qr',
+      },
+    ],
+  });
+
+  if (sendErr) {
+    throw new Error(sendErr.message || JSON.stringify(sendErr));
+  }
+
+  // 8. Mark sent
+  await supabase
+    .from('event_tickets')
+    .update({
+      confirmation_email_status: 'sent',
+      confirmation_email_sent_at: new Date().toISOString(),
+      confirmation_email_last_error: null,
+    })
+    .eq('id', ticket.id);
+
+  console.log(`✅ Event ticket email → ${recipientEmail} (${sendData?.id})`);
+  return { emailId: sendData?.id, recipient: recipientEmail };
+};
+
+router.post('/event-ticket-confirmation', async (req, res) => {
+  const { ticketId } = req.body || {};
+  if (!ticketId) {
+    return res.status(400).json({ success: false, error: 'ticketId is required' });
+  }
+  try {
+    const result = await sendEventTicketEmail(ticketId);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('❌ event-ticket-confirmation failed:', err.message);
+    // Record failure on the ticket (best-effort, won't crash if it fails)
+    try {
+      await supabase
+        .from('event_tickets')
+        .update({
+          confirmation_email_status: 'failed',
+          confirmation_email_last_error: (err.message || 'unknown').slice(0, 500),
+        })
+        .eq('id', ticketId);
+    } catch (_) { /* ignore */ }
+    return res.status(200).json({ success: false, error: err.message });
+  }
+});
+
+// Manual resend (callable from MyTickets, VerifyTicket, or admin)
+router.post('/event-ticket-resend/:ticketId', async (req, res) => {
+  const { ticketId } = req.params;
+  try {
+    const result = await sendEventTicketEmail(ticketId);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error('❌ event-ticket-resend failed:', err.message);
+    try {
+      await supabase
+        .from('event_tickets')
+        .update({
+          confirmation_email_status: 'failed',
+          confirmation_email_last_error: (err.message || 'unknown').slice(0, 500),
+        })
+        .eq('id', ticketId);
+    } catch (_) { /* ignore */ }
+    return res.status(200).json({ success: false, error: err.message });
+  }
+});
+
+// One-shot backfill: re-sends to all completed tickets where the email is
+// still pending or previously failed. Spaced out to respect Resend rate limits.
+// Admin-only — gated on a shared secret.
+router.post('/event-ticket-backfill', async (req, res) => {
+  const adminSecret = req.headers['x-admin-secret'] || req.body?.adminSecret;
+  const expected = process.env.ADMIN_BACKFILL_SECRET;
+  if (!expected || adminSecret !== expected) {
+    return res.status(403).json({ success: false, error: 'Forbidden' });
+  }
+
+  const dryRun = !!req.body?.dryRun;
+  const limit = Math.min(parseInt(req.body?.limit, 10) || 50, 200);
+
+  const { data: tickets, error } = await supabase
+    .from('event_tickets')
+    .select('id, confirmation_email_status')
+    .eq('payment_status', 'completed')
+    .in('confirmation_email_status', ['pending', 'failed'])
+    .limit(limit);
+
+  if (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+
+  if (dryRun) {
+    return res.status(200).json({
+      success: true,
+      dryRun: true,
+      wouldSend: tickets?.length || 0,
+      ticketIds: (tickets || []).map(t => t.id),
+    });
+  }
+
+  const results = { sent: 0, failed: 0, errors: [] };
+  for (const t of tickets || []) {
+    try {
+      await sendEventTicketEmail(t.id);
+      results.sent += 1;
+    } catch (err) {
+      results.failed += 1;
+      results.errors.push({ ticketId: t.id, error: err.message });
+      try {
+        await supabase
+          .from('event_tickets')
+          .update({
+            confirmation_email_status: 'failed',
+            confirmation_email_last_error: (err.message || 'unknown').slice(0, 500),
+          })
+          .eq('id', t.id);
+      } catch (_) { /* ignore */ }
+    }
+    // small delay to stay under Resend rate limits (2 req/sec on free tier)
+    await new Promise(r => setTimeout(r, 700));
+  }
+
+  return res.status(200).json({ success: true, ...results });
+});
+
+// ─── Guest Ticket Checkout Init ──────────────────────────────────────────────
+// Creates a shadow auth user (or reuses an existing one) keyed by email, then
+// inserts a pending event_tickets row. Returns the ticketId for the frontend
+// to use when initiating the M-Pesa STK push.
+//
+// Body: { eventId, tierName, name, email, phone }
+router.post('/guest-ticket-init', async (req, res) => {
+  try {
+    const { eventId, tierName, name, email, phone } = req.body || {};
+
+    if (!eventId || !tierName || !email || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'eventId, tierName, email, and phone are required',
+      });
+    }
+    if (!email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Invalid email' });
+    }
+
+    // 1. Fetch event + verify tier exists + capacity
+    const { data: event, error: eErr } = await supabase
+      .from('events')
+      .select('id, slug, title, status, max_capacity, tickets_sold, ticket_tiers')
+      .eq('id', eventId)
+      .maybeSingle();
+
+    if (eErr || !event) {
+      return res.status(404).json({ success: false, error: 'Event not found' });
+    }
+    if (event.status && event.status !== 'upcoming' && event.status !== 'active') {
+      return res.status(400).json({ success: false, error: 'This event is not accepting ticket sales' });
+    }
+
+    const tier = (event.ticket_tiers || []).find(t => t.name === tierName);
+    if (!tier) {
+      return res.status(400).json({ success: false, error: 'Selected tier not found on this event' });
+    }
+    if (tier.capacity && (tier.sold || 0) >= tier.capacity) {
+      return res.status(400).json({ success: false, error: 'This tier is sold out' });
+    }
+    if (event.max_capacity && (event.tickets_sold || 0) >= event.max_capacity) {
+      return res.status(400).json({ success: false, error: 'This event is sold out' });
+    }
+    if (!tier.price || tier.price <= 0) {
+      return res.status(400).json({ success: false, error: 'Guest checkout is only available for paid tickets' });
+    }
+
+    // 2. Resolve user (find existing or create shadow)
+    const { findOrCreateUserByEmail } = await import('../utils/findOrCreateUser.js');
+    const { userId, isNew } = await findOrCreateUserByEmail({ email, name, phone });
+
+    // 3. Duplicate-ticket guard: same user already has a completed ticket?
+    const { data: existing } = await supabase
+      .from('event_tickets')
+      .select('id, ticket_token')
+      .eq('event_id', event.id)
+      .eq('user_id', userId)
+      .eq('payment_status', 'completed')
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: 'You already have a ticket for this event. Check your email for the QR code.',
+        existingTicketToken: existing.ticket_token,
+      });
+    }
+
+    // 4. Insert pending ticket
+    const { data: ticket, error: ticketError } = await supabase
+      .from('event_tickets')
+      .insert({
+        event_id: event.id,
+        user_id: userId,
+        amount_paid: tier.price,
+        payment_status: 'pending',
+        tier: tier.name,
+        phone_number: phone,
+        guest_name: name || null,
+        guest_purchase: true,
+      })
+      .select()
+      .single();
+
+    if (ticketError) {
+      console.error('guest-ticket-init: insert error', ticketError);
+      return res.status(500).json({ success: false, error: 'Failed to create ticket' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      ticketId: ticket.id,
+      ticketToken: ticket.ticket_token,
+      userId,
+      isNewUser: isNew,
+    });
+  } catch (err) {
+    console.error('guest-ticket-init error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Internal error' });
+  }
+});
+
 export default router;
