@@ -1,22 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { CheckCircle, XCircle, AlertTriangle, Ticket, Calendar, Clock, MapPin, User } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, AlertTriangle, Calendar, Clock, MapPin, User, Lock, ShieldCheck } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 
 const VerifyTicket = () => {
   const { token } = useParams();
-  const [status, setStatus] = useState('loading'); // loading, valid, used, invalid, error
+  const navigate = useNavigate();
+
+  // Status flow:
+  //  loading            -> fetching ticket + auth state
+  //  not_authed         -> nobody logged in (must log in as staff)
+  //  not_staff          -> logged in but not is_admin
+  //  ready_to_scan      -> staff + ticket is fresh -> show MARK AS USED button
+  //  marking            -> staff just tapped the button, performing update
+  //  valid              -> just marked as used right now (success animation)
+  //  used               -> ticket was already used previously
+  //  invalid            -> token does not match any completed ticket
+  //  error              -> something blew up
+  const [status, setStatus] = useState('loading');
   const [ticket, setTicket] = useState(null);
   const [event, setEvent] = useState(null);
   const [attendee, setAttendee] = useState(null);
+  const [staffUser, setStaffUser] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (token) verifyTicket();
+    if (token) loadTicket();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const verifyTicket = async () => {
+  const loadTicket = async () => {
     try {
-      // Look up ticket by token
+      // 1. Check auth state
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 2. Look up the ticket (public SELECT policy allows this)
       const { data: ticketData, error: ticketError } = await supabase
         .from('event_tickets')
         .select('*')
@@ -39,7 +57,6 @@ const VerifyTicket = () => {
         .select('*')
         .eq('id', ticketData.event_id)
         .single();
-
       if (eventData) setEvent(eventData);
 
       // Fetch attendee profile
@@ -48,33 +65,94 @@ const VerifyTicket = () => {
         .select('full_name, email, phone')
         .eq('id', ticketData.user_id)
         .single();
-
       if (profileData) setAttendee(profileData);
 
-      // Check if already scanned
+      // 3. If already used, show used state regardless of who's viewing
       if (ticketData.scanned) {
         setStatus('used');
         return;
       }
 
-      // Mark as scanned
-      const { error: updateError } = await supabase
+      // 4. Not used. Determine if viewer is allowed to mark it used
+      if (!user) {
+        setStatus('not_authed');
+        return;
+      }
+
+      // Check is_admin on profile
+      const { data: viewerProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, is_admin')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!viewerProfile?.is_admin) {
+        setStaffUser({ id: user.id, name: viewerProfile?.full_name || user.email });
+        setStatus('not_staff');
+        return;
+      }
+
+      // Staff + fresh ticket -> arm the MARK AS USED button
+      setStaffUser({ id: user.id, name: viewerProfile.full_name || user.email });
+      setStatus('ready_to_scan');
+    } catch (err) {
+      console.error('Verification error:', err);
+      setErrorMsg(err.message || 'Unknown error');
+      setStatus('error');
+    }
+  };
+
+  const markAsUsed = async () => {
+    if (!ticket || !staffUser) return;
+    setStatus('marking');
+
+    try {
+      // Atomic guard: only flip if it's still NOT scanned.
+      // Prevents double-marking if two staff scan simultaneously.
+      const { data: updated, error: updateError } = await supabase
         .from('event_tickets')
         .update({
           scanned: true,
           scanned_at: new Date().toISOString(),
+          scanned_by: staffUser.id,
         })
-        .eq('id', ticketData.id);
+        .eq('id', ticket.id)
+        .eq('scanned', false)
+        .select()
+        .maybeSingle();
 
       if (updateError) {
-        console.error('Error marking ticket as scanned:', updateError);
+        console.error('Mark-as-used error:', updateError);
+        setErrorMsg(updateError.message || 'Failed to mark ticket as used');
+        setStatus('error');
+        return;
       }
 
+      if (!updated) {
+        // .eq('scanned', false) matched zero rows -> someone else just marked it
+        const { data: fresh } = await supabase
+          .from('event_tickets')
+          .select('*')
+          .eq('id', ticket.id)
+          .maybeSingle();
+        if (fresh) setTicket(fresh);
+        setStatus('used');
+        return;
+      }
+
+      setTicket(updated);
       setStatus('valid');
     } catch (err) {
-      console.error('Verification error:', err);
+      console.error('Mark-as-used exception:', err);
+      setErrorMsg(err.message || 'Unknown error');
       setStatus('error');
     }
+  };
+
+  const goLogin = () => {
+    const returnTo = `/verify-ticket/${token}`;
+    sessionStorage.setItem('postLoginRedirect', returnTo);
+    navigate('/auth');
   };
 
   const formatDate = (dateStr) => {
@@ -100,15 +178,15 @@ const VerifyTicket = () => {
     });
   };
 
+  const bgGradient =
+    status === 'valid' ? 'linear-gradient(135deg, #0a3d1a 0%, #0D2B20 100%)' :
+    status === 'used' ? 'linear-gradient(135deg, #3d2a0a 0%, #2b1d08 100%)' :
+    status === 'invalid' || status === 'error' ? 'linear-gradient(135deg, #3d0a0a 0%, #2b0808 100%)' :
+    status === 'ready_to_scan' || status === 'marking' ? 'linear-gradient(135deg, #0a3d2a 0%, #0D2B20 100%)' :
+    '#0D2B20';
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4"
-      style={{
-        background: status === 'valid' ? 'linear-gradient(135deg, #0a3d1a 0%, #0D2B20 100%)' :
-                    status === 'used' ? 'linear-gradient(135deg, #3d2a0a 0%, #2b1d08 100%)' :
-                    status === 'invalid' ? 'linear-gradient(135deg, #3d0a0a 0%, #2b0808 100%)' :
-                    '#0D2B20'
-      }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: bgGradient }}>
       <div className="w-full max-w-sm">
         {/* UniHive branding */}
         <div className="text-center mb-6">
@@ -120,15 +198,35 @@ const VerifyTicket = () => {
         <div className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 overflow-hidden">
           {/* Status header */}
           <div className={`p-8 text-center ${
-            status === 'loading' ? '' :
+            status === 'loading' || status === 'marking' ? '' :
             status === 'valid' ? 'bg-green-500/10' :
             status === 'used' ? 'bg-yellow-500/10' :
+            status === 'ready_to_scan' ? 'bg-emerald-500/10' :
+            status === 'not_authed' || status === 'not_staff' ? 'bg-blue-500/10' :
             'bg-red-500/10'
           }`}>
-            {status === 'loading' && (
+            {(status === 'loading' || status === 'marking') && (
               <>
                 <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/20 border-t-[#E7C65F] mx-auto mb-4"></div>
-                <p className="text-white/60 text-lg">Verifying ticket...</p>
+                <p className="text-white/60 text-lg">
+                  {status === 'marking' ? 'Marking ticket as used...' : 'Loading ticket...'}
+                </p>
+              </>
+            )}
+
+            {status === 'ready_to_scan' && (
+              <>
+                <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                  <ShieldCheck className="w-12 h-12 text-emerald-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-emerald-400 mb-1">FRESH TICKET</h2>
+                <p className="text-emerald-200/70 text-sm">Verify attendee details below, then mark as used</p>
+                {ticket?.admits_count > 1 && (
+                  <div className="mt-4 inline-block bg-emerald-500/20 border-2 border-emerald-400/40 rounded-2xl px-5 py-3">
+                    <p className="text-emerald-300 text-3xl font-bold leading-none">ADMITS {ticket.admits_count}</p>
+                    <p className="text-emerald-200/70 text-xs mt-1">Group ticket — admits {ticket.admits_count} people</p>
+                  </div>
+                )}
               </>
             )}
 
@@ -137,12 +235,12 @@ const VerifyTicket = () => {
                 <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4 animate-[pulse_0.5s_ease-in-out]">
                   <CheckCircle className="w-12 h-12 text-green-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-green-400 mb-1">VALID TICKET</h2>
-                <p className="text-green-300/60 text-sm">Entry granted — ticket marked as used</p>
+                <h2 className="text-2xl font-bold text-green-400 mb-1">ENTRY GRANTED</h2>
+                <p className="text-green-300/70 text-sm">Ticket marked as used just now</p>
                 {ticket?.admits_count > 1 && (
                   <div className="mt-4 inline-block bg-green-500/20 border-2 border-green-400/40 rounded-2xl px-5 py-3">
                     <p className="text-green-400 text-3xl font-bold leading-none">ADMITS {ticket.admits_count}</p>
-                    <p className="text-green-300/70 text-xs mt-1">Group ticket — let {ticket.admits_count} people in</p>
+                    <p className="text-green-300/70 text-xs mt-1">Let {ticket.admits_count} people in</p>
                   </div>
                 )}
               </>
@@ -154,7 +252,7 @@ const VerifyTicket = () => {
                   <AlertTriangle className="w-12 h-12 text-yellow-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-yellow-400 mb-1">ALREADY USED</h2>
-                <p className="text-yellow-300/60 text-sm">
+                <p className="text-yellow-300/70 text-sm">
                   Scanned {ticket?.scanned_at ? formatScannedAt(ticket.scanned_at) : 'earlier'}
                 </p>
                 {ticket?.admits_count > 1 && (
@@ -162,6 +260,28 @@ const VerifyTicket = () => {
                     Group ticket ({ticket.admits_count} entries)
                   </p>
                 )}
+              </>
+            )}
+
+            {status === 'not_authed' && (
+              <>
+                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-12 h-12 text-blue-300" />
+                </div>
+                <h2 className="text-2xl font-bold text-blue-200 mb-1">STAFF LOGIN REQUIRED</h2>
+                <p className="text-blue-200/70 text-sm">Only event staff can mark tickets as used</p>
+              </>
+            )}
+
+            {status === 'not_staff' && (
+              <>
+                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-12 h-12 text-blue-300" />
+                </div>
+                <h2 className="text-2xl font-bold text-blue-200 mb-1">STAFF ONLY</h2>
+                <p className="text-blue-200/70 text-sm">
+                  This account is not authorised to verify tickets. Contact admin.
+                </p>
               </>
             )}
 
@@ -181,13 +301,13 @@ const VerifyTicket = () => {
                   <XCircle className="w-12 h-12 text-red-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-red-400 mb-1">ERROR</h2>
-                <p className="text-red-300/60 text-sm">Something went wrong. Try again.</p>
+                <p className="text-red-300/60 text-sm">{errorMsg || 'Something went wrong. Try again.'}</p>
               </>
             )}
           </div>
 
-          {/* Details section */}
-          {(status === 'valid' || status === 'used') && event && (
+          {/* Details section (shown whenever we found a ticket) */}
+          {(['ready_to_scan', 'valid', 'used'].includes(status)) && event && (
             <div className="p-6 space-y-4 border-t border-white/10">
               {/* Event info */}
               <div>
@@ -214,6 +334,14 @@ const VerifyTicket = () => {
                 )}
               </div>
 
+              {/* Tier */}
+              {ticket?.tier && (
+                <div>
+                  <p className="text-white/30 text-xs uppercase tracking-wider mb-1">Tier</p>
+                  <p className="text-white font-medium">{ticket.tier}</p>
+                </div>
+              )}
+
               {/* Attendee info */}
               {attendee && (
                 <div className="pt-3 border-t border-white/10">
@@ -223,12 +351,28 @@ const VerifyTicket = () => {
                       <User className="w-5 h-5 text-[#E7C65F]" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">{attendee.full_name || 'Unknown'}</p>
+                      <p className="text-white font-medium">{attendee.full_name || ticket?.guest_name || 'Unknown'}</p>
                       {attendee.phone && (
                         <p className="text-white/40 text-sm">{attendee.phone}</p>
                       )}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* MARK AS USED button — only when staff is viewing a fresh ticket */}
+              {status === 'ready_to_scan' && (
+                <div className="pt-4 border-t border-white/10">
+                  <button
+                    onClick={markAsUsed}
+                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl text-lg transition-colors shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    MARK AS USED
+                  </button>
+                  <p className="text-white/30 text-[10px] text-center mt-2">
+                    Signed in as {staffUser?.name}
+                  </p>
                 </div>
               )}
 
@@ -238,10 +382,40 @@ const VerifyTicket = () => {
               </div>
             </div>
           )}
+
+          {/* Login CTA for not_authed state */}
+          {status === 'not_authed' && (
+            <div className="p-6 border-t border-white/10">
+              <button
+                onClick={goLogin}
+                className="w-full bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-3.5 rounded-xl transition-colors"
+              >
+                Log in as staff
+              </button>
+              <p className="text-white/30 text-xs text-center mt-3">
+                Token: <span className="font-mono">{token?.slice(0, 8)}…</span>
+              </p>
+            </div>
+          )}
+
+          {/* Sign-out CTA for not_staff state */}
+          {status === 'not_staff' && (
+            <div className="p-6 border-t border-white/10">
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  goLogin();
+                }}
+                className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3.5 rounded-xl transition-colors"
+              >
+                Sign out and log in as staff
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Scan another */}
-        {status !== 'loading' && (
+        {!['loading', 'marking'].includes(status) && (
           <div className="text-center mt-6">
             <p className="text-white/30 text-xs">Scan another QR code to verify the next ticket</p>
           </div>
