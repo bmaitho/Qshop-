@@ -10,11 +10,19 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  *
  * The caller then proceeds with the normal M-Pesa STK push using ticketId.
  */
-export const initGuestTicket = async ({ eventId, tierName, name, email, phone }) => {
+export const initGuestTicket = async ({
+  eventId,
+  tierName,
+  name,
+  email,
+  phone,
+  quantity = 1,
+  promoCodeId = null,
+}) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/email/guest-ticket-init`,
-      { eventId, tierName, name, email, phone },
+      `${API_BASE_URL}/email/guest-ticket-init`,
+      { eventId, tierName, name, email, phone, quantity, promoCodeId },
       { timeout: 30000 }
     );
     return response.data;
@@ -36,7 +44,7 @@ export const initGuestTicket = async ({ eventId, tierName, name, email, phone })
 export const resendTicketEmail = async (ticketId) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/email/event-ticket-resend/${ticketId}`
+      `${API_BASE_URL}/email/event-ticket-resend/${ticketId}`
     );
     return response.data;
   } catch (error) {

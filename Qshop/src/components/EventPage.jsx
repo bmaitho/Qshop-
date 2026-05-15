@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User, Minus, Plus } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
 import { initiateMpesaPayment, checkPaymentStatus } from '../Services/mpesaService';
@@ -19,6 +19,7 @@ const EventPage = ({ token }) => {
 
   // Purchase flow state
   const [selectedTier, setSelectedTier] = useState(null);
+  const [quantity, setQuantity] = useState(1);
   const [step, setStep] = useState('select'); // select | details | processing | success | failed
   const [buyerName, setBuyerName] = useState('');
   const [buyerEmail, setBuyerEmail] = useState('');
@@ -200,27 +201,20 @@ const EventPage = ({ token }) => {
         name: buyerName.trim(),
         email: buyerEmail.trim().toLowerCase(),
         phone: phoneNumber,
+        quantity,
+        promoCodeId: promoApplies ? appliedPromo.promo_code_id : null,
       });
 
       if (!initRes.success) {
-        if (initRes.status === 409 && initRes.existingTicketToken) {
-          toast.info('You already have a ticket for this event. Check your email!');
-          navigate(`/verify-ticket/${initRes.existingTicketToken}`);
-          return;
-        }
         throw new Error(initRes.error || 'Could not start checkout');
       }
 
       const ticketId = initRes.ticketId;
       setCreatedTicket({ id: ticketId, token: initRes.ticketToken });
 
-      // 2. Initiate STK Push
-      const promoStillValid = appliedPromo &&
-        appliedPromo.tier_name &&
-        appliedPromo.tier_name.toLowerCase() === selectedTier.name.toLowerCase();
-      const amountToCharge = promoStillValid
-        ? appliedPromo.discounted_price
-        : selectedTier.price;
+      // 2. Initiate STK Push with the authoritative total from the server
+      //    (falls back to client calc if backend didn't return totalAmount)
+      const amountToCharge = initRes.totalAmount ?? totalPrice;
 
       const response = await initiateMpesaPayment(
         phoneNumber,
@@ -394,6 +388,24 @@ const EventPage = ({ token }) => {
   const soldOut = spotsLeft !== null && spotsLeft <= 0;
   const tiers = event?.ticket_tiers || [];
   const hasTiers = tiers.length > 0;
+
+  // --- Pricing helpers (single source of truth for the purchase flow) ---
+  const isGroupTier = (selectedTier?.admits || 1) > 1;
+  const maxAllowedQty = isGroupTier ? 1 : 5;
+  const promoApplies =
+    appliedPromo &&
+    !selectedTier?.no_promo &&
+    appliedPromo.tier_name?.toLowerCase() === selectedTier?.name?.toLowerCase();
+  const unitPrice = promoApplies
+    ? appliedPromo.discounted_price
+    : (selectedTier?.price || 0);
+  const totalPrice = unitPrice * quantity;
+  const unitOriginalPrice = selectedTier?.price || 0;
+  const totalOriginalPrice = unitOriginalPrice * quantity;
+  const tierSpotsLeft = selectedTier?.capacity
+    ? Math.max(0, selectedTier.capacity - (selectedTier.sold || 0))
+    : null;
+  const qtyCapByStock = tierSpotsLeft !== null ? Math.min(maxAllowedQty, tierSpotsLeft) : maxAllowedQty;
 
   if (loading) {
     return (
@@ -582,11 +594,24 @@ const EventPage = ({ token }) => {
                         const tierSoldOut = tier.capacity && tier.sold >= tier.capacity;
                         const isSelected = selectedTier?.name === tier.name;
                         const tierSpotsLeft = tier.capacity ? tier.capacity - (tier.sold || 0) : null;
+                        const tierAdmits = tier.admits || 1;
+                        const isGroupTierLocal = tierAdmits > 1;
+
+                        const handleTierClick = () => {
+                          if (tierSoldOut) return;
+                          setSelectedTier(tier);
+                          setQuantity(1);
+                          if (tier.no_promo) {
+                            setAppliedPromo(null);
+                            setPromoCodeInput('');
+                            setPromoError('');
+                          }
+                        };
 
                         return (
                           <button
                             key={idx}
-                            onClick={() => !tierSoldOut && setSelectedTier(tier)}
+                            onClick={handleTierClick}
                             disabled={tierSoldOut}
                             className={`relative text-left p-4 rounded-xl border-2 transition-all ${
                               tierSoldOut
@@ -605,6 +630,11 @@ const EventPage = ({ token }) => {
                             <p className="text-xl font-bold text-foreground mt-1">
                               {tier.price === 0 ? 'FREE' : fmt(tier.price)}
                             </p>
+                            {isGroupTierLocal && (
+                              <p className="text-[11px] mt-1 font-medium text-primary">
+                                Admits {tierAdmits} · {fmt(tier.price / tierAdmits)}/person
+                              </p>
+                            )}
                            {false && tierSpotsLeft !== null && (
                               <p className={`text-xs mt-1.5 ${
                                 tierSoldOut ? 'text-red-500' :
@@ -626,8 +656,55 @@ const EventPage = ({ token }) => {
                   </div>
                 )}
 
-                {/* ── Promo code input (only for paid tiers) ── */}
+                {/* ── Quantity stepper (paid tiers only) ── */}
                 {selectedTier && selectedTier.price > 0 && !soldOut && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground/40 uppercase tracking-wider flex items-center gap-1.5">
+                      <Ticket className="w-3.5 h-3.5" /> Quantity
+                      {isGroupTier && (
+                        <span className="ml-1 text-[10px] font-medium text-foreground/60 normal-case tracking-normal">
+                          (Group ticket: max 1 per purchase)
+                        </span>
+                      )}
+                    </label>
+                    <div className="flex items-center justify-between bg-muted/50 rounded-xl p-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                        disabled={quantity <= 1 || isGroupTier}
+                        aria-label="Decrease quantity"
+                        className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <div className="flex flex-col items-center">
+                        <span className="text-2xl font-bold text-foreground tabular-nums">{quantity}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {isGroupTier
+                            ? `${(selectedTier.admits || 1)} entries`
+                            : quantity === 1 ? 'ticket' : 'tickets'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(q => Math.min(qtyCapByStock, q + 1))}
+                        disabled={quantity >= qtyCapByStock || isGroupTier}
+                        aria-label="Increase quantity"
+                        className="w-10 h-10 rounded-lg bg-background border border-border flex items-center justify-center hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {!isGroupTier && quantity >= qtyCapByStock && qtyCapByStock < 5 && (
+                      <p className="text-[11px] text-orange-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" /> Only {qtyCapByStock} left at this tier
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Promo code input (paid tiers only, not allowed on Group) ── */}
+                {selectedTier && selectedTier.price > 0 && !soldOut && !selectedTier.no_promo && (
                   <div className="space-y-2">
                     {!appliedPromo ? (
                       <>
@@ -667,7 +744,7 @@ const EventPage = ({ token }) => {
                               {appliedPromo.discount_percent}% off applied
                             </p>
                             <p className="text-xs text-green-600/80 dark:text-green-400/70">
-                              {appliedPromo.owner_name}'s code · Save {fmt(appliedPromo.discount_amount)}
+                              {appliedPromo.owner_name}'s code · Save {fmt(appliedPromo.discount_amount * quantity)}
                             </p>
                           </div>
                         </div>
@@ -681,6 +758,13 @@ const EventPage = ({ token }) => {
                       </div>
                     )}
                   </div>
+                )}
+
+                {/* ── Note for Group tier (no promo allowed) ── */}
+                {selectedTier && selectedTier.no_promo && !soldOut && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <AlertCircle className="w-3 h-3" /> Promo codes don't apply to group tickets
+                  </p>
                 )}
 
                 {soldOut ? (
@@ -698,13 +782,17 @@ const EventPage = ({ token }) => {
                   >
                     <Ticket className="w-5 h-5" />
                     {selectedTier?.price > 0 ? (
-                      appliedPromo && appliedPromo.tier_name?.toLowerCase() === selectedTier.name.toLowerCase() ? (
+                      promoApplies ? (
                         <span className="flex items-center gap-2">
-                          Buy Ticket —
-                          <span className="line-through opacity-60">{fmt(selectedTier.price)}</span>
-                          <span>{fmt(appliedPromo.discounted_price)}</span>
+                          {quantity > 1 ? `Buy ${quantity} —` : 'Buy Ticket —'}
+                          <span className="line-through opacity-60">{fmt(totalOriginalPrice)}</span>
+                          <span>{fmt(totalPrice)}</span>
                         </span>
-                      ) : `Buy Ticket — ${fmt(selectedTier.price)}`
+                      ) : (
+                        quantity > 1
+                          ? `Buy ${quantity} Tickets — ${fmt(totalPrice)}`
+                          : `Buy Ticket — ${fmt(totalPrice)}`
+                      )
                     ) : 'Claim Free Ticket'}
                   </button>
                 )}
@@ -773,14 +861,37 @@ const EventPage = ({ token }) => {
                   <p className="text-[11px] text-muted-foreground mt-1">You'll get an STK push prompt to pay.</p>
                 </div>
 
-                <div className="bg-muted rounded-xl p-4 text-sm space-y-1">
+                <div className="bg-muted rounded-xl p-4 text-sm space-y-1.5">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Ticket</span>
-                    <span className="font-semibold text-foreground">{selectedTier?.name}</span>
+                    <span className="font-semibold text-foreground">
+                      {selectedTier?.name}
+                      {isGroupTier && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          (admits {selectedTier.admits})
+                        </span>
+                      )}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-bold text-foreground">{fmt(selectedTier?.price)}</span>
+                    <span className="text-muted-foreground">Quantity</span>
+                    <span className="font-semibold text-foreground">× {quantity}</span>
+                  </div>
+                  {promoApplies && (
+                    <>
+                      <div className="flex justify-between text-foreground/60">
+                        <span>Subtotal</span>
+                        <span className="line-through">{fmt(totalOriginalPrice)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-600 dark:text-green-400">
+                        <span>{appliedPromo.discount_percent}% off ({appliedPromo.owner_name})</span>
+                        <span>− {fmt(appliedPromo.discount_amount * quantity)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between pt-1 border-t border-border/40">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-bold text-foreground">{fmt(totalPrice)}</span>
                   </div>
                 </div>
                 <button
@@ -789,7 +900,7 @@ const EventPage = ({ token }) => {
                   className="w-full bg-[#00a651] text-white font-semibold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {processing && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Pay {fmt(selectedTier?.price)} via M-Pesa
+                  Pay {fmt(totalPrice)} via M-Pesa
                 </button>
                 <button onClick={resetPurchase} className="w-full text-sm text-muted-foreground hover:text-foreground">
                   ← Back
@@ -828,7 +939,13 @@ const EventPage = ({ token }) => {
                 <div className="bg-muted rounded-xl p-4 text-sm space-y-1 text-left">
                   <div className="flex justify-between"><span className="text-muted-foreground">Event</span><span className="font-medium text-foreground">{event.title}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Tier</span><span className="font-medium text-foreground">{selectedTier?.name}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-medium text-foreground">{fmt(selectedTier?.price)}</span></div>
+                  {quantity > 1 && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Quantity</span><span className="font-medium text-foreground">× {quantity}</span></div>
+                  )}
+                  {isGroupTier && (
+                    <div className="flex justify-between"><span className="text-muted-foreground">Admits</span><span className="font-medium text-foreground">{selectedTier?.admits} people</span></div>
+                  )}
+                  <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-medium text-foreground">{fmt(totalPrice)}</span></div>
                   {mpesaReceipt && <div className="flex justify-between"><span className="text-muted-foreground">Receipt</span><span className="font-medium text-foreground">{mpesaReceipt}</span></div>}
                 </div>
 

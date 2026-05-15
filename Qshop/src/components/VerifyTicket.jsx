@@ -139,6 +139,12 @@ const VerifyTicket = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-green-400 mb-1">VALID TICKET</h2>
                 <p className="text-green-300/60 text-sm">Entry granted — ticket marked as used</p>
+                {ticket?.admits_count > 1 && (
+                  <div className="mt-4 inline-block bg-green-500/20 border-2 border-green-400/40 rounded-2xl px-5 py-3">
+                    <p className="text-green-400 text-3xl font-bold leading-none">ADMITS {ticket.admits_count}</p>
+                    <p className="text-green-300/70 text-xs mt-1">Group ticket — let {ticket.admits_count} people in</p>
+                  </div>
+                )}
               </>
             )}
 
@@ -151,6 +157,11 @@ const VerifyTicket = () => {
                 <p className="text-yellow-300/60 text-sm">
                   Scanned {ticket?.scanned_at ? formatScannedAt(ticket.scanned_at) : 'earlier'}
                 </p>
+                {ticket?.admits_count > 1 && (
+                  <p className="text-yellow-300/40 text-xs mt-2">
+                    Group ticket ({ticket.admits_count} entries)
+                  </p>
+                )}
               </>
             )}
 

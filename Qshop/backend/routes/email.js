@@ -796,6 +796,8 @@ const sendEventTicketEmail = async (ticketId) => {
     ticketToken: ticket.ticket_token,
     verifyUrl,
     isGuest,
+    quantity: ticket.quantity || 1,
+    admitsCount: ticket.admits_count || (ticket.quantity || 1),
   };
 
   const html = eventTicketConfirmationTemplate(tplArgs);
@@ -946,7 +948,15 @@ router.post('/event-ticket-backfill', async (req, res) => {
 // Body: { eventId, tierName, name, email, phone }
 router.post('/guest-ticket-init', async (req, res) => {
   try {
-    const { eventId, tierName, name, email, phone } = req.body || {};
+    const {
+      eventId,
+      tierName,
+      name,
+      email,
+      phone,
+      quantity: rawQuantity,
+      promoCodeId,
+    } = req.body || {};
 
     if (!eventId || !tierName || !email || !phone) {
       return res.status(400).json({
@@ -976,44 +986,91 @@ router.post('/guest-ticket-init', async (req, res) => {
     if (!tier) {
       return res.status(400).json({ success: false, error: 'Selected tier not found on this event' });
     }
-    if (tier.capacity && (tier.sold || 0) >= tier.capacity) {
-      return res.status(400).json({ success: false, error: 'This tier is sold out' });
-    }
-    if (event.max_capacity && (event.tickets_sold || 0) >= event.max_capacity) {
-      return res.status(400).json({ success: false, error: 'This event is sold out' });
-    }
     if (!tier.price || tier.price <= 0) {
       return res.status(400).json({ success: false, error: 'Guest checkout is only available for paid tickets' });
     }
+
+    // --- Quantity validation ---
+    // Group tier (admits > 1): forced to 1 per purchase
+    // Regular tiers: 1-5
+    const isGroup = (tier.admits || 1) > 1;
+    let quantity = parseInt(rawQuantity, 10);
+    if (isNaN(quantity) || quantity < 1) quantity = 1;
+    if (isGroup && quantity !== 1) {
+      return res.status(400).json({ success: false, error: 'Group tickets are limited to 1 per purchase' });
+    }
+    if (!isGroup && quantity > 5) {
+      return res.status(400).json({ success: false, error: 'You can buy up to 5 tickets per purchase' });
+    }
+
+    // --- Capacity checks (account for quantity) ---
+    if (tier.capacity && (tier.sold || 0) + quantity > tier.capacity) {
+      const remaining = tier.capacity - (tier.sold || 0);
+      return res.status(400).json({
+        success: false,
+        error: remaining > 0
+          ? `Only ${remaining} ${tier.name} ticket${remaining === 1 ? '' : 's'} left`
+          : 'This tier is sold out',
+      });
+    }
+    const admitsPerTicket = tier.admits || 1;
+    const totalAdmits = admitsPerTicket * quantity;
+    if (event.max_capacity && (event.tickets_sold || 0) + totalAdmits > event.max_capacity) {
+      return res.status(400).json({ success: false, error: 'This event is sold out' });
+    }
+
+    // --- Promo code validation (server-side re-check) ---
+    let promoCodeIdToStore = null;
+    let unitDiscount = 0;
+    if (promoCodeId) {
+      if (tier.no_promo) {
+        return res.status(400).json({ success: false, error: 'Promo codes are not allowed on this tier' });
+      }
+      const { data: promo } = await supabase
+        .from('event_promo_codes')
+        .select('id, discount_percent, allowed_tiers, active, max_total_uses, times_used')
+        .eq('id', promoCodeId)
+        .maybeSingle();
+      if (!promo || !promo.active) {
+        return res.status(400).json({ success: false, error: 'Promo code is no longer valid' });
+      }
+      if (promo.allowed_tiers && promo.allowed_tiers.length > 0) {
+        const allowed = promo.allowed_tiers.some(t => t.toLowerCase() === tier.name.toLowerCase());
+        if (!allowed) {
+          return res.status(400).json({ success: false, error: 'Promo code is not valid for this tier' });
+        }
+      }
+      if (promo.max_total_uses != null && promo.times_used >= promo.max_total_uses) {
+        return res.status(400).json({ success: false, error: 'Promo code usage limit reached' });
+      }
+      promoCodeIdToStore = promo.id;
+      unitDiscount = Math.ceil((tier.price * promo.discount_percent) / 100);
+    }
+
+    const unitPrice = Math.max(1, tier.price - unitDiscount);
+    const totalAmount = unitPrice * quantity;
+    const totalDiscount = unitDiscount * quantity;
 
     // 2. Resolve user (find existing or create shadow)
     const { findOrCreateUserByEmail } = await import('../utils/findOrCreateUser.js');
     const { userId, isNew } = await findOrCreateUserByEmail({ email, name, phone });
 
-    // 3. Duplicate-ticket guard: same user already has a completed ticket?
-    const { data: existing } = await supabase
-      .from('event_tickets')
-      .select('id, ticket_token')
-      .eq('event_id', event.id)
-      .eq('user_id', userId)
-      .eq('payment_status', 'completed')
-      .maybeSingle();
+    // 3. Duplicate-ticket guard removed — buyers can now purchase multiple times.
+    //    Each completed purchase is its own ticket row with its own QR.
 
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        error: 'You already have a ticket for this event. Check your email for the QR code.',
-        existingTicketToken: existing.ticket_token,
-      });
-    }
-
-    // 4. Insert pending ticket
+    // 4. Insert pending ticket (one row represents quantity tickets)
     const { data: ticket, error: ticketError } = await supabase
       .from('event_tickets')
       .insert({
         event_id: event.id,
         user_id: userId,
-        amount_paid: tier.price,
+        amount_paid: totalAmount,
+        original_price: tier.price * quantity,
+        discount_applied: totalDiscount,
+        promo_code_id: promoCodeIdToStore,
+        quantity,
+        admits_count: totalAdmits,
+        admits_used: 0,
         payment_status: 'pending',
         tier: tier.name,
         phone_number: phone,
@@ -1034,6 +1091,9 @@ router.post('/guest-ticket-init', async (req, res) => {
       ticketToken: ticket.ticket_token,
       userId,
       isNewUser: isNew,
+      totalAmount,
+      quantity,
+      admitsCount: totalAdmits,
     });
   } catch (err) {
     console.error('guest-ticket-init error:', err);

@@ -280,7 +280,13 @@ export const handleCallback = async (req, res) => {
             })
             .eq('id', ticket.id);
 
-          // Increment tickets_sold on the event + update tier sold count
+          // Increment tickets_sold on the event + update tier sold count.
+          // tickets_sold tracks total people admitted (= admits_count, which is
+          // quantity * admits_per_ticket); tier.sold tracks tickets purchased
+          // in that tier (= quantity).
+          const ticketQty = ticket.quantity || 1;
+          const ticketAdmits = ticket.admits_count || ticketQty;
+
           const { data: eventData } = await supabase
             .from('events')
             .select('tickets_sold, ticket_tiers')
@@ -290,7 +296,7 @@ export const handleCallback = async (req, res) => {
           if (eventData) {
             const updatedTiers = (eventData.ticket_tiers || []).map(t => {
               if (t.name === ticket.tier) {
-                return { ...t, sold: (t.sold || 0) + 1 };
+                return { ...t, sold: (t.sold || 0) + ticketQty };
               }
               return t;
             });
@@ -298,7 +304,7 @@ export const handleCallback = async (req, res) => {
             await supabase
               .from('events')
               .update({
-                tickets_sold: (eventData.tickets_sold || 0) + 1,
+                tickets_sold: (eventData.tickets_sold || 0) + ticketAdmits,
                 ticket_tiers: updatedTiers,
               })
               .eq('id', ticket.event_id);
