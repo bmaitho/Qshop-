@@ -305,6 +305,22 @@ const EventPage = ({ token }) => {
     let attempts = 0;
     const maxAttempts = 40; // ~2 minutes
 
+    const finalizeSuccess = async (receipt) => {
+      clearInterval(pollingRef.current);
+      setMpesaReceipt(receipt || '');
+      setProcessing(false);
+
+      const { data: updatedTicket } = await supabase
+        .from('event_tickets')
+        .select('*')
+        .eq('id', ticketId)
+        .single();
+
+      if (updatedTicket) setExistingTicket(updatedTicket);
+      fetchEvent();
+      setStep('success');
+    };
+
     pollingRef.current = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
@@ -316,32 +332,41 @@ const EventPage = ({ token }) => {
       }
 
       try {
-        const status = await checkPaymentStatus(checkoutId);
-        if (status?.success && status.data?.paymentStatus === 'completed') {
+        // Primary: query event_tickets directly (most reliable, fastest)
+        const { data: ticketRow } = await supabase
+          .from('event_tickets')
+          .select('payment_status, mpesa_receipt')
+          .eq('id', ticketId)
+          .single();
+
+        if (ticketRow?.payment_status === 'completed') {
+          await finalizeSuccess(ticketRow.mpesa_receipt);
+          return;
+        }
+        if (ticketRow?.payment_status === 'failed') {
           clearInterval(pollingRef.current);
-          setMpesaReceipt(status.data.receipt || '');
+          setErrorMsg('Payment was declined or cancelled.');
+          setStep('failed');
           setProcessing(false);
+          return;
+        }
 
-          // Refresh ticket
-          const { data: updatedTicket } = await supabase
-            .from('event_tickets')
-            .select('*')
-            .eq('id', ticketId)
-            .single();
+        // Fallback: backend status endpoint (correct response shape this time)
+        const status = await checkPaymentStatus(checkoutId);
+        const backendStatus =
+          status?.data?.data?.paymentStatus ?? status?.data?.paymentStatus;
+        const backendReceipt =
+          status?.data?.data?.receipt ?? status?.data?.receipt;
 
-          if (updatedTicket) setExistingTicket(updatedTicket);
-
-          // Refresh event to get updated counts
-          fetchEvent();
-          setStep('success');
-        } else if (status?.success && status.data?.paymentStatus === 'failed') {
+        if (status?.success && backendStatus === 'completed') {
+          await finalizeSuccess(backendReceipt);
+        } else if (status?.success && backendStatus === 'failed') {
           clearInterval(pollingRef.current);
           setErrorMsg('Payment was declined or cancelled.');
           setStep('failed');
           setProcessing(false);
         }
       } catch (err) {
-        // Keep polling on network errors
         console.log('Polling attempt', attempts);
       }
     }, 3000);

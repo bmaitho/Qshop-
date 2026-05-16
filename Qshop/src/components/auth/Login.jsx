@@ -201,7 +201,13 @@ const Login = ({ setToken }) => {
         autoClose: 2000,
       });
 
-      navigate('/home');
+      const redirect = sessionStorage.getItem('postLoginRedirect');
+      if (redirect) {
+        sessionStorage.removeItem('postLoginRedirect');
+        navigate(redirect);
+      } else {
+        navigate('/home');
+      }
     } catch (error) {
       console.error('Login error:', error);
       
