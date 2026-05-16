@@ -79,14 +79,14 @@ const VerifyTicket = () => {
         return;
       }
 
-      // Check is_admin on profile
+      // Check is_admin OR is_staff on profile
       const { data: viewerProfile } = await supabase
         .from('profiles')
-        .select('id, full_name, is_admin')
+        .select('id, full_name, is_admin, is_staff')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!viewerProfile?.is_admin) {
+      if (!viewerProfile?.is_admin && !viewerProfile?.is_staff) {
         setStaffUser({ id: user.id, name: viewerProfile?.full_name || user.email });
         setStatus('not_staff');
         return;
@@ -107,41 +107,29 @@ const VerifyTicket = () => {
     setStatus('marking');
 
     try {
-      // Atomic guard: only flip if it's still NOT scanned.
-      // Prevents double-marking if two staff scan simultaneously.
-      const { data: updated, error: updateError } = await supabase
-        .from('event_tickets')
-        .update({
-          scanned: true,
-          scanned_at: new Date().toISOString(),
-          scanned_by: staffUser.id,
-        })
-        .eq('id', ticket.id)
-        .eq('scanned', false)
-        .select()
-        .maybeSingle();
+      // Use the atomic admit_ticket RPC — handles single & group tickets,
+      // locks the row to prevent double-admit under concurrency,
+      // and re-verifies staff role server-side.
+      const { data: updated, error: rpcError } = await supabase.rpc('admit_ticket', {
+        p_ticket_id: ticket.id,
+        p_admits_to_use: 1,
+      });
 
-      if (updateError) {
-        console.error('Mark-as-used error:', updateError);
-        setErrorMsg(updateError.message || 'Failed to mark ticket as used');
+      if (rpcError) {
+        console.error('Mark-as-used RPC error:', rpcError);
+        setErrorMsg(rpcError.message || 'Failed to mark ticket as used');
         setStatus('error');
         return;
       }
 
       if (!updated) {
-        // .eq('scanned', false) matched zero rows -> someone else just marked it
-        const { data: fresh } = await supabase
-          .from('event_tickets')
-          .select('*')
-          .eq('id', ticket.id)
-          .maybeSingle();
-        if (fresh) setTicket(fresh);
         setStatus('used');
         return;
       }
 
       setTicket(updated);
-      setStatus('valid');
+      const fullyUsed = (updated.admits_used || 0) >= (updated.admits_count || 1);
+      setStatus(fullyUsed ? 'valid' : 'ready_to_scan');
     } catch (err) {
       console.error('Mark-as-used exception:', err);
       setErrorMsg(err.message || 'Unknown error');

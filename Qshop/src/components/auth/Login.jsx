@@ -115,7 +115,13 @@ const Login = ({ setToken }) => {
           autoClose: 2000,
         });
 
-        navigate('/home');
+        const redirect = sessionStorage.getItem('postLoginRedirect');
+        if (redirect) {
+          sessionStorage.removeItem('postLoginRedirect');
+          navigate(redirect);
+        } else {
+          navigate('/home');
+        }
         return; // Exit early if successful
       } catch (standardError) {
         // Check if this is an email confirmation error before trying other methods

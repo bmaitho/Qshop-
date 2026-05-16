@@ -36,6 +36,7 @@ import EventsPage from './components/EventsPage';
 import EventPage from './components/EventPage';
 import MyTickets from './components/MyTickets';
 import VerifyTicket from './components/VerifyTicket';
+import StaffScanner from './components/StaffScanner';
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -56,6 +57,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/events" element={<EventsPage token={token} />} />
       <Route path="/events/:slug" element={<EventPage token={token} />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
+      <Route path="/staff" element={<StaffScanner />} />
+      <Route path="/staff/scanner" element={<StaffScanner />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
