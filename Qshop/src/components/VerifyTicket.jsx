@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { CheckCircle, XCircle, AlertTriangle, Calendar, Clock, MapPin, User, ShieldCheck } from 'lucide-react';
 import { supabase } from './SupabaseClient';
+import QRCode from './QRCode';
 
 const VerifyTicket = () => {
   const { token } = useParams();
@@ -251,7 +252,7 @@ const VerifyTicket = () => {
                   <CheckCircle className="w-12 h-12 text-[#E7C65F]" />
                 </div>
                 <h2 className="text-2xl font-bold text-[#E7C65F] mb-1">YOUR TICKET</h2>
-                <p className="text-white/60 text-sm">Show this screen at the entrance for scanning</p>
+                <p className="text-white/60 text-sm">Show the QR code below at the entrance</p>
                 {ticket?.admits_count > 1 && (
                   <div className="mt-4 inline-block bg-[#E7C65F]/20 border-2 border-[#E7C65F]/40 rounded-2xl px-5 py-3">
                     <p className="text-[#E7C65F] text-3xl font-bold leading-none">ADMITS {ticket.admits_count}</p>
@@ -285,6 +286,22 @@ const VerifyTicket = () => {
           {/* Details section (shown whenever we found a ticket) */}
           {(['ready_to_scan', 'valid', 'used', 'holder_view'].includes(status)) && event && (
             <div className="p-6 space-y-4 border-t border-white/10">
+              {/* QR code — show for fresh tickets (holder + staff views). Hidden on valid/used. */}
+              {['holder_view', 'ready_to_scan'].includes(status) && ticket?.ticket_token && (
+                <div className="flex flex-col items-center -mt-2 mb-2">
+                  <div className="bg-white p-4 rounded-2xl shadow-lg">
+                    <QRCode
+                      value={`${window.location.origin}/verify-ticket/${ticket.ticket_token}`}
+                      size={200}
+                      fgColor="#0D2B20"
+                    />
+                  </div>
+                  <p className="text-white/40 text-[11px] mt-3 text-center">
+                    Present this QR code at the entrance
+                  </p>
+                </div>
+              )}
+
               {/* Event info */}
               <div>
                 <p className="text-white/30 text-xs uppercase tracking-wider mb-1">Event</p>
