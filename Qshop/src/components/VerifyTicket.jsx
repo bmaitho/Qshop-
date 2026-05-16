@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, AlertTriangle, Calendar, Clock, MapPin, User, Lock, ShieldCheck } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { CheckCircle, XCircle, AlertTriangle, Calendar, Clock, MapPin, User, ShieldCheck } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 
 const VerifyTicket = () => {
   const { token } = useParams();
-  const navigate = useNavigate();
 
   // Status flow:
   //  loading            -> fetching ticket + auth state
-  //  not_authed         -> nobody logged in (must log in as staff)
-  //  not_staff          -> logged in but not is_admin
+  //  holder_view        -> ticket holder (or anyone) viewing a fresh ticket -> show details only
   //  ready_to_scan      -> staff + ticket is fresh -> show MARK AS USED button
   //  marking            -> staff just tapped the button, performing update
   //  valid              -> just marked as used right now (success animation)
@@ -73,9 +71,10 @@ const VerifyTicket = () => {
         return;
       }
 
-      // 4. Not used. Determine if viewer is allowed to mark it used
+      // 4. Not used. Determine if viewer is staff (can mark as used) or just a holder (view only).
+      //    Public ticket holders should see their ticket details without being forced to log in.
       if (!user) {
-        setStatus('not_authed');
+        setStatus('holder_view');
         return;
       }
 
@@ -87,8 +86,8 @@ const VerifyTicket = () => {
         .maybeSingle();
 
       if (!viewerProfile?.is_admin && !viewerProfile?.is_staff) {
-        setStaffUser({ id: user.id, name: viewerProfile?.full_name || user.email });
-        setStatus('not_staff');
+        // Logged-in non-staff user — they're a holder, show details only.
+        setStatus('holder_view');
         return;
       }
 
@@ -137,12 +136,6 @@ const VerifyTicket = () => {
     }
   };
 
-  const goLogin = () => {
-    const returnTo = `/verify-ticket/${token}`;
-    sessionStorage.setItem('postLoginRedirect', returnTo);
-    navigate('/auth');
-  };
-
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-KE', {
@@ -171,6 +164,7 @@ const VerifyTicket = () => {
     status === 'used' ? 'linear-gradient(135deg, #3d2a0a 0%, #2b1d08 100%)' :
     status === 'invalid' || status === 'error' ? 'linear-gradient(135deg, #3d0a0a 0%, #2b0808 100%)' :
     status === 'ready_to_scan' || status === 'marking' ? 'linear-gradient(135deg, #0a3d2a 0%, #0D2B20 100%)' :
+    status === 'holder_view' ? 'linear-gradient(135deg, #0D2B20 0%, #08201A 100%)' :
     '#0D2B20';
 
   return (
@@ -190,7 +184,7 @@ const VerifyTicket = () => {
             status === 'valid' ? 'bg-green-500/10' :
             status === 'used' ? 'bg-yellow-500/10' :
             status === 'ready_to_scan' ? 'bg-emerald-500/10' :
-            status === 'not_authed' || status === 'not_staff' ? 'bg-blue-500/10' :
+            status === 'holder_view' ? 'bg-[#E7C65F]/10' :
             'bg-red-500/10'
           }`}>
             {(status === 'loading' || status === 'marking') && (
@@ -251,25 +245,19 @@ const VerifyTicket = () => {
               </>
             )}
 
-            {status === 'not_authed' && (
+            {status === 'holder_view' && (
               <>
-                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-12 h-12 text-blue-300" />
+                <div className="w-20 h-20 rounded-full bg-[#E7C65F]/20 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-12 h-12 text-[#E7C65F]" />
                 </div>
-                <h2 className="text-2xl font-bold text-blue-200 mb-1">STAFF LOGIN REQUIRED</h2>
-                <p className="text-blue-200/70 text-sm">Only event staff can mark tickets as used</p>
-              </>
-            )}
-
-            {status === 'not_staff' && (
-              <>
-                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Lock className="w-12 h-12 text-blue-300" />
-                </div>
-                <h2 className="text-2xl font-bold text-blue-200 mb-1">STAFF ONLY</h2>
-                <p className="text-blue-200/70 text-sm">
-                  This account is not authorised to verify tickets. Contact admin.
-                </p>
+                <h2 className="text-2xl font-bold text-[#E7C65F] mb-1">YOUR TICKET</h2>
+                <p className="text-white/60 text-sm">Show this screen at the entrance for scanning</p>
+                {ticket?.admits_count > 1 && (
+                  <div className="mt-4 inline-block bg-[#E7C65F]/20 border-2 border-[#E7C65F]/40 rounded-2xl px-5 py-3">
+                    <p className="text-[#E7C65F] text-3xl font-bold leading-none">ADMITS {ticket.admits_count}</p>
+                    <p className="text-[#E7C65F]/70 text-xs mt-1">Group ticket — admits {ticket.admits_count} people</p>
+                  </div>
+                )}
               </>
             )}
 
@@ -295,7 +283,7 @@ const VerifyTicket = () => {
           </div>
 
           {/* Details section (shown whenever we found a ticket) */}
-          {(['ready_to_scan', 'valid', 'used'].includes(status)) && event && (
+          {(['ready_to_scan', 'valid', 'used', 'holder_view'].includes(status)) && event && (
             <div className="p-6 space-y-4 border-t border-white/10">
               {/* Event info */}
               <div>
@@ -371,41 +359,18 @@ const VerifyTicket = () => {
             </div>
           )}
 
-          {/* Login CTA for not_authed state */}
-          {status === 'not_authed' && (
-            <div className="p-6 border-t border-white/10">
-              <button
-                onClick={goLogin}
-                className="w-full bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-3.5 rounded-xl transition-colors"
-              >
-                Log in as staff
-              </button>
-              <p className="text-white/30 text-xs text-center mt-3">
-                Token: <span className="font-mono">{token?.slice(0, 8)}…</span>
-              </p>
-            </div>
-          )}
-
-          {/* Sign-out CTA for not_staff state */}
-          {status === 'not_staff' && (
-            <div className="p-6 border-t border-white/10">
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  goLogin();
-                }}
-                className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3.5 rounded-xl transition-colors"
-              >
-                Sign out and log in as staff
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Scan another */}
+        {/* Footer hint */}
         {!['loading', 'marking'].includes(status) && (
           <div className="text-center mt-6">
-            <p className="text-white/30 text-xs">Scan another QR code to verify the next ticket</p>
+            <p className="text-white/30 text-xs">
+              {status === 'holder_view'
+                ? 'Save this page — your QR is your entry pass'
+                : status === 'ready_to_scan'
+                ? 'Scan another QR code to verify the next ticket'
+                : ''}
+            </p>
           </div>
         )}
       </div>
