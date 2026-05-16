@@ -7,7 +7,11 @@ import {
 import { supabase } from './SupabaseClient';
 
 // html5-qrcode loaded from CDN — avoids adding a dependency for an MVP.
-const HTML5_QRCODE_CDN = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+// jsDelivr is the primary (more reliable in KE); unpkg is the fallback.
+const HTML5_QRCODE_CDNS = [
+  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+];
 
 const SCANNER_ELEMENT_ID = 'unihive-scanner-region';
 
@@ -44,51 +48,149 @@ const StaffScanner = () => {
   const [shiftStats, setShiftStats] = useState({ admits: 0, tickets: 0 });
 
   // ─── Auth check ──────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setAuthState('not_authed');
-        return;
-      }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, is_admin, is_staff')
-        .eq('id', user.id)
-        .maybeSingle();
+  // Auth error message for stuck/failed checks (shown in checking screen after a delay)
+  const [authError, setAuthError] = useState('');
 
-      if (!profile?.is_staff && !profile?.is_admin) {
-        setStaffUser({ id: user.id, name: profile?.full_name || user.email });
-        setAuthState('not_staff');
-        return;
+  useEffect(() => {
+    let cancelled = false;
+
+    // Helper: race any promise against a timeout
+    const withTimeout = (promise, ms, label) =>
+      Promise.race([
+        promise,
+        new Promise((_, rej) =>
+          setTimeout(() => rej(new Error(`Timed out: ${label}`)), ms)
+        ),
+      ]);
+
+    // After 8s of "checking", surface a retry button instead of an infinite spinner
+    const stuckTimer = setTimeout(() => {
+      if (!cancelled) {
+        setAuthError(
+          'Taking longer than expected. Check your connection and tap retry.'
+        );
       }
-      setStaffUser({
-        id: user.id,
-        name: profile.full_name || user.email,
-        email: profile.email || user.email,
-      });
-      setAuthState('ok');
+    }, 8000);
+
+    (async () => {
+      try {
+        // First try the cached session (fast, no network) — much more reliable on mobile
+        const { data: sessionData } = await supabase.auth.getSession();
+        let user = sessionData?.session?.user || null;
+
+        // Fall back to getUser() (network call) with a timeout if no cached session
+        if (!user) {
+          const { data: userData } = await withTimeout(
+            supabase.auth.getUser(),
+            10000,
+            'auth check'
+          );
+          user = userData?.user || null;
+        }
+
+        if (cancelled) return;
+        if (!user) {
+          setAuthState('not_authed');
+          return;
+        }
+
+        const { data: profile, error: profileErr } = await withTimeout(
+          supabase
+            .from('profiles')
+            .select('id, full_name, email, is_admin, is_staff')
+            .eq('id', user.id)
+            .maybeSingle(),
+          10000,
+          'profile lookup'
+        );
+
+        if (cancelled) return;
+        if (profileErr) throw profileErr;
+
+        if (!profile?.is_staff && !profile?.is_admin) {
+          setStaffUser({ id: user.id, name: profile?.full_name || user.email });
+          setAuthState('not_staff');
+          return;
+        }
+        setStaffUser({
+          id: user.id,
+          name: profile.full_name || user.email,
+          email: profile.email || user.email,
+        });
+        setAuthState('ok');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Auth check failed:', err);
+        setAuthError(err?.message || 'Could not verify your account. Tap retry.');
+      } finally {
+        clearTimeout(stuckTimer);
+      }
     })();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(stuckTimer);
+    };
   }, []);
 
-  // ─── Load html5-qrcode from CDN ──────────────────────────────
+  // ─── Load html5-qrcode from CDN (with fallback) ──────────────
   useEffect(() => {
     if (authState !== 'ok') return;
     if (window.Html5Qrcode) {
       setScriptLoaded(true);
       return;
     }
-    const existing = document.querySelector(`script[src="${HTML5_QRCODE_CDN}"]`);
-    if (existing) {
-      existing.addEventListener('load', () => setScriptLoaded(true));
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = HTML5_QRCODE_CDN;
-    script.async = true;
-    script.onload = () => setScriptLoaded(true);
-    script.onerror = () => setScannerError('Failed to load scanner. Check your connection.');
-    document.body.appendChild(script);
+
+    let cancelled = false;
+
+    const tryLoad = (urls, index = 0) => {
+      if (cancelled) return;
+      if (index >= urls.length) {
+        setScannerError(
+          'Failed to load scanner library. Check your connection and reload the page.'
+        );
+        return;
+      }
+      const url = urls[index];
+      const existing = document.querySelector(`script[data-qr-cdn="${url}"]`);
+      if (existing) {
+        existing.addEventListener('load', () => {
+          if (!cancelled) setScriptLoaded(true);
+        });
+        existing.addEventListener('error', () => tryLoad(urls, index + 1));
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = url;
+      script.async = true;
+      script.dataset.qrCdn = url;
+
+      // 10s per-CDN timeout — mobile networks sometimes stall the request
+      const timeout = setTimeout(() => {
+        script.onerror = null;
+        script.onload = null;
+        script.remove();
+        tryLoad(urls, index + 1);
+      }, 10000);
+
+      script.onload = () => {
+        clearTimeout(timeout);
+        if (!cancelled) setScriptLoaded(true);
+      };
+      script.onerror = () => {
+        clearTimeout(timeout);
+        script.remove();
+        tryLoad(urls, index + 1);
+      };
+      document.body.appendChild(script);
+    };
+
+    tryLoad(HTML5_QRCODE_CDNS);
+
+    return () => {
+      cancelled = true;
+    };
   }, [authState]);
 
   // ─── Scanner lifecycle ───────────────────────────────────────
@@ -253,8 +355,26 @@ const StaffScanner = () => {
 
   if (authState === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0D2B20] text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-[#E7C65F]" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#0D2B20] text-white p-6">
+        <Loader2 className="w-8 h-8 animate-spin text-[#E7C65F] mb-4" />
+        <p className="text-white/70 text-sm">Verifying staff account…</p>
+        {authError && (
+          <div className="mt-6 w-full max-w-sm bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-center">
+            <p className="text-red-200 text-sm mb-3">{authError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-2.5 px-6 rounded-xl text-sm"
+            >
+              Retry
+            </button>
+            <button
+              onClick={goLogin}
+              className="block w-full mt-3 text-white/60 hover:text-white text-xs py-2"
+            >
+              Or log in again
+            </button>
+          </div>
+        )}
       </div>
     );
   }
