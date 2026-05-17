@@ -744,9 +744,16 @@ const sendEventTicketEmail = async (ticketId) => {
     .maybeSingle();
   if (eErr || !event) throw new Error('Event not found for ticket');
 
-  // 4. Resolve recipient email + name. Try profiles first, then auth.users.
+  // 4. Resolve recipient email + name. Prefer attendee_email (what the buyer
+  //    typed at checkout) since that's the address they expect the ticket to
+  //    go to — especially for guest purchases. Fall back to profiles, then
+  //    auth.users.
   let recipientEmail = null;
   let recipientName = ticket.guest_name || null;
+
+  if (ticket.attendee_email) {
+    recipientEmail = ticket.attendee_email;
+  }
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -754,7 +761,7 @@ const sendEventTicketEmail = async (ticketId) => {
     .eq('id', ticket.user_id)
     .maybeSingle();
 
-  if (profile?.email) recipientEmail = profile.email;
+  if (!recipientEmail && profile?.email) recipientEmail = profile.email;
   if (!recipientName && profile?.full_name) recipientName = profile.full_name;
 
   if (!recipientEmail) {
@@ -1076,6 +1083,8 @@ router.post('/guest-ticket-init', async (req, res) => {
         phone_number: phone,
         guest_name: name || null,
         guest_purchase: true,
+        attendee_email: email,
+        attendee_phone: phone,
       })
       .select()
       .single();

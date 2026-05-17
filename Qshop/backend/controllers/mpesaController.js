@@ -107,6 +107,36 @@ export const initiateSTKPush = async (req, res) => {
     // Update the order with CheckoutRequestID for tracking
     if (orderId && response.data.CheckoutRequestID) {
       try {
+        // First: check if this orderId is actually an event_tickets row.
+        // Guest checkout cannot update event_tickets from the browser (RLS),
+        // so we MUST persist the checkout id server-side here. Without this,
+        // the M-Pesa callback can't link the receipt back to the ticket and
+        // the buyer never gets their QR.
+        const { data: existingTicket } = await supabase
+          .from('event_tickets')
+          .select('id')
+          .eq('id', orderId)
+          .maybeSingle();
+
+        if (existingTicket) {
+          console.log(`Updating event_ticket ${orderId} with CheckoutRequestID: ${response.data.CheckoutRequestID}`);
+          const { error: ticketUpdateErr } = await supabase
+            .from('event_tickets')
+            .update({ mpesa_checkout_request_id: response.data.CheckoutRequestID })
+            .eq('id', orderId);
+          if (ticketUpdateErr) {
+            console.error('Error updating event_ticket with CheckoutRequestID:', ticketUpdateErr);
+          } else {
+            console.log('Successfully linked CheckoutRequestID to event_ticket');
+          }
+          // Skip the orders branch entirely — this is a ticket, not an order.
+          return res.json({
+            success: true,
+            data: response.data,
+            message: 'STK push initiated successfully',
+          });
+        }
+
         console.log(`Updating order ${orderId} with CheckoutRequestID: ${response.data.CheckoutRequestID}`);
         
         // Get the current order to check if it exists
