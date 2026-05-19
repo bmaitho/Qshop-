@@ -86,6 +86,17 @@
       "destination": "/api/og?path=services"
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=home"
+    },
+    {
       "source": "/home",
       "has": [
         {

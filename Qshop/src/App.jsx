@@ -47,7 +47,7 @@ const AppRoutes = ({ token, setToken }) => {
   return (
     <Routes>
       {/* Public routes — accessible without login (for users and Googlebot) */}
-      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/" element={<Home token={token} />} />
       <Route path="/home" element={<Home token={token} />} />
       <Route path="/studentmarketplace" element={<StudentMarketplace token={token} />} />
       <Route path="/product/:id" element={<ProductDetails token={token} />} />
