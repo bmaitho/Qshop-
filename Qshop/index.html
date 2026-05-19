@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="UniHive - Empowering entrepreneurs through our marketplace. Buy, sell, and develop real business skills within your community." />
-    <title>UniHive</title>
+    <meta name="description" content="UniHive — Student marketplace platform for Kenyan universities. Buy and sell textbooks, electronics, stationery, and study materials within your campus community." />
+    <link rel="canonical" href="https://unihive.shop/" />
+    <title>UniHive — Student Marketplace</title>
 
     <!-- Open Graph (fallback — dynamic tags served by /api/og for bots) -->
     <meta property="og:type" content="website" />
@@ -22,7 +23,24 @@
     <meta name="twitter:image" content="https://unihive.shop/og-default.png" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-render skeleton content for crawlers and slow connections.
+           React hydrates over this once JS loads. This ensures Safe Browsing
+           crawlers never see an empty body, which is a classic phishing signal. -->
+      <noscript>
+        <header>
+          <h1>UniHive — Student Marketplace</h1>
+          <p>Buy and sell textbooks, electronics, stationery, and study materials within your university community.</p>
+        </header>
+        <main>
+          <p>UniHive is a student marketplace platform serving Kenyan universities. Browse listings from verified student sellers across campuses including the University of Nairobi, JKUAT, Strathmore, and Kenyatta University.</p>
+          <p>Please enable JavaScript to use the full marketplace.</p>
+        </main>
+        <footer>
+          <p>UniHive Marketplace &middot; Nairobi, Kenya &middot; <a href="mailto:mwendatulley@gmail.com">Contact</a></p>
+        </footer>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
