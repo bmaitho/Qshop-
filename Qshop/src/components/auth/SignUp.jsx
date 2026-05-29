@@ -390,7 +390,21 @@ const SignUp = () => {
           }
         }
         
-        // Show success message
+        // If Supabase returned a session (email confirmation disabled), log them in directly.
+        // This handles the current production config where users are auto-confirmed.
+        if (data.session) {
+          sessionStorage.setItem('token', JSON.stringify(data));
+          toast.success("Welcome to UniHive!", {
+            position: "top-right",
+            autoClose: 2000,
+          });
+          // Hard navigate so App.jsx re-reads sessionStorage and picks up the token
+          window.location.href = '/complete-profile';
+          return;
+        }
+
+        // Fallback: if email confirmation is later re-enabled in Supabase,
+        // signUp() returns no session and we show the verification screen.
         setEmailSent(true);
         toast.success("Account created successfully! Please check your email to verify your account.");
       }
