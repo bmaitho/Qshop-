@@ -394,12 +394,36 @@ const SignUp = () => {
         // This handles the current production config where users are auto-confirmed.
         if (data.session) {
           sessionStorage.setItem('token', JSON.stringify(data));
+
+          // Create profile row immediately so the user lands on /home ready to go.
+          // Fire-and-forget — a quota/RLS failure here must not block the user.
+          try {
+            await supabase.from('profiles').upsert([{
+              id: userId,
+              full_name: formData.fullName,
+              phone: formData.phone,
+              email: formData.email,
+              campus_location: null,
+              is_seller: false,
+              is_google_user: false,
+              onboarding_completed: true,
+              profile_completed_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+          } catch (profileErr) {
+            console.warn('Profile row creation failed (non-critical):', profileErr);
+          }
+
+          localStorage.setItem('isNewUser', 'true');
+          localStorage.setItem('hasLoggedInBefore', 'true');
+          localStorage.removeItem('unihive_tutorial_completed');
+
           toast.success("Welcome to UniHive!", {
             position: "top-right",
             autoClose: 2000,
           });
-          // Hard navigate so App.jsx re-reads sessionStorage and picks up the token
-          window.location.href = '/complete-profile';
+          window.location.href = '/home';
           return;
         }
 

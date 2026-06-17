@@ -43,52 +43,40 @@ const AuthCallback = ({ setToken }) => {
 
         const userExists = existingProfile && !profileError;
         
-        // If this is a new user (no profile found), allow them to complete profile
+        // New user — create a profile row from Google metadata and go straight to /home
         if (!userExists) {
-          // Store their session first
+          try {
+            await supabase.from('profiles').upsert([{
+              id: session.user.id,
+              full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+              email: session.user.email,
+              phone: '',
+              campus_location: null,
+              is_seller: false,
+              is_google_user: true,
+              onboarding_completed: true,
+              profile_completed_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+          } catch (profileErr) {
+            console.warn('Profile row creation failed (non-critical):', profileErr);
+          }
+
           const tokenData = { session };
           sessionStorage.setItem('token', JSON.stringify(tokenData));
           setToken(tokenData);
-          
-          // Mark as new user for tutorial and redirect to profile completion
+
           localStorage.setItem('isNewUser', 'true');
+          localStorage.setItem('hasLoggedInBefore', 'true');
           localStorage.removeItem('unihive_tutorial_completed');
-          
-          toast.info('Please complete your profile to get started', {
-            position: "top-right",
-            autoClose: 3000,
-          });
-          
-          // Redirect to profile completion
-          navigate('/complete-profile');
+
+          toast.success('Welcome to UniHive!', { position: "top-right", autoClose: 2000 });
+          navigate('/home');
           return;
         }
 
-        // Check if existing user has complete profile
-        const isProfileComplete = existingProfile.full_name && 
-                                 existingProfile.campus_location && 
-                                 existingProfile.phone;
-
-        if (!isProfileComplete) {
-          // Store their session first
-          const tokenData = { session };
-          sessionStorage.setItem('token', JSON.stringify(tokenData));
-          setToken(tokenData);
-          
-          // Mark as needing profile completion
-          localStorage.setItem('isNewUser', 'true');
-          localStorage.removeItem('unihive_tutorial_completed');
-          
-          toast.info('Please complete your profile', {
-            position: "top-right",
-            autoClose: 3000,
-          });
-          
-          navigate('/complete-profile');
-          return;
-        }
-
-        // This is an existing user with complete profile
+        // Existing user — go straight to /home regardless of profile completeness
         const tokenData = { session };
         sessionStorage.setItem('token', JSON.stringify(tokenData));
         setToken(tokenData);
@@ -167,34 +155,30 @@ const AuthCallback = ({ setToken }) => {
         setToken(tokenData);
         
         if (!userExists) {
-          // New user - redirect to profile completion
-          localStorage.setItem('isNewUser', 'true');
-          localStorage.removeItem('unihive_tutorial_completed');
-          
-          toast.info('Please complete your profile to get started', {
-            position: "top-right",
-            autoClose: 3000,
-          });
-          
-          navigate('/complete-profile');
-          return;
-        }
+          try {
+            await supabase.from('profiles').upsert([{
+              id: user.id,
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+              email: user.email,
+              phone: '',
+              campus_location: null,
+              is_seller: false,
+              is_google_user: true,
+              onboarding_completed: true,
+              profile_completed_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
+          } catch (profileErr) {
+            console.warn('Profile row creation failed (non-critical):', profileErr);
+          }
 
-        // Check if existing user has complete profile
-        const isProfileComplete = existingProfile.full_name && 
-                                 existingProfile.campus_location && 
-                                 existingProfile.phone;
-
-        if (!isProfileComplete) {
           localStorage.setItem('isNewUser', 'true');
+          localStorage.setItem('hasLoggedInBefore', 'true');
           localStorage.removeItem('unihive_tutorial_completed');
-          
-          toast.info('Please complete your profile', {
-            position: "top-right",
-            autoClose: 3000,
-          });
-          
-          navigate('/complete-profile');
+
+          toast.success('Welcome to UniHive!', { position: "top-right", autoClose: 2000 });
+          navigate('/home');
           return;
         }
         

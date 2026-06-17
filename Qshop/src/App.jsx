@@ -13,7 +13,6 @@ import SellerProfile from './components/SellerProfile';
 // Components
 import AuthLayout from './components/auth/AuthLayout';
 import AuthCallback from './components/auth/AuthCallback';
-import ProfileCompletion from './components/auth/ProfileCompletion';
 import StudentMarketplace from './components/StudentMarketplace';
 import ProductDetails from './components/ProductDetails';
 import Cart from './components/Cart';
@@ -63,7 +62,7 @@ const AppRoutes = ({ token, setToken }) => {
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
       <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
-      <Route path="/complete-profile" element={<ProfileCompletion token={token} />} />
+      <Route path="/complete-profile" element={<Navigate to="/home" replace />} />
 
       {/* Protected routes — redirect to /auth if not logged in */}
       {/* Note: /seller/orders/:id must come before /seller/:id */}

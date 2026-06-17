@@ -4,8 +4,6 @@ import axios from 'axios';
 // Your base URL from environment variables - remove /api since VITE_API_URL already includes it
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173/api';
 
-// Debug: Log the API URL being used (remove this in production)
-console.log('Email API Service - Using API_BASE_URL:', API_BASE_URL);
 
 /**
  * Service for handling email-related API calls

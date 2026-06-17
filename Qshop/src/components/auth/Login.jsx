@@ -16,6 +16,9 @@ const Login = ({ setToken }) => {
   const [authError, setAuthError] = useState('');
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [sendingReset, setSendingReset] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -237,6 +240,28 @@ const Login = ({ setToken }) => {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+    try {
+      setSendingReset(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      if (error) throw error;
+      toast.success('Password reset link sent! Check your inbox.', { autoClose: 5000 });
+      setShowForgotPassword(false);
+      setForgotEmail('');
+    } catch (error) {
+      toast.error(error.message || 'Failed to send reset email');
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
@@ -375,8 +400,34 @@ const Login = ({ setToken }) => {
             </div>
           </div>
 
-          <Button 
-            type="submit" 
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(!showForgotPassword)}
+              className="text-xs text-primary hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+
+          {showForgotPassword && (
+            <form onSubmit={handleForgotPassword} className="space-y-2 p-3 bg-muted dark:bg-muted/40 rounded-md">
+              <p className="text-xs text-foreground/70">Enter your email and we'll send a reset link.</p>
+              <Input
+                type="email"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="Your email address"
+                className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input text-sm"
+              />
+              <Button type="submit" className="w-full text-sm" disabled={sendingReset}>
+                {sendingReset ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+            </form>
+          )}
+
+          <Button
+            type="submit"
             className="w-full bg-[#113b1e] text-white hover:bg-[#113b1e]/90 dark:bg-[#113b1e] dark:text-white dark:hover:bg-[#113b1e]/90"
             disabled={loading}
           >
