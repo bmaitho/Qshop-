@@ -117,6 +117,9 @@ const FeaturedShops = () => {
 
 const ShopCard = ({ shop }) => {
   const [followed, setFollowed] = useState(false);
+  const [bannerFailed, setBannerFailed] = useState(false);
+
+  const showImageBanner = Boolean(shop.banner_url) && !bannerFailed;
   
   const handleFollow = async (e) => {
     e.preventDefault();
@@ -155,23 +158,44 @@ const ShopCard = ({ shop }) => {
       <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
         <div className="relative">
           {/* Main Shop Banner */}
-          <div className="h-60 bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
-            <img 
-              src={shop.banner_url || "/api/placeholder/400/240"} 
-              alt={shop.shop_name} 
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "/api/placeholder/400/240";
-              }}
-            />
-            {/* Overlay with brand name */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 flex items-center justify-center">
-              <h2 className="text-white/70 text-2xl font-bold">
-                {(shop.shop_name || 'Shop').toUpperCase()}
-              </h2>
-            </div>
-            
+          <div
+            className="relative overflow-hidden"
+            style={{ height: '220px' }}
+          >
+            {showImageBanner ? (
+              <img
+                src={shop.banner_url}
+                alt={shop.shop_name}
+                className="w-full h-full"
+                style={{ objectFit: 'cover', objectPosition: 'center' }}
+                onError={() => setBannerFailed(true)}
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-center px-4"
+                style={{
+                  height: '220px',
+                  background:
+                    'linear-gradient(135deg, #0a1f0a 0%, #1a3a1a 50%, #0d2b0d 100%)',
+                  boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: '1.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: '#c9a84c',
+                    textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  {shop.shop_name || 'Shop'}
+                </span>
+              </div>
+            )}
+
             {/* Follow Button */}
             <div className="absolute top-2 right-2" onClick={handleFollow}>
               <Button 

@@ -1,34 +1,40 @@
 // src/utils/imageUtils.js
 // Image compression before upload + Supabase image transform helpers
 
+const jpgName = (name) =>
+  name && name.includes('.') ? name.replace(/\.[^.]+$/, '.jpg') : `${name || 'image'}.jpg`;
+
 /**
- * Compress an image file before uploading.
- * Converts HEIC/PNG to JPEG, resizes if oversized, reduces quality.
- * Target: < 800KB for product images, < 600KB for banners
+ * Compress an image file before uploading using the Canvas API.
+ *
+ * - Resizes so the longest side is at most `maxSize` px (default 1200),
+ *   maintaining aspect ratio.
+ * - Converts any input format (HEIC, PNG, WEBP, JPG, ...) to JPEG.
+ * - Encodes at `quality` (default 0.82 / 82%).
+ *
+ * @param {File} file - The image file to compress.
+ * @param {object} [options]
+ * @param {number} [options.maxSize=1200] - Max length of the longest side in px.
+ * @param {number} [options.quality=0.82] - JPEG quality (0-1).
+ * @param {number} [options.maxSizeKB] - Optional target size; quality is
+ *   progressively reduced until the output is below this size.
+ * @returns {Promise<File>} A new File with a `.jpg` extension and `image/jpeg` type.
  */
 export const compressImage = (file, options = {}) => {
-  const {
-    maxWidth = 1200,
-    maxHeight = 1200,
-    quality = 0.82,
-    maxSizeKB = 800,
-  } = options;
+  // Accept legacy `maxWidth`/`maxHeight` options; the longest side wins.
+  const { maxWidth, maxHeight, maxSize, quality = 0.82, maxSizeKB } = options;
+  const longestSide =
+    maxSize || Math.max(maxWidth || 0, maxHeight || 0) || 1200;
 
   return new Promise((resolve, reject) => {
-    const isHeic =
-      file.type === 'image/heic' ||
-      file.type === 'image/heif' ||
-      file.name.toLowerCase().endsWith('.heic') ||
-      file.name.toLowerCase().endsWith('.heif');
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        // Calculate new dimensions maintaining aspect ratio
+        // Resize so the longest side is at most `longestSide`, keeping aspect ratio.
         let { width, height } = img;
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
+        if (width > longestSide || height > longestSide) {
+          const ratio = longestSide / Math.max(width, height);
           width = Math.round(width * ratio);
           height = Math.round(height * ratio);
         }
@@ -38,12 +44,11 @@ export const compressImage = (file, options = {}) => {
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
-        // White background for PNGs with transparency
+        // White background so transparent PNGs don't turn black as JPEG.
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Try progressively lower quality until we hit target size
         const tryCompress = (q) => {
           canvas.toBlob(
             (blob) => {
@@ -52,21 +57,13 @@ export const compressImage = (file, options = {}) => {
                 return;
               }
               const sizeKB = blob.size / 1024;
-              if (sizeKB > maxSizeKB && q > 0.4) {
+              if (maxSizeKB && sizeKB > maxSizeKB && q > 0.4) {
                 tryCompress(Math.round((q - 0.1) * 10) / 10);
-              } else {
-                const compressedFile = new File(
-                  [blob],
-                  file.name.replace(/\.[^.]+$/, '.jpg'),
-                  { type: 'image/jpeg' }
-                );
-                resolve({
-                  file: compressedFile,
-                  originalSizeKB: Math.round(file.size / 1024),
-                  compressedSizeKB: Math.round(blob.size / 1024),
-                  wasCompressed: blob.size < file.size,
-                });
+                return;
               }
+              resolve(
+                new File([blob], jpgName(file.name), { type: 'image/jpeg' })
+              );
             },
             'image/jpeg',
             q
@@ -77,14 +74,10 @@ export const compressImage = (file, options = {}) => {
       };
 
       img.onerror = () => {
-        // If image fails to load (e.g. HEIC on unsupported browser), pass through original
+        // If the image can't be decoded (e.g. HEIC on an unsupported browser),
+        // fall back to uploading the original file rather than failing the upload.
         console.warn('Could not compress image, uploading original:', file.name);
-        resolve({
-          file,
-          originalSizeKB: Math.round(file.size / 1024),
-          compressedSizeKB: Math.round(file.size / 1024),
-          wasCompressed: false,
-        });
+        resolve(file);
       };
       img.src = e.target.result;
     };
@@ -94,7 +87,8 @@ export const compressImage = (file, options = {}) => {
 };
 
 /**
- * Compress multiple images in parallel
+ * Compress multiple images in parallel.
+ * @returns {Promise<File[]>}
  */
 export const compressImages = async (files, options = {}) => {
   return Promise.all(files.map((f) => compressImage(f, options)));

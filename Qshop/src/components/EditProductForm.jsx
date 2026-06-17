@@ -173,9 +173,7 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
 
   const uploadImage = async (file) => {
     try {
-      const { file: compressed } = await compressImage(file, {
-        maxWidth: 1200,
-        maxHeight: 1200,
+      const compressed = await compressImage(file, {
         quality: 0.82,
         maxSizeKB: 800,
       });
