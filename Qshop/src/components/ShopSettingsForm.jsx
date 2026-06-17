@@ -305,10 +305,8 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
   const uploadBannerImage = async (file) => {
     try {
-      // Compress banner (wider aspect ratio, target 600KB max)
-      const { file: compressed } = await compressImage(file, {
-        maxWidth: 1400,
-        maxHeight: 500,
+      // Compress banner before upload (longest side <= 1200px, JPEG @ 82%).
+      const compressed = await compressImage(file, {
         quality: 0.82,
         maxSizeKB: 600,
       });

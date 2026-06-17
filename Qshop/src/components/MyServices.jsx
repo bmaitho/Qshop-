@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Image, X
 import { supabase } from './SupabaseClient';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-toastify';
+import { compressImage } from '../utils/ImageUtils';
 
 const fmt = (n) => `KES ${Number(n).toLocaleString()}`;
 
@@ -150,9 +151,9 @@ export default function MyServices({ userId }) {
   async function uploadImages() {
     const uploaded = [];
     for (const file of imageFiles) {
-      const ext = file.name.split('.').pop();
-      const path = `services/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from('product-images').upload(path, file, { contentType: file.type });
+      const compressed = await compressImage(file, { quality: 0.82, maxSizeKB: 800 });
+      const path = `services/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+      const { error } = await supabase.storage.from('product-images').upload(path, compressed, { contentType: 'image/jpeg' });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path);
       uploaded.push(publicUrl);

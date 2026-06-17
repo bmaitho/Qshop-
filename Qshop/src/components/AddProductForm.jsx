@@ -327,7 +327,7 @@ const AddProductForm = ({ onSuccess }) => {
       });
       toast.dismiss(compressionToast);
 
-      const uploadPromises = compressed.map(async ({ file }, index) => {
+      const uploadPromises = compressed.map(async (file, index) => {
         const fileName = `${Math.random()}.jpg`; // always jpg after compression
         const filePath = fileName;
 
