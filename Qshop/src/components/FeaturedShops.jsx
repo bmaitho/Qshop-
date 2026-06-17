@@ -160,7 +160,7 @@ const ShopCard = ({ shop }) => {
           {/* Main Shop Banner */}
           <div
             className="relative overflow-hidden"
-            style={{ height: '200px' }}
+            style={{ height: '220px' }}
           >
             {showImageBanner ? (
               <img
@@ -174,15 +174,21 @@ const ShopCard = ({ shop }) => {
               <div
                 className="w-full h-full flex items-center justify-center text-center px-4"
                 style={{
-                  height: '200px',
-                  background: 'linear-gradient(135deg, #1a2a1a 0%, #2d4a2d 100%)',
+                  height: '220px',
+                  background:
+                    'linear-gradient(135deg, #0a1f0a 0%, #1a3a1a 50%, #0d2b0d 100%)',
+                  boxShadow: 'inset 0 0 60px rgba(0,0,0,0.4)',
                 }}
               >
                 <span
                   style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: '1.6rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
                     color: '#c9a84c',
-                    fontSize: '1.4rem',
-                    fontWeight: 600,
+                    textShadow: '0 2px 8px rgba(0,0,0,0.5)',
                   }}
                 >
                   {shop.shop_name || 'Shop'}
