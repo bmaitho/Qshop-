@@ -56,7 +56,7 @@ export const secureLog = {
     if (!token) {
       console.log(`${label}: [MISSING]`);
     } else {
-      console.log(`${label}: ${maskSensitive(token, 5)}...`);
+      console.log(`${label}: ${maskSensitive(token, 5)}`);
     }
   },
 

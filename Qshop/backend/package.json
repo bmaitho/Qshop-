@@ -27,7 +27,7 @@
   },
   "overrides": {
     "form-data": "^4.0.4",
-    "path-to-regexp": "^8.0.0",
+    "path-to-regexp": "^0.1.13",
     "follow-redirects": "^1.16.0",
     "nanoid": "^3.3.8",
     "ip-address": "^10.0.1"
