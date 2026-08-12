@@ -23,16 +23,40 @@ app.set('trust proxy', 1);
 // ──────────────────────────────────────────────────────────────
 app.use(
   helmet({
-    // We're an API — frontend (Vercel) sets its own CSP for the SPA.
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
+    // Content Security Policy - API only serves JSON
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    // Cross-Origin Policies
+    crossOriginEmbedderPolicy: true,
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // DNS Prefetch Control
+    dnsPrefetchControl: { allow: false },
+    // Frame Protection
+    frameguard: { action: 'deny' },
+    // Hide Powered By
+    hidePoweredBy: true,
+    // HSTS - Force HTTPS
     hsts: {
-      maxAge: 63072000, // 2 years
+      maxAge: 63072000, // 2 years in seconds
       includeSubDomains: true,
       preload: true,
     },
+    // IE No Open
+    ieNoOpen: true,
+    // No Sniff
+    noSniff: true,
+    // Permissions Policy
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+    // Referrer Policy
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // XSS Filter
+    xssFilter: true,
   })
 );
 

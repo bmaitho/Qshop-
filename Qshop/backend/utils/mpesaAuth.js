@@ -1,46 +1,48 @@
-// utils/mpesaAuth.js - Enhanced logging for Production
+// utils/mpesaAuth.js - Secure M-Pesa Authentication
 
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { secureLog } from './secureLogger.js';
 
 dotenv.config();
 
-
 const AUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
 
-console.log(`M-Pesa Auth Configuration:
-- Environment: production
-- Auth URL: ${AUTH_URL}
-- Consumer Key exists: ${Boolean(process.env.MPESA_CONSUMER_KEY)}
-- Consumer Secret exists: ${Boolean(process.env.MPESA_CONSUMER_SECRET)}
-`);
+secureLog.info('M-Pesa Auth Configuration Loaded', {
+  environment: 'production',
+  authUrl: AUTH_URL,
+  consumerKeyExists: Boolean(process.env.MPESA_CONSUMER_KEY),
+  consumerSecretExists: Boolean(process.env.MPESA_CONSUMER_SECRET)
+});
 
 /**
  * Generate an M-Pesa access token for API authentication
  * @returns {Promise<string>} The access token
  */
 const generateAccessToken = async () => {
-  console.log('🔑 Starting access token generation process...');
-  
+  secureLog.info('🔑 Starting access token generation process...');
+
   const consumerKey = process.env.MPESA_CONSUMER_KEY;
   const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
 
   if (!consumerKey || !consumerSecret) {
-    console.error('❌ M-Pesa credentials missing:', {
+    secureLog.error('❌ M-Pesa credentials missing', {
       consumerKeyExists: Boolean(consumerKey),
       consumerSecretExists: Boolean(consumerSecret)
     });
     throw new Error('M-Pesa credentials are missing. Check your environment variables.');
   }
 
-  console.log(`📝 Using credentials - Key: ${consumerKey.substring(0, 4)}... Secret: ${consumerSecret.substring(0, 4)}...`);
-  
+  secureLog.credentials('📝 M-Pesa Credentials Check', {
+    consumerKey,
+    consumerSecret
+  });
+
   try {
-    
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
-    console.log(`🔐 Generated Base64 auth string: ${auth.substring(0, 10)}...`);
-    
-    console.log(`🌐 Sending request to M-Pesa auth URL: ${AUTH_URL}`);
+    secureLog.info('🔐 Generated Base64 auth string');
+
+    secureLog.info(`🌐 Sending request to M-Pesa auth URL: ${AUTH_URL}`);
     
     
     const response = await axios(AUTH_URL, {
@@ -49,32 +51,29 @@ const generateAccessToken = async () => {
       },
     });
 
-    console.log(`✅ Received response: ${JSON.stringify(response.data, null, 2)}`);
+    secureLog.info('✅ Received response from M-Pesa auth API');
 
     if (!response.data || !response.data.access_token) {
-      console.error('❌ Invalid token response:', response.data);
+      secureLog.error('❌ Invalid token response');
       throw new Error('Invalid response from M-Pesa authentication API');
     }
 
     const token = response.data.access_token;
-    console.log(`🎉 Successfully obtained access token: ${token.substring(0, 10)}...`);
+    secureLog.token('🎉 Successfully obtained access token', token);
     return token;
   } catch (error) {
-    console.error('❌ Error generating M-Pesa access token:', error.message);
-    
-    // Log detailed error information
+    secureLog.error('❌ Error generating M-Pesa access token', error);
+
+    // Log error information without exposing sensitive headers/config
     if (error.response) {
-      console.error('📋 Response status:', error.response.status);
-      console.error('📋 Response headers:', JSON.stringify(error.response.headers, null, 2));
-      console.error('📋 Response data:', JSON.stringify(error.response.data, null, 2));
+      secureLog.error('📋 Response status', { status: error.response.status });
+      secureLog.error('📋 Response data', error.response.data);
     } else if (error.request) {
-      console.error('📋 No response received. Request details:', error.request);
+      secureLog.error('📋 No response received from M-Pesa API');
     } else {
-      console.error('📋 Error setting up request:', error.message);
+      secureLog.error('📋 Error setting up request', error);
     }
-    
-    console.error('📋 Error config:', JSON.stringify(error.config, null, 2));
-    
+
     throw new Error(`Failed to generate M-Pesa access token: ${error.message}`);
   }
 };
@@ -91,9 +90,9 @@ const generateTimestamp = () => {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
-  
+
   const timestamp = `${year}${month}${day}${hours}${minutes}${seconds}`;
-  console.log(`⏰ Generated timestamp: ${timestamp}`);
+  secureLog.info(`⏰ Generated timestamp: ${timestamp}`);
   return timestamp;
 };
 
@@ -107,24 +106,24 @@ const generateTimestamp = () => {
  * @returns {string} Encoded password
  */
 const generatePassword = (shortCode, passkey, timestamp) => {
-  console.log('🔒 Generating password with:', { 
-    shortCode, 
-    passkey: passkey ? `${passkey.substring(0, 4)}...` : 'MISSING',
-    timestamp
+  secureLog.info('🔒 Generating M-Pesa password', {
+    shortCodeExists: Boolean(shortCode),
+    passkeyExists: Boolean(passkey),
+    timestampExists: Boolean(timestamp)
   });
-  
+
   if (!shortCode || !passkey || !timestamp) {
-    console.error('❌ Missing required parameters for password generation:', {
+    secureLog.error('❌ Missing required parameters for password generation', {
       shortCodeExists: Boolean(shortCode),
       passkeyExists: Boolean(passkey),
       timestampExists: Boolean(timestamp)
     });
   }
-  
+
   // Using the exact same method as TypeScript implementation
   const str = shortCode + passkey + timestamp;
   const password = Buffer.from(str).toString('base64');
-  console.log(`🔑 Generated password: ${password.substring(0, 10)}...`);
+  secureLog.info('🔑 M-Pesa password generated successfully');
   return password;
 };
 

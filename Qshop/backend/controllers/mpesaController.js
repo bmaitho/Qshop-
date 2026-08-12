@@ -2,6 +2,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { generateAccessToken, generateTimestamp, generatePassword } from '../utils/mpesaAuth.js';
 import { supabase } from '../supabaseClient.js';
+import { secureLog } from '../utils/secureLogger.js';
 
 dotenv.config();
 
@@ -48,9 +49,9 @@ export const initiateSTKPush = async (req, res) => {
     }
 
     // Generate new access token - Must be fresh for each request
-    console.log('Generating fresh access token for STK Push...');
+    secureLog.info('Generating fresh access token for STK Push...');
     const accessToken = await generateAccessToken();
-    console.log('Generated token:', accessToken ? `${accessToken.substring(0, 10)}...` : 'FAILED TO GENERATE TOKEN');
+    secureLog.token('Generated access token', accessToken);
 
     // Check token validity - must not be null or undefined
     if (!accessToken) {
@@ -89,8 +90,13 @@ export const initiateSTKPush = async (req, res) => {
     });
 
     // Make the STK push request with proper Bearer token format
-    console.log(`🔐 Using token: ${accessToken ? accessToken.substring(0, 15) + '...' : 'MISSING'}`);
-    console.log(`📊 Full request data:`, JSON.stringify(requestData, null, 2));
+    secureLog.info('🔐 Using Bearer token for M-Pesa request');
+    secureLog.info('📊 STK Push request prepared', {
+      businessShortCode: requestData.BusinessShortCode,
+      amount: requestData.Amount,
+      phoneNumber: requestData.PhoneNumber,
+      transactionType: requestData.TransactionType
+    });
     
     const response = await axios({
       method: 'POST',
