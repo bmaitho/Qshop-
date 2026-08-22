@@ -121,7 +121,6 @@ const generatePassword = (shortCode, passkey, timestamp) => {
   // Using the exact same method as TypeScript implementation
   const str = shortCode + passkey + timestamp;
   const password = Buffer.from(str).toString('base64');
-  console.log(`🔑 Generated password: ${password.substring(0, 10)}...`);
   return password;
 };
 
