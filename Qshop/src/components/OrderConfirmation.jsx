@@ -154,9 +154,10 @@ const OrderConfirmation = () => {
       </html>
     `;
     
-    printWindow.document.write(receiptHTML);
-    printWindow.document.close();
-    printWindow.print();
+    const blob = new Blob([receiptHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    printWindow.location.href = url;
+    setTimeout(() => { printWindow.print(); URL.revokeObjectURL(url); }, 500);
   };
 
   const copyOrderId = () => {

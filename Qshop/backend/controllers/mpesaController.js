@@ -90,8 +90,7 @@ export const initiateSTKPush = async (req, res) => {
 
     // Make the STK push request with proper Bearer token format
     console.log(`🔐 Using token: ${accessToken ? accessToken.substring(0, 15) + '...' : 'MISSING'}`);
-    console.log(`📊 Full request data:`, JSON.stringify(requestData, null, 2));
-    
+
     const response = await axios({
       method: 'POST',
       url: MPESA_API_URL,

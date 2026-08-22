@@ -33,13 +33,10 @@ const generateAccessToken = async () => {
     throw new Error('M-Pesa credentials are missing. Check your environment variables.');
   }
 
-  console.log(`📝 Using credentials - Key: ${consumerKey.substring(0, 4)}... Secret: ${consumerSecret.substring(0, 4)}...`);
-  
   try {
-    
+
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
-    console.log(`🔐 Generated Base64 auth string: ${auth.substring(0, 10)}...`);
-    
+
     console.log(`🌐 Sending request to M-Pesa auth URL: ${AUTH_URL}`);
     
     
@@ -49,7 +46,7 @@ const generateAccessToken = async () => {
       },
     });
 
-    console.log(`✅ Received response: ${JSON.stringify(response.data, null, 2)}`);
+    console.log('✅ M-Pesa auth response received successfully');
 
     if (!response.data || !response.data.access_token) {
       console.error('❌ Invalid token response:', response.data);
