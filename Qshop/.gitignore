@@ -38,3 +38,5 @@ backend/.env.*
 *.njsproj
 *.sln
 *.sw?
+!.env.example
+!backend/.env.example
