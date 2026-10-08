@@ -59,24 +59,33 @@ const requireAdminUser = async (req, res) => {
  *
  * Body: {
  *   source_platform: string,          // e.g. "little" — never "unihive"
- *   external_reference: string,       // the partner's own event/show id,
- *                                      // shared across all rows in one
- *                                      // import batch (not necessarily
- *                                      // unique per ticket — Little's
- *                                      // "Show ID" is one id per event,
- *                                      // not per ticket, so uniqueness
- *                                      // for claiming comes from
- *                                      // phone/email instead)
+ *   external_reference?: string,      // OPTIONAL fallback used only for
+ *                                      // rows that don't carry their own
+ *                                      // reference (e.g. pasted from a
+ *                                      // screenshot with no per-ticket
+ *                                      // id). A real export like Little's
+ *                                      // "Payment Key" column gives each
+ *                                      // ticket its own reference, which
+ *                                      // should be passed per-row below
+ *                                      // instead — that's the preferred
+ *                                      // path now that it's known to exist.
  *   tickets: Array<{
  *     name: string,
  *     phone?: string,
  *     email?: string,
- *     tier: string,                   // e.g. "Regular x1", "VIP x1"
+ *     tier: string,                   // e.g. "Regular", "VIP"
  *     amount_paid: number,
  *     payment_method?: string,
  *     purchased_at?: string,          // ISO date, best-effort
+ *     external_reference?: string,    // per-ticket reference (preferred);
+ *                                      // falls back to the body-level one
+ *                                      // above if omitted
  *   }>
  * }
+ *
+ * Note: an "Attended"-style column from the source export is deliberately
+ * never accepted here. Entry/check-in state is the external platform's
+ * authority, not UniHive's — see the file header.
  */
 export const importExternalTickets = async (req, res) => {
   try {
@@ -160,6 +169,11 @@ export const importExternalTickets = async (req, res) => {
     for (const t of tickets) {
       const phone = isNonEmptyString(t.phone) ? t.phone.trim() : null;
       const email = isNonEmptyString(t.email) ? t.email.trim().toLowerCase() : null;
+      const rowReference = isNonEmptyString(t.external_reference)
+        ? t.external_reference.trim()
+        : isNonEmptyString(external_reference)
+        ? external_reference.trim()
+        : null;
 
       const alreadyImported =
         (phone && existingPhones.has(phone)) || (email && existingEmails.has(email));
@@ -180,7 +194,7 @@ export const importExternalTickets = async (req, res) => {
         amount_paid: t.amount_paid,
         payment_status: 'completed',
         source_platform,
-        external_reference: isNonEmptyString(external_reference) ? external_reference.trim() : null,
+        external_reference: rowReference,
         created_at: isNonEmptyString(t.purchased_at) ? t.purchased_at : undefined,
       });
     }

@@ -17,10 +17,16 @@ import { useNavigate } from 'react-router-dom';
 import { UploadCloud, AlertTriangle, CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { supabase } from '../SupabaseClient';
 
-const EXPECTED_COLUMNS = ['name', 'phone', 'email', 'tier', 'amount_paid', 'payment_method', 'purchased_at'];
-
+// Matches the real Little Events export columns (confirmed from an
+// actual download, not the earlier screenshot-only guess):
+//   Client, Client Mobile, Customer Email, Payment Key, Ticket type,
+//   Paid, Payment Method, Date, Discount Code, Attended
+// Discount Code is captured but unused for now. Attended is read and
+// immediately discarded — it is NEVER imported as UniHive check-in
+// state; entry stays the external platform's authority, always.
 const COLUMN_HINT =
-  'Name, Phone, Email, Ticket type, Amount, Payment method, Date — in that order, one ticket per line.';
+  'Client, Client Mobile, Customer Email, Payment Key, Ticket type, Paid, Payment Method, Date — ' +
+  'same order as a Little Events export. Extra trailing columns (Discount Code, Attended) are fine and ignored.';
 
 /** Split one pasted line into columns, tolerant of tabs, commas, or 2+ spaces. */
 const splitRow = (line) => {
@@ -37,7 +43,9 @@ const parsePastedTickets = (raw) => {
 
   return lines.map((line, i) => {
     const cols = splitRow(line);
-    const [name, phone, email, tier, amount, payment_method, purchased_at] = cols;
+    const [name, phone, email, paymentKey, tier, amount, payment_method, purchased_at] = cols;
+    // cols[8] (Discount Code) and cols[9] (Attended) are read by position
+    // nowhere here on purpose — Attended must never feed check-in state.
 
     const errors = [];
     if (!name) errors.push('missing name');
@@ -52,10 +60,11 @@ const parsePastedTickets = (raw) => {
       name: name || '',
       phone: phone || '',
       email: email || '',
-      tier: tier || '',
+      tier: (tier || '').trim(),
       amount_paid: Number.isNaN(amount_paid) ? 0 : amount_paid,
       payment_method: payment_method || '',
       purchased_at: purchased_at || '',
+      external_reference: paymentKey || '',
       errors,
     };
   });
@@ -140,6 +149,7 @@ export default function EventTicketImport() {
             amount_paid: r.amount_paid,
             payment_method: r.payment_method || undefined,
             purchased_at: r.purchased_at || undefined,
+            external_reference: r.external_reference || undefined,
           })),
         }),
       });
@@ -222,13 +232,13 @@ export default function EventTicketImport() {
 
           <div>
             <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-              External reference (optional — e.g. Little's show/event ID)
+              Fallback reference (optional — only used for rows with no Payment Key)
             </label>
             <input
               type="text"
               value={externalReference}
               onChange={(e) => setExternalReference(e.target.value)}
-              placeholder="Shared across this whole batch, not unique per ticket"
+              placeholder="Each pasted row's own Payment Key is used automatically when present"
               className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30"
             />
           </div>
@@ -241,7 +251,7 @@ export default function EventTicketImport() {
               value={pasted}
               onChange={(e) => handlePasteChange(e.target.value)}
               rows={8}
-              placeholder={'Cherice Shael  254706768994  mecerecherice@gmail.com  Regular x2  1600  MPESA  30 May 26 00:29'}
+              placeholder={'Cherice Shael  254706768994  mecerecherice@gmail.com  1791264331576  Regular  1600  MPESA  30 May 26'}
               className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 font-mono"
             />
           </div>
