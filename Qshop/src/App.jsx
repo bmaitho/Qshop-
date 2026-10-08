@@ -27,6 +27,7 @@ import OrderConfirmation from './components/OrderConfirmation';
 import OrderDetails from './components/OrderDetails';
 import WholesalerCodes from './components/admin/WholesalerCodes';
 import AdminServicesPanel from './components/AdminServicesPanel';
+import EventTicketImport from './components/admin/EventTicketImport';
 import SubscriptionPage from './components/SubscriptionPage';
 import SellerOrderDetail from './components/SellerOrderDetail';
 import BuyerOrders from './components/BuyerOrders';
@@ -36,6 +37,7 @@ import EventPage from './components/EventPage';
 import MyTickets from './components/MyTickets';
 import VerifyTicket from './components/VerifyTicket';
 import StaffScanner from './components/StaffScanner';
+import ClaimHiveTicket from './components/ClaimHiveTicket';
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -58,6 +60,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />
+      <Route path="/claim/:eventId" element={<ClaimHiveTicket />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
@@ -77,6 +80,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/subscription" element={token ? <SubscriptionPage /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/codes" element={token ? <WholesalerCodes /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/services" element={token ? <AdminServicesPanel /> : <Navigate to="/auth" replace />} />
+      <Route path="/admin/events/import-tickets" element={token ? <EventTicketImport /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
       <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
 

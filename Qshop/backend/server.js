@@ -9,6 +9,7 @@ import emailRoutes from './routes/email.js';
 import sitemapRoutes from './routes/sitemap.js';
 import buyerOrdersRoutes from './routes/buyerOrders.js';
 import pickupMtaaniRoutes from './routes/pickupMtaani.js';
+import eventTicketImportRoutes from './routes/eventTicketImport.js';
 
 dotenv.config();
 
@@ -141,6 +142,7 @@ app.use('/api/mpesa', sensitiveLimiter, mpesaRoutes);
 app.use('/api/email', sensitiveLimiter, emailRoutes);
 app.use('/api/buyer-orders', generalLimiter, buyerOrdersRoutes);
 app.use('/api/pickup-mtaani', generalLimiter, pickupMtaaniRoutes);
+app.use('/api/admin/events', sensitiveLimiter, eventTicketImportRoutes);
 
 // Preflight
 app.options('/api/mpesa/*', cors(corsOptions));
