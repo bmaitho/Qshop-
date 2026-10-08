@@ -233,6 +233,42 @@ export const handleCallback = async (req, res) => {
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
       console.log(`Looking for order with CheckoutRequestID: ${CheckoutRequestID}`);
 
+      // ── Check wallet_transactions first (event wallet top-up)
+      // Confirmation goes through the wallet_topup_confirm RPC, never a
+      // raw UPDATE here — that RPC is the idempotency guard (checks
+      // status before crediting), so a duplicate callback for the same
+      // CheckoutRequestID is a safe no-op instead of a double credit.
+      const { data: pendingTopup } = await supabase
+        .from('wallet_transactions')
+        .select('id, status')
+        .eq('mpesa_checkout_request_id', CheckoutRequestID)
+        .eq('type', 'topup')
+        .maybeSingle();
+
+      if (pendingTopup) {
+        if (ResultCode === 0) {
+          const items = CallbackMetadata?.Item || [];
+          const mpesaReceiptNumber = items.find((i) => i.Name === 'MpesaReceiptNumber')?.Value;
+          const { error: confirmError } = await supabase.rpc('wallet_topup_confirm', {
+            p_checkout_request_id: CheckoutRequestID,
+            p_mpesa_receipt: mpesaReceiptNumber || null,
+          });
+          if (confirmError) {
+            console.error('Error confirming wallet topup:', confirmError.message);
+          } else {
+            console.log(`✅ Wallet topup confirmed for CheckoutRequestID ${CheckoutRequestID}`);
+          }
+        } else {
+          await supabase
+            .from('wallet_transactions')
+            .update({ status: 'failed' })
+            .eq('id', pendingTopup.id)
+            .eq('status', 'pending'); // never overwrite an already-confirmed row
+          console.log(`❌ Wallet topup failed for CheckoutRequestID ${CheckoutRequestID}: ${ResultDesc}`);
+        }
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+
       // ── Check service_bookings first (services checkout)
       const { data: serviceBookings } = await supabase
         .from('service_bookings')
