@@ -11,6 +11,7 @@ import buyerOrdersRoutes from './routes/buyerOrders.js';
 import pickupMtaaniRoutes from './routes/pickupMtaani.js';
 import eventTicketImportRoutes from './routes/eventTicketImport.js';
 import walletRoutes from './routes/wallet.js';
+import packagePurchaseRoutes from './routes/packagePurchase.js';
 
 dotenv.config();
 
@@ -145,6 +146,7 @@ app.use('/api/buyer-orders', generalLimiter, buyerOrdersRoutes);
 app.use('/api/pickup-mtaani', generalLimiter, pickupMtaaniRoutes);
 app.use('/api/admin/events', sensitiveLimiter, eventTicketImportRoutes);
 app.use('/api/wallet', sensitiveLimiter, walletRoutes);
+app.use('/api/packages', sensitiveLimiter, packagePurchaseRoutes);
 
 // Preflight
 app.options('/api/mpesa/*', cors(corsOptions));
