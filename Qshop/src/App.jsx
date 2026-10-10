@@ -38,6 +38,9 @@ import MyTickets from './components/MyTickets';
 import VerifyTicket from './components/VerifyTicket';
 import StaffScanner from './components/StaffScanner';
 import ClaimHiveTicket from './components/ClaimHiveTicket';
+import HivePackages from './components/HivePackages';
+import HiveWallet from './components/HiveWallet';
+import VendorRedeem from './components/VendorRedeem';
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -60,6 +63,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />
+      <Route path="/staff/redeem" element={<VendorRedeem />} />
       <Route path="/claim/:eventId" element={<ClaimHiveTicket />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
@@ -83,6 +87,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/admin/events/import-tickets" element={token ? <EventTicketImport /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
       <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
+      <Route path="/events/:slug/packages" element={token ? <HivePackages /> : <Navigate to="/auth" replace />} />
+      <Route path="/events/:eventId/wallet" element={token ? <HiveWallet /> : <Navigate to="/auth" replace />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
