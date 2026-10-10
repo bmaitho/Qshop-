@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User, Minus, Plus } from 'lucide-react';
 import { supabase } from './SupabaseClient';
@@ -53,6 +53,11 @@ const EventPage = ({ token }) => {
   const [view, setView] = useState('shop'); // shop | event
   const [packages, setPackages] = useState([]);
   const [expandedPkgId, setExpandedPkgId] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [buyingProductId, setBuyingProductId] = useState(null);
+  const [productError, setProductError] = useState('');
+  const [redeemedEntitlement, setRedeemedEntitlement] = useState(null);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [pkgPhone, setPkgPhone] = useState('');
   const [pkgStep, setPkgStep] = useState('idle'); // idle | processing | success | failed
@@ -134,6 +139,55 @@ const EventPage = ({ token }) => {
     setPkgError('');
   };
 
+  const refreshWalletBalance = useCallback(async (eventId, userId) => {
+    const { data } = await supabase
+      .from('event_wallet_balances')
+      .select('balance')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    setWalletBalance(data?.balance ?? 0);
+  }, []);
+
+  const handleBuyProduct = async (product) => {
+    if (!currentUser) {
+      sessionStorage.setItem('postLoginRedirect', `/events/${slug}`);
+      navigate('/auth');
+      return;
+    }
+    setProductError('');
+    setBuyingProductId(product.id);
+    try {
+      const { data: wallet, error: walletErr } = await supabase
+        .from('event_wallets')
+        .select('id')
+        .eq('event_id', event.id)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+      if (walletErr) throw walletErr;
+      if (!wallet) {
+        setProductError('Top up your HIVE Wallet first — no wallet found for this event yet.');
+        return;
+      }
+
+      const { data: entitlement, error: debitErr } = await supabase.rpc('wallet_debit_for_purchase', {
+        p_wallet_id: wallet.id,
+        p_product_name: product.name,
+        p_amount: product.price,
+        p_quantity: 1,
+        p_vendor_id: product.seller_id || null,
+      });
+      if (debitErr) throw debitErr;
+
+      setRedeemedEntitlement(entitlement);
+      refreshWalletBalance(event.id, currentUser.id);
+    } catch (err) {
+      setProductError(err.message || 'Purchase failed');
+    } finally {
+      setBuyingProductId(null);
+    }
+  };
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -163,6 +217,14 @@ const EventPage = ({ token }) => {
         .eq('status', 'active')
         .order('display_order', { ascending: true });
       setPackages(pkgRows || []);
+
+      const { data: productRows } = await supabase
+        .from('event_products')
+        .select('*')
+        .eq('event_id', eventData.id)
+        .eq('active', true)
+        .order('display_order', { ascending: true });
+      setProducts(productRows || []);
 
       // Auto-select first available tier
       if (eventData.ticket_tiers?.length > 0) {
@@ -199,6 +261,14 @@ const EventPage = ({ token }) => {
           .maybeSingle();
 
         if (ticket) setExistingTicket(ticket);
+
+        const { data: balanceRow } = await supabase
+          .from('event_wallet_balances')
+          .select('balance')
+          .eq('event_id', eventData.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setWalletBalance(balanceRow?.balance ?? 0);
       }
     } catch (err) {
       console.error('Error fetching event:', err);
@@ -776,6 +846,49 @@ const EventPage = ({ token }) => {
               </div>
             )}
 
+            {view === 'shop' && products.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">
+                    À la carte — pay from your HIVE Wallet
+                  </h2>
+                  {currentUser && (
+                    <span className="text-xs text-foreground/50">
+                      Balance: <span className="font-semibold text-primary">KSh {walletBalance ?? 0}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {products.map((product) => (
+                    <div key={product.id} className="border border-border rounded-2xl overflow-hidden bg-card flex flex-col">
+                      {product.image_url ? (
+                        <div className="aspect-square bg-muted overflow-hidden">
+                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="aspect-square bg-muted" />
+                      )}
+                      <div className="p-3 flex flex-col gap-2 flex-1">
+                        <p className="text-sm font-semibold text-foreground leading-tight">{product.name}</p>
+                        <p className="text-primary font-bold text-sm mt-auto">KSh {product.price}</p>
+                        <button
+                          onClick={() => handleBuyProduct(product)}
+                          disabled={buyingProductId === product.id}
+                          className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg disabled:opacity-50"
+                        >
+                          {buyingProductId === product.id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Buy'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {productError && <p className="text-red-500 text-sm mt-2">{productError}</p>}
+                {!currentUser && (
+                  <p className="text-xs text-foreground/40 mt-2">Log in and top up your HIVE Wallet to buy à la carte items.</p>
+                )}
+              </div>
+            )}
+
             <div className="border-t border-border mb-6" />
 
             {/* ═══ TICKET AREA (native tier flow — only when this event has no package catalogue) ═══ */}
@@ -1277,6 +1390,25 @@ const EventPage = ({ token }) => {
                 <button onClick={resetPkgFlow} className="w-full border border-border py-2.5 rounded-xl text-foreground">Try again</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {redeemedEntitlement && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm space-y-4 text-center">
+            <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
+            <p className="font-bold text-foreground">{redeemedEntitlement.product_name} — paid from your wallet</p>
+            <p className="text-sm text-foreground/60">Show this QR at the stand to redeem it.</p>
+            <div className="bg-white p-4 rounded-2xl inline-block">
+              <QRCode value={redeemedEntitlement.qr_token} size={180} fgColor="#000000" bgColor="#ffffff" />
+            </div>
+            <button
+              onClick={() => setRedeemedEntitlement(null)}
+              className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
