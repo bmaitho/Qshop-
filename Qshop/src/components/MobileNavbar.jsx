@@ -85,7 +85,7 @@ const MobileNavbar = () => {
             </div>
             
             <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
-              <a href="/my-tickets" className="relative tickets-icon" aria-label="My Tickets">
+              <a href="/services" className="relative tickets-icon" aria-label="My Tickets">
                 <Ticket size={18} style={goldIconStyle} />
               </a>
             </div>
