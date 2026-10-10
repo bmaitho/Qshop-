@@ -698,7 +698,9 @@ const EventPage = ({ token }) => {
                 <Billboard />
                 <div>
                   <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Lineup</h2>
-                  <p className="text-foreground/75 text-sm">On the decks: <span className="font-semibold">DJ NIKX</span>. More names dropping soon.</p>
+                  <p className="text-foreground/75 text-sm">
+                    On the decks: <span className="font-semibold">DJ NIKX</span>, <span className="font-semibold">DJ AKUKU</span>, <span className="font-semibold">DJ PICCASSO</span>. On stage: <span className="font-semibold">DENZZ</span>. More names dropping soon.
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button

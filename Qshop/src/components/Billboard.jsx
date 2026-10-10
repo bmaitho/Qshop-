@@ -12,12 +12,20 @@ import billboard2 from '../assets/hive/billboard-2.jpeg';
 import billboard3 from '../assets/hive/billboard-3.jpeg';
 import billboard4 from '../assets/hive/billboard-4.jpeg';
 import billboard5 from '../assets/hive/billboard-5.jpeg';
+import billboard6 from '../assets/hive/billboard-6.jpeg';
+import billboard7 from '../assets/hive/billboard-7.jpeg';
+import billboard8 from '../assets/hive/billboard-8.jpeg';
+import billboard9 from '../assets/hive/billboard-9.jpeg';
 
 const DEFAULT_SLIDES = [
-  { image: billboard1, caption: 'THE HIVE: NO GOING HOME — Halloween Edition' },
+  { image: billboard1, caption: 'THE HIVE: NO GOING HOME — Halloween Edition, 30 Oct, Sarakasi Dome' },
+  { image: billboard9, caption: 'Regular KSh 1,000 · VIP KSh 2,000 — 6PM till late' },
   { image: billboard2, caption: 'On the decks: DJ NIKX' },
-  { image: billboard3, caption: 'On the decks: DJ NIKX' },
-  { image: billboard4, caption: 'Who will be taking the stage?' },
+  { image: billboard6, caption: 'On the decks: DJ AKUKU' },
+  { image: billboard8, caption: 'On the decks: DJ PICCASSO' },
+  { image: billboard7, caption: 'On stage: DENZZ' },
+  { image: billboard3, caption: 'Who will be taking the stage?' },
+  { image: billboard4, caption: 'Unforgettable lineup awaits' },
   { image: billboard5, caption: 'Guess who will be performing?' },
 ];
 
