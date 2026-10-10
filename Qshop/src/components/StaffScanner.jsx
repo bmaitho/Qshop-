@@ -5,13 +5,7 @@ import {
   Lock, LogOut, Loader2, ScanLine, RotateCcw, ShieldCheck
 } from 'lucide-react';
 import { supabase } from './SupabaseClient';
-
-// html5-qrcode loaded from CDN — avoids adding a dependency for an MVP.
-// jsDelivr is the primary (more reliable in KE); unpkg is the fallback.
-const HTML5_QRCODE_CDNS = [
-  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
-  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
-];
+import { Html5Qrcode } from 'html5-qrcode';
 
 const SCANNER_ELEMENT_ID = 'unihive-scanner-region';
 
@@ -33,7 +27,6 @@ const StaffScanner = () => {
   const [staffUser, setStaffUser] = useState(null);
 
   // Scanner state
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const scannerRef = useRef(null);
@@ -133,66 +126,6 @@ const StaffScanner = () => {
     };
   }, []);
 
-  // ─── Load html5-qrcode from CDN (with fallback) ──────────────
-  useEffect(() => {
-    if (authState !== 'ok') return;
-    if (window.Html5Qrcode) {
-      setScriptLoaded(true);
-      return;
-    }
-
-    let cancelled = false;
-
-    const tryLoad = (urls, index = 0) => {
-      if (cancelled) return;
-      if (index >= urls.length) {
-        setScannerError(
-          'Failed to load scanner library. Check your connection and reload the page.'
-        );
-        return;
-      }
-      const url = urls[index];
-      const existing = document.querySelector(`script[data-qr-cdn="${url}"]`);
-      if (existing) {
-        existing.addEventListener('load', () => {
-          if (!cancelled) setScriptLoaded(true);
-        });
-        existing.addEventListener('error', () => tryLoad(urls, index + 1));
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.src = url;
-      script.async = true;
-      script.dataset.qrCdn = url;
-
-      // 10s per-CDN timeout — mobile networks sometimes stall the request
-      const timeout = setTimeout(() => {
-        script.onerror = null;
-        script.onload = null;
-        script.remove();
-        tryLoad(urls, index + 1);
-      }, 10000);
-
-      script.onload = () => {
-        clearTimeout(timeout);
-        if (!cancelled) setScriptLoaded(true);
-      };
-      script.onerror = () => {
-        clearTimeout(timeout);
-        script.remove();
-        tryLoad(urls, index + 1);
-      };
-      document.body.appendChild(script);
-    };
-
-    tryLoad(HTML5_QRCODE_CDNS);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authState]);
-
   // ─── Scanner lifecycle ───────────────────────────────────────
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -265,13 +198,9 @@ const StaffScanner = () => {
   }, []);
 
   const startScanner = useCallback(async () => {
-    if (!window.Html5Qrcode) {
-      setScannerError('Scanner library not loaded yet.');
-      return;
-    }
     setScannerError('');
     try {
-      const scanner = new window.Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
+      const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
       scannerRef.current = scanner;
       await scanner.start(
         { facingMode: 'environment' }, // back camera preferred
@@ -484,11 +413,10 @@ const StaffScanner = () => {
               )}
               <button
                 onClick={startScanner}
-                disabled={!scriptLoaded}
-                className="bg-[#E7C65F] hover:bg-[#d4b550] disabled:opacity-50 text-[#0D2B20] font-bold py-3 px-6 rounded-xl flex items-center gap-2"
+                className="bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-3 px-6 rounded-xl flex items-center gap-2"
               >
                 <Camera className="w-5 h-5" />
-                {scriptLoaded ? 'Start camera' : 'Loading scanner…'}
+                Start camera
               </button>
             </div>
           )}

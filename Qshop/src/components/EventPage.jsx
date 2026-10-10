@@ -569,6 +569,34 @@ const EventPage = ({ token }) => {
               </div>
             )}
 
+            {/* Quick links — other HIVE pages for this event, at a glance */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button
+                onClick={() => navigate(`/events/${slug}/packages`)}
+                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                Build Your Night
+              </button>
+              <button
+                onClick={() => navigate(`/events/${event.id}/wallet`)}
+                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                HIVE Wallet
+              </button>
+              <button
+                onClick={() => navigate('/my-tickets')}
+                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                My Tickets
+              </button>
+              <button
+                onClick={() => navigate(`/claim/${event.id}`)}
+                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                Claim a Little Events ticket
+              </button>
+            </div>
+
             <div className="border-t border-border mb-6" />
 
             {/* ═══ TICKET AREA ═══ */}

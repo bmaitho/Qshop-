@@ -1,73 +1,81 @@
 // src/components/admin/EventTicketImport.jsx
 //
-// Admin tool: import ticket sales from an external platform (e.g. Little
-// Events) for a given UniHive event. Source data arrives as screenshots,
-// not clean exports, so this works from pasted text rather than a file
-// upload — paste whatever you can select/copy from the partner's admin
-// table, one row per line, and the parser below handles tabs, commas, or
-// multiple spaces as the column separator.
+// Admin tool: update UniHive's record of ticket sales made through Little
+// Events (the only external ticketing partner right now — hardcoded on
+// purpose, not a generic multi-platform importer). Accepts Little's own
+// .xlsx export directly, or a pasted table as a fallback for days when
+// only a screenshot is available.
 //
 // This deliberately never grants entry or touches check-in state — it
-// only creates the ticket record so an attendee can later claim it via
-// the claim flow. See backend/controllers/eventTicketImportController.js
-// for the full safety notes.
+// only creates/updates the ticket record so an attendee can later claim
+// their UniHive benefits via the claim flow. See
+// backend/controllers/eventTicketImportController.js for the full safety
+// notes, especially why "Attended" from the export is never imported.
 
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, AlertTriangle, CheckCircle2, Loader2, Lock } from 'lucide-react';
+import { UploadCloud, AlertTriangle, CheckCircle2, Loader2, Lock, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../SupabaseClient';
 
-// Matches the real Little Events export columns (confirmed from an
-// actual download, not the earlier screenshot-only guess):
+const SOURCE_PLATFORM = 'little';
+
+// Real Little Events export column order:
 //   Client, Client Mobile, Customer Email, Payment Key, Ticket type,
 //   Paid, Payment Method, Date, Discount Code, Attended
-// Discount Code is captured but unused for now. Attended is read and
-// immediately discarded — it is NEVER imported as UniHive check-in
-// state; entry stays the external platform's authority, always.
-const COLUMN_HINT =
-  'Client, Client Mobile, Customer Email, Payment Key, Ticket type, Paid, Payment Method, Date — ' +
-  'same order as a Little Events export. Extra trailing columns (Discount Code, Attended) are fine and ignored.';
+// Discount Code is ignored. Attended is read and immediately discarded —
+// it is NEVER imported as UniHive check-in state; entry stays Little's
+// authority, always.
+const parseRowCells = (cols) => {
+  const [name, phone, email, paymentKey, tier, amount, payment_method, purchased_at] = cols.map((c) =>
+    c === undefined || c === null ? '' : String(c).trim()
+  );
+
+  const errors = [];
+  if (!name) errors.push('missing name');
+  if (!tier) errors.push('missing ticket type');
+  const amount_paid = Number(String(amount || '').replace(/[^0-9.]/g, ''));
+  if (!amount || Number.isNaN(amount_paid)) errors.push('amount is not a number');
+  if (!phone && !email) errors.push('needs phone or email (required to claim later)');
+
+  return {
+    name, phone, email,
+    tier,
+    amount_paid: Number.isNaN(amount_paid) ? 0 : amount_paid,
+    payment_method,
+    purchased_at,
+    external_reference: paymentKey || '',
+    errors,
+  };
+};
 
 /** Split one pasted line into columns, tolerant of tabs, commas, or 2+ spaces. */
 const splitRow = (line) => {
-  if (line.includes('\t')) return line.split('\t').map((c) => c.trim());
-  if (line.includes(',')) return line.split(',').map((c) => c.trim());
-  return line.split(/ {2,}/).map((c) => c.trim());
+  if (line.includes('\t')) return line.split('\t');
+  if (line.includes(',')) return line.split(',');
+  return line.split(/ {2,}/);
 };
 
 const parsePastedTickets = (raw) => {
-  const lines = raw
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+  return lines.map((line, i) => ({ row: i + 1, raw: line, ...parseRowCells(splitRow(line)) }));
+};
 
-  return lines.map((line, i) => {
-    const cols = splitRow(line);
-    const [name, phone, email, paymentKey, tier, amount, payment_method, purchased_at] = cols;
-    // cols[8] (Discount Code) and cols[9] (Attended) are read by position
-    // nowhere here on purpose — Attended must never feed check-in state.
+const looksLikeHeaderRow = (cols) => {
+  const first = String(cols[0] || '').trim().toLowerCase();
+  return first === 'client' || first === 'name';
+};
 
-    const errors = [];
-    if (!name) errors.push('missing name');
-    if (!tier) errors.push('missing ticket type');
-    const amount_paid = Number(String(amount || '').replace(/[^0-9.]/g, ''));
-    if (!amount || Number.isNaN(amount_paid)) errors.push('amount is not a number');
-    if (!phone && !email) errors.push('needs phone or email (required to claim later)');
+const parseWorkbookTickets = (arrayBuffer) => {
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const firstSheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
 
-    return {
-      row: i + 1,
-      raw: line,
-      name: name || '',
-      phone: phone || '',
-      email: email || '',
-      tier: (tier || '').trim(),
-      amount_paid: Number.isNaN(amount_paid) ? 0 : amount_paid,
-      payment_method: payment_method || '',
-      purchased_at: purchased_at || '',
-      external_reference: paymentKey || '',
-      errors,
-    };
-  });
+  const dataRows = rows.filter((cols) => cols.some((c) => String(c).trim() !== ''));
+  const body = dataRows.length && looksLikeHeaderRow(dataRows[0]) ? dataRows.slice(1) : dataRows;
+
+  return body.map((cols, i) => ({ row: i + 1, raw: cols.join(' | '), ...parseRowCells(cols) }));
 };
 
 export default function EventTicketImport() {
@@ -78,10 +86,10 @@ export default function EventTicketImport() {
 
   const [events, setEvents] = useState([]);
   const [eventId, setEventId] = useState('');
-  const [sourcePlatform, setSourcePlatform] = useState('little');
-  const [externalReference, setExternalReference] = useState('');
   const [pasted, setPasted] = useState('');
   const [parsedRows, setParsedRows] = useState([]);
+  const [fileError, setFileError] = useState('');
+  const [fileName, setFileName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState('');
@@ -109,10 +117,27 @@ export default function EventTicketImport() {
     })();
   }, [isAdmin]);
 
+  const resetResults = () => { setResult(null); setSubmitError(''); };
+
+  const handleFile = useCallback(async (file) => {
+    resetResults();
+    setFileError('');
+    setFileName(file.name);
+    setPasted('');
+    try {
+      const buffer = await file.arrayBuffer();
+      setParsedRows(parseWorkbookTickets(buffer));
+    } catch (err) {
+      setFileError(`Could not read "${file.name}": ${err.message}`);
+      setParsedRows([]);
+    }
+  }, []);
+
   const handlePasteChange = useCallback((text) => {
+    resetResults();
+    setFileError('');
+    setFileName('');
     setPasted(text);
-    setResult(null);
-    setSubmitError('');
     setParsedRows(text.trim() ? parsePastedTickets(text) : []);
   }, []);
 
@@ -139,8 +164,7 @@ export default function EventTicketImport() {
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          source_platform: sourcePlatform,
-          external_reference: externalReference || undefined,
+          source_platform: SOURCE_PLATFORM,
           tickets: validRows.map((r) => ({
             name: r.name,
             phone: r.phone || undefined,
@@ -156,7 +180,7 @@ export default function EventTicketImport() {
 
       const body = await response.json();
       if (!response.ok || !body.success) {
-        setSubmitError(body?.error || `Import failed (HTTP ${response.status})`);
+        setSubmitError(body?.error || `Update failed (HTTP ${response.status})`);
         if (body?.details && Array.isArray(body.details)) {
           setSubmitError(`${body.error}: ${body.details.join('; ')}`);
         }
@@ -165,9 +189,10 @@ export default function EventTicketImport() {
 
       setResult(body);
       setPasted('');
+      setFileName('');
       setParsedRows([]);
     } catch (err) {
-      setSubmitError(err.message || 'Network error during import');
+      setSubmitError(err.message || 'Network error during update');
     } finally {
       setSubmitting(false);
     }
@@ -196,65 +221,59 @@ export default function EventTicketImport() {
     <div className="min-h-screen bg-[#0D2B20] text-white">
       <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-5">
         <div>
-          <h1 className="text-xl font-bold text-[#E7C65F]">Import external ticket sales</h1>
+          <h1 className="text-xl font-bold text-[#E7C65F]">Update ticket sales — Little Events</h1>
           <p className="text-white/50 text-sm mt-1">
-            Creates ticket records so attendees can later claim their UniHive benefits.
-            This never marks anyone as checked in — entry stays the external platform's job.
+            Keeps UniHive in sync with sales made through Little. This never marks anyone as
+            checked in — entry stays Little's job.
           </p>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">Event</label>
-              <select
-                value={eventId}
-                onChange={(e) => setEventId(e.target.value)}
-                className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
-              >
-                <option value="">Select an event…</option>
-                {events.map((e) => (
-                  <option key={e.id} value={e.id}>{e.title} — {e.event_date}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">Source platform</label>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">Event</label>
+            <select
+              value={eventId}
+              onChange={(e) => setEventId(e.target.value)}
+              className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white"
+            >
+              <option value="">Select an event…</option>
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>{e.title} — {e.event_date}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
+              Little Events sales export (.xlsx)
+            </label>
+            <label className="flex items-center gap-3 border border-dashed border-white/20 rounded-lg px-4 py-6 cursor-pointer hover:border-[#E7C65F]/50 transition-colors">
+              <FileSpreadsheet className="w-6 h-6 text-white/40 shrink-0" />
+              <div className="text-sm">
+                <span className="text-[#E7C65F] font-medium">Choose the sales .xlsx</span>
+                <span className="text-white/40"> — downloaded straight from Little, no edits needed</span>
+                {fileName && <p className="text-white/70 mt-1">{fileName}</p>}
+              </div>
               <input
-                type="text"
-                value={sourcePlatform}
-                onChange={(e) => setSourcePlatform(e.target.value)}
-                placeholder="e.g. little"
-                className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30"
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
-            </div>
+            </label>
+            {fileError && <p className="text-red-300 text-sm mt-2">{fileError}</p>}
           </div>
 
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-              Fallback reference (optional — only used for rows with no Payment Key)
-            </label>
-            <input
-              type="text"
-              value={externalReference}
-              onChange={(e) => setExternalReference(e.target.value)}
-              placeholder="Each pasted row's own Payment Key is used automatically when present"
-              className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-              Paste rows — {COLUMN_HINT}
-            </label>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-white/50">No file handy? Paste rows instead</summary>
             <textarea
               value={pasted}
               onChange={(e) => handlePasteChange(e.target.value)}
-              rows={8}
+              rows={6}
               placeholder={'Cherice Shael  254706768994  mecerecherice@gmail.com  1791264331576  Regular  1600  MPESA  30 May 26'}
-              className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 font-mono"
+              className="w-full mt-2 bg-black/30 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-white/20 font-mono"
             />
-          </div>
+          </details>
         </div>
 
         {parsedRows.length > 0 && (
@@ -298,8 +317,8 @@ export default function EventTicketImport() {
 
         {result && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-emerald-200 text-sm">
-            Imported {result.imported} ticket{result.imported === 1 ? '' : 's'}
-            {result.skipped > 0 && ` — skipped ${result.skipped} already imported`} for {result.event}.
+            Updated {result.imported} ticket{result.imported === 1 ? '' : 's'}
+            {result.skipped > 0 && ` — skipped ${result.skipped} already up to date`} for {result.event}.
           </div>
         )}
 
@@ -309,7 +328,7 @@ export default function EventTicketImport() {
           className="w-full bg-[#E7C65F] hover:bg-[#d4b550] disabled:opacity-40 disabled:cursor-not-allowed text-[#0D2B20] font-bold py-3 rounded-xl flex items-center justify-center gap-2"
         >
           {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
-          {submitting ? 'Importing…' : `Import ${validRows.length || ''} ticket${validRows.length === 1 ? '' : 's'}`}
+          {submitting ? 'Updating…' : `Update ${validRows.length || ''} ticket${validRows.length === 1 ? '' : 's'}`}
         </button>
       </div>
     </div>

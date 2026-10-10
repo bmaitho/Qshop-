@@ -17,11 +17,7 @@ import {
   Camera, CameraOff, CheckCircle, XCircle, Lock, LogOut, Loader2, ScanLine, Package,
 } from 'lucide-react';
 import { supabase } from './SupabaseClient';
-
-const HTML5_QRCODE_CDNS = [
-  'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
-  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
-];
+import { Html5Qrcode } from 'html5-qrcode';
 
 const SCANNER_ELEMENT_ID = 'unihive-vendor-scanner-region';
 
@@ -40,7 +36,6 @@ const VendorRedeem = () => {
   const [staffUser, setStaffUser] = useState(null);
   const [authError, setAuthError] = useState('');
 
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scannerError, setScannerError] = useState('');
   const scannerRef = useRef(null);
@@ -103,40 +98,6 @@ const VendorRedeem = () => {
     return () => { cancelled = true; clearTimeout(stuckTimer); };
   }, []);
 
-  useEffect(() => {
-    if (authState !== 'ok') return;
-    if (window.Html5Qrcode) { setScriptLoaded(true); return; }
-
-    let cancelled = false;
-    const tryLoad = (urls, index = 0) => {
-      if (cancelled) return;
-      if (index >= urls.length) {
-        setScannerError('Failed to load scanner library. Check your connection and reload the page.');
-        return;
-      }
-      const url = urls[index];
-      const existing = document.querySelector(`script[data-qr-cdn="${url}"]`);
-      if (existing) {
-        existing.addEventListener('load', () => { if (!cancelled) setScriptLoaded(true); });
-        existing.addEventListener('error', () => tryLoad(urls, index + 1));
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = url;
-      script.async = true;
-      script.dataset.qrCdn = url;
-      const timeout = setTimeout(() => {
-        script.onerror = null; script.onload = null; script.remove();
-        tryLoad(urls, index + 1);
-      }, 10000);
-      script.onload = () => { clearTimeout(timeout); if (!cancelled) setScriptLoaded(true); };
-      script.onerror = () => { clearTimeout(timeout); script.remove(); tryLoad(urls, index + 1); };
-      document.body.appendChild(script);
-    };
-    tryLoad(HTML5_QRCODE_CDNS);
-    return () => { cancelled = true; };
-  }, [authState]);
-
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
       try {
@@ -183,10 +144,9 @@ const VendorRedeem = () => {
   }, []);
 
   const startScanner = useCallback(async () => {
-    if (!window.Html5Qrcode) { setScannerError('Scanner library not loaded yet.'); return; }
     setScannerError('');
     try {
-      const scanner = new window.Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
+      const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false });
       scannerRef.current = scanner;
       await scanner.start(
         { facingMode: 'environment' },
@@ -330,9 +290,9 @@ const VendorRedeem = () => {
               <p className="text-white/80 mb-1 font-semibold">Camera off</p>
               <p className="text-white/40 text-sm mb-4">Tap below to start scanning items</p>
               {scannerError && <p className="text-red-300 text-xs mb-3 max-w-xs">{scannerError}</p>}
-              <button onClick={startScanner} disabled={!scriptLoaded} className="bg-[#E7C65F] hover:bg-[#d4b550] disabled:opacity-50 text-[#0D2B20] font-bold py-3 px-6 rounded-xl flex items-center gap-2">
+              <button onClick={startScanner} className="bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-3 px-6 rounded-xl flex items-center gap-2">
                 <Camera className="w-5 h-5" />
-                {scriptLoaded ? 'Start camera' : 'Loading scanner…'}
+                Start camera
               </button>
             </div>
           )}
