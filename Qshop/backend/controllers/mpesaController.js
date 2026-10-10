@@ -269,6 +269,50 @@ export const handleCallback = async (req, res) => {
         return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
       }
 
+      // ── Check event_package_purchases (THE HIVE Edition package checkout)
+      // Confirmation/fulfilment goes through fulfil_package_purchase, never
+      // a raw UPDATE — that RPC is the idempotency guard (checks status
+      // before creating tickets/entitlements/wallet credit), so a
+      // duplicate callback for the same CheckoutRequestID is a safe no-op.
+      const { data: pendingPackagePurchase } = await supabase
+        .from('event_package_purchases')
+        .select('id, status')
+        .eq('mpesa_checkout_request_id', CheckoutRequestID)
+        .maybeSingle();
+
+      if (pendingPackagePurchase) {
+        if (ResultCode === 0) {
+          const items = CallbackMetadata?.Item || [];
+          const mpesaReceiptNumber = items.find((i) => i.Name === 'MpesaReceiptNumber')?.Value;
+          const phoneNumber = items.find((i) => i.Name === 'PhoneNumber')?.Value;
+
+          await supabase
+            .from('event_package_purchases')
+            .update({
+              mpesa_receipt: mpesaReceiptNumber || null,
+              phone_number: phoneNumber ? phoneNumber.toString() : undefined,
+            })
+            .eq('id', pendingPackagePurchase.id);
+
+          const { error: fulfilError } = await supabase.rpc('fulfil_package_purchase', {
+            p_purchase_id: pendingPackagePurchase.id,
+          });
+          if (fulfilError) {
+            console.error('Error fulfilling package purchase:', fulfilError.message);
+          } else {
+            console.log(`✅ Package purchase ${pendingPackagePurchase.id} fulfilled`);
+          }
+        } else {
+          await supabase
+            .from('event_package_purchases')
+            .update({ status: 'failed' })
+            .eq('id', pendingPackagePurchase.id)
+            .eq('status', 'pending'); // never overwrite an already-confirmed row
+          console.log(`❌ Package purchase ${pendingPackagePurchase.id} failed: ${ResultDesc}`);
+        }
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+
       // ── Check service_bookings first (services checkout)
       const { data: serviceBookings } = await supabase
         .from('service_bookings')
