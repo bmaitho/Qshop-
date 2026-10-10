@@ -8,6 +8,17 @@ import { initGuestTicket } from '../Services/eventTicketService';
 import Navbar from './Navbar';
 import MobileNavbar from './MobileNavbar';
 import QRCode from './QRCode';
+import Billboard from './Billboard';
+
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_ATTEMPTS = 40; // ~2 minutes
+
+const describePackageItem = (item) => {
+  if (item.item_type === 'ticket_tier') return `${item.quantity}× ${item.tier} admission`;
+  if (item.item_type === 'product') return `${item.quantity}× ${item.event_products?.name || 'item'}`;
+  if (item.item_type === 'wallet_credit') return `KSh ${item.wallet_credit_amount * item.quantity} wallet credit`;
+  return null;
+};
 
 const EventPage = ({ token }) => {
   const { slug } = useParams();
@@ -38,6 +49,91 @@ const EventPage = ({ token }) => {
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [promoError, setPromoError] = useState('');
 
+  // View tab + catalogue (package) purchase state
+  const [view, setView] = useState('shop'); // shop | event
+  const [packages, setPackages] = useState([]);
+  const [expandedPkgId, setExpandedPkgId] = useState(null);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [pkgPhone, setPkgPhone] = useState('');
+  const [pkgStep, setPkgStep] = useState('idle'); // idle | processing | success | failed
+  const [pkgError, setPkgError] = useState('');
+  const pkgPollingRef = useRef(null);
+
+  useEffect(() => () => { if (pkgPollingRef.current) clearInterval(pkgPollingRef.current); }, []);
+
+  const startPkgPolling = (purchaseId) => {
+    let attempts = 0;
+    pkgPollingRef.current = setInterval(async () => {
+      attempts += 1;
+      if (attempts > MAX_POLL_ATTEMPTS) {
+        clearInterval(pkgPollingRef.current);
+        pkgPollingRef.current = null;
+        setPkgError('Payment timed out. If you were charged, contact support.');
+        setPkgStep('failed');
+        return;
+      }
+      try {
+        const { data: row } = await supabase
+          .from('event_package_purchases')
+          .select('status')
+          .eq('id', purchaseId)
+          .maybeSingle();
+        if (row?.status === 'confirmed') {
+          clearInterval(pkgPollingRef.current);
+          pkgPollingRef.current = null;
+          setPkgStep('success');
+        } else if (row?.status === 'failed') {
+          clearInterval(pkgPollingRef.current);
+          pkgPollingRef.current = null;
+          setPkgError('Payment was declined, cancelled, or timed out.');
+          setPkgStep('failed');
+        }
+      } catch { /* retry next tick */ }
+    }, POLL_INTERVAL_MS);
+  };
+
+  const handlePackagePurchase = async () => {
+    if (!currentUser) {
+      sessionStorage.setItem('postLoginRedirect', `/events/${slug}`);
+      navigate('/auth');
+      return;
+    }
+    if (!selectedPackage) return;
+    if (!pkgPhone.trim()) { setPkgError('Enter the phone number to pay with.'); return; }
+
+    setPkgStep('processing');
+    setPkgError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate('/auth'); return; }
+
+      const backendUrl = import.meta.env.VITE_API_URL;
+      const response = await fetch(`${backendUrl}/packages/${selectedPackage.id}/purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ phoneNumber: pkgPhone }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.success) {
+        setPkgError(body?.error || `Purchase failed (HTTP ${response.status})`);
+        setPkgStep('failed');
+        return;
+      }
+      startPkgPolling(body.purchaseId);
+    } catch (err) {
+      setPkgError(err.message || 'Network error starting purchase');
+      setPkgStep('failed');
+    }
+  };
+
+  const resetPkgFlow = () => {
+    setSelectedPackage(null);
+    setPkgPhone('');
+    setPkgStep('idle');
+    setPkgError('');
+  };
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -59,6 +155,14 @@ const EventPage = ({ token }) => {
 
       if (error) throw error;
       setEvent(eventData);
+
+      const { data: pkgRows } = await supabase
+        .from('event_packages')
+        .select('*, event_package_items(*, event_products(name))')
+        .eq('event_id', eventData.id)
+        .eq('status', 'active')
+        .order('display_order', { ascending: true });
+      setPackages(pkgRows || []);
 
       // Auto-select first available tier
       if (eventData.ticket_tiers?.length > 0) {
@@ -569,38 +673,111 @@ const EventPage = ({ token }) => {
               </div>
             )}
 
-            {/* Quick links — other HIVE pages for this event, at a glance */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            {/* Shop / Event tab switch */}
+            <div className="inline-flex p-1 rounded-full bg-muted/60 mb-6">
               <button
-                onClick={() => navigate(`/events/${slug}/packages`)}
-                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                onClick={() => setView('shop')}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  view === 'shop' ? 'bg-primary text-primary-foreground' : 'text-foreground/60 hover:text-foreground'
+                }`}
               >
-                Build Your Night
+                Shop
               </button>
               <button
-                onClick={() => navigate(`/events/${event.id}/wallet`)}
-                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                onClick={() => setView('event')}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
+                  view === 'event' ? 'bg-primary text-primary-foreground' : 'text-foreground/60 hover:text-foreground'
+                }`}
               >
-                HIVE Wallet
-              </button>
-              <button
-                onClick={() => navigate('/my-tickets')}
-                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                My Tickets
-              </button>
-              <button
-                onClick={() => navigate(`/claim/${event.id}`)}
-                className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                Claim a Little Events ticket
+                Event
               </button>
             </div>
 
+            {view === 'event' && (
+              <div className="space-y-6 mb-8">
+                <Billboard />
+                <div>
+                  <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Lineup</h2>
+                  <p className="text-foreground/75 text-sm">On the decks: <span className="font-semibold">DJ NIKX</span>. More names dropping soon.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => navigate(`/events/${event.id}/wallet`)}
+                    className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    HIVE Wallet
+                  </button>
+                  <button
+                    onClick={() => navigate(`/claim/${event.id}`)}
+                    className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    Claim a Little Events ticket
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {view === 'shop' && packages.length > 0 && (
+              <div className="space-y-3 mb-8">
+                {existingTicket && (
+                  <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 flex flex-col items-center text-center mb-2">
+                    <CheckCircle className="w-9 h-9 text-green-500 mb-2" />
+                    <p className="font-semibold text-green-700 dark:text-green-400">You're already in — check My Tickets for your QR.</p>
+                    <button onClick={() => navigate('/my-tickets')} className="mt-3 text-sm text-primary hover:underline font-medium">
+                      View my tickets →
+                    </button>
+                  </div>
+                )}
+                {packages.map((pkg) => {
+                  const items = pkg.event_package_items || [];
+                  const expanded = expandedPkgId === pkg.id;
+                  return (
+                    <div key={pkg.id} className="border border-border rounded-2xl p-5 bg-card space-y-3">
+                      <div className="flex justify-between items-start gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-lg text-foreground">{pkg.name}</h3>
+                            {pkg.featured && (
+                              <span className="text-[10px] uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                                Featured
+                              </span>
+                            )}
+                          </div>
+                          {pkg.description && <p className="text-foreground/50 text-sm mt-0.5">{pkg.description}</p>}
+                        </div>
+                        <div className="text-xl font-bold text-primary shrink-0">KSh {pkg.base_price}</div>
+                      </div>
+
+                      {items.length > 0 && (
+                        <button
+                          onClick={() => setExpandedPkgId(expanded ? null : pkg.id)}
+                          className="text-xs text-foreground/50 underline"
+                        >
+                          {expanded ? 'Hide' : "What's included"}
+                        </button>
+                      )}
+                      {expanded && (
+                        <ul className="text-sm text-foreground/70 space-y-1 pl-1">
+                          {items.map((item) => <li key={item.id}>• {describePackageItem(item)}</li>)}
+                        </ul>
+                      )}
+
+                      <button
+                        onClick={() => { setSelectedPackage(pkg); setPkgStep('idle'); setPkgError(''); }}
+                        className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl hover:opacity-90"
+                      >
+                        Get this package
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="border-t border-border mb-6" />
 
-            {/* ═══ TICKET AREA ═══ */}
-            {existingTicket ? (
+            {/* ═══ TICKET AREA (native tier flow — only when this event has no package catalogue) ═══ */}
+            {view === 'shop' && packages.length === 0 && (existingTicket ? (
               /* ── Already have ticket ── */
               <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 sm:p-8">
                 <div className="flex flex-col items-center text-center">
@@ -846,17 +1023,9 @@ const EventPage = ({ token }) => {
                           ? `Buy ${quantity} Tickets — ${fmt(totalPrice)}`
                           : `Buy Ticket — ${fmt(totalPrice)}`
                       )
-                    ) : 'Claim Free Ticket'}
+                    ) : 'Get Ticket'}
                   </button>
                 )}
-
-                <button
-                  onClick={handleShare}
-                  className="w-full py-3 sm:py-3.5 rounded-xl font-medium text-sm border border-border
-                    text-foreground/70 hover:bg-muted/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                >
-                  <Share2 className="w-4 h-4" /> Share Event
-                </button>
               </div>
 
             ) : step === 'details' ? (
@@ -1045,10 +1214,70 @@ const EventPage = ({ token }) => {
                 </button>
                 <button onClick={resetPurchase} className="w-full text-sm text-muted-foreground hover:text-foreground">Cancel</button>
               </div>
-            ) : null}
+            ) : null)}
+
+            {view === 'shop' && (
+              <button
+                onClick={handleShare}
+                className="w-full py-3 sm:py-3.5 rounded-xl font-medium text-sm border border-border
+                  text-foreground/70 hover:bg-muted/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                <Share2 className="w-4 h-4" /> Share Event
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {selectedPackage && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm space-y-4">
+            {pkgStep === 'idle' && (
+              <>
+                <h3 className="font-bold text-lg text-foreground">{selectedPackage.name}</h3>
+                <p className="text-primary font-bold text-2xl">KSh {selectedPackage.base_price}</p>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-foreground/40 mb-1.5">M-Pesa phone number</label>
+                  <input
+                    type="text"
+                    value={pkgPhone}
+                    onChange={(e) => setPkgPhone(e.target.value)}
+                    placeholder="07XXXXXXXX"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
+                  />
+                </div>
+                {pkgError && <p className="text-red-500 text-sm">{pkgError}</p>}
+                <div className="flex gap-2">
+                  <button onClick={resetPkgFlow} className="flex-1 py-2.5 rounded-xl border border-border text-foreground/70">Cancel</button>
+                  <button onClick={handlePackagePurchase} className="flex-1 bg-primary text-primary-foreground font-bold py-2.5 rounded-xl">Pay now</button>
+                </div>
+              </>
+            )}
+            {pkgStep === 'processing' && (
+              <div className="text-center py-6 space-y-3">
+                <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+                <p className="text-foreground/70 text-sm">Check your phone to complete payment…</p>
+              </div>
+            )}
+            {pkgStep === 'success' && (
+              <div className="text-center py-6 space-y-3">
+                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
+                <p className="font-bold text-foreground">You're in! Check My Tickets for your QR.</p>
+                <button onClick={() => navigate('/my-tickets')} className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl">
+                  View my tickets
+                </button>
+              </div>
+            )}
+            {pkgStep === 'failed' && (
+              <div className="text-center py-6 space-y-3">
+                <XCircle className="w-12 h-12 text-red-500 mx-auto" />
+                <p className="text-red-500 text-sm">{pkgError || 'Payment failed.'}</p>
+                <button onClick={resetPkgFlow} className="w-full border border-border py-2.5 rounded-xl text-foreground">Try again</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
