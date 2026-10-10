@@ -98,10 +98,12 @@ export const importExternalTickets = async (req, res) => {
     if (!isNonEmptyString(eventId)) {
       return res.status(400).json({ success: false, error: 'eventId is required' });
     }
-    if (!isNonEmptyString(source_platform) || source_platform === 'unihive') {
+    // Little Events is the only external ticketing partner right now —
+    // hardcoded on purpose, not a generic multi-platform importer.
+    if (source_platform !== 'little') {
       return res.status(400).json({
         success: false,
-        error: 'source_platform is required and must not be "unihive" (that value is reserved for native sales)',
+        error: 'source_platform must be "little" — that is the only supported external partner',
       });
     }
     if (!Array.isArray(tickets) || tickets.length === 0) {
