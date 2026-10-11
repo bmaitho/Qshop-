@@ -5,12 +5,14 @@
 // or slug in the URL; the backend always receives the resolved UUID.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle, QrCode, ChevronDown, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import QRCode from './QRCode';
 import HiveShell from './hive/HiveShell';
-import { HIVE_SLUG, VIDEOS } from './hive/hiveMedia';
+import { HIVE_SLUG } from './hive/hiveMedia';
+import useHiveCart from './hive/useHiveCart';
+import { CartPanel } from './hive/HiveCart';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const POLL_INTERVAL_MS = 5000;
@@ -21,6 +23,7 @@ const ksh = (n) => `KSh ${Number(n || 0).toLocaleString('en-KE')}`;
 export default function HiveWallet() {
   const { eventId: param } = useParams();
   const navigate = useNavigate();
+  const [search] = useSearchParams();
 
   const [user, setUser] = useState(null);
   const [event, setEvent] = useState(null);
@@ -29,11 +32,14 @@ export default function HiveWallet() {
   const [txns, setTxns] = useState([]);
   const [openQr, setOpenQr] = useState(null);
 
-  const [amount, setAmount] = useState('1000');
+  const [amount, setAmount] = useState(search.get('topup') && Number(search.get('topup')) > 0 ? String(Math.ceil(Number(search.get('topup')))) : '1000');
+  const [products, setProducts] = useState([]);
+  const cartApi = useHiveCart(event?.id);
   const [phone, setPhone] = useState('');
   const [step, setStep] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const pollingRef = useRef(null);
+  const topupRef = useRef(null);
 
   const load = useCallback(async (ev, u) => {
     const [{ data: bal }, { data: ents }, { data: wallet }] = await Promise.all([
@@ -63,6 +69,10 @@ export default function HiveWallet() {
       let { data: ev } = await supabase.from('events').select('id, title, slug').eq(col, param || HIVE_SLUG).maybeSingle();
       if (!ev) ({ data: ev } = await supabase.from('events').select('id, title, slug').eq('slug', HIVE_SLUG).maybeSingle());
       setEvent(ev);
+      if (ev) {
+        const { data: pr } = await supabase.from('event_products').select('*').eq('event_id', ev.id).eq('active', true);
+        setProducts(pr || []);
+      }
       const { data: prof } = await supabase.from('profiles').select('phone').eq('id', u.id).maybeSingle();
       if (prof?.phone) setPhone(prof.phone);
       if (ev) load(ev, u);
@@ -118,27 +128,27 @@ export default function HiveWallet() {
             <h1 className="hive-display hive-gold-text text-4xl sm:text-5xl font-extrabold mt-1">HIVE Wallet</h1>
           </div>
 
-          <div className="relative aspect-[1.6/1] rounded-[28px] overflow-hidden border border-[#e7c65f]/25 shadow-[0_40px_80px_-30px_rgba(195,18,31,0.6)]">
-            <img src={VIDEOS.recap.poster} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/85 via-black/60 to-[#3a0a10]/80" />
+          <div className="relative aspect-[1.6/1] rounded-[28px] overflow-hidden border border-[#e7c65f]/20 bg-[#120607] shadow-[0_40px_80px_-30px_rgba(195,18,31,0.6)]">
+            <img src="/hive/media/wristband.webp" alt="THE HIVE wristband" className="absolute inset-0 w-full h-full object-cover scale-[1.15] object-[50%_42%]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
             <div className="relative h-full flex flex-col justify-between p-5 sm:p-7">
               <div className="flex items-start justify-between">
-                <span className="hive-display hive-gold-text text-lg sm:text-xl font-bold">THE HIVE</span>
-                <span className="hive-accent text-white/60">No Going Home</span>
+                <span className="text-[10px] uppercase tracking-[0.35em] text-white/60">HIVE Wallet</span>
+                <span className="text-[10px] uppercase tracking-[0.35em] text-white/40">Fri 30 Oct</span>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/45">Balance</p>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/50">Balance</p>
                 {balance === null ? (
                   <div className="h-12 w-48 rounded-lg hive-shimmer mt-1" />
                 ) : (
-                  <p className="hive-display text-white text-4xl sm:text-5xl font-bold tabular-nums mt-1">{ksh(balance)}</p>
+                  <p className="hive-display text-white text-4xl sm:text-5xl font-bold tabular-nums mt-1 drop-shadow">{ksh(balance)}</p>
                 )}
-                <p className="text-xs text-white/40 mt-2">{user?.email}</p>
+                <p className="text-xs text-white/45 mt-2">{user?.email}</p>
               </div>
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-white/10 bg-[#0e0809]/80 backdrop-blur-xl p-5 sm:p-6">
+          <div ref={topupRef} className="rounded-[26px] border border-white/10 bg-[#0e0809]/80 backdrop-blur-xl p-5 sm:p-6 scroll-mt-32">
             {step === 'idle' && (
               <div className="space-y-4">
                 <p className="hive-display text-white text-lg font-bold">Top up with M-Pesa</p>
@@ -185,6 +195,20 @@ export default function HiveWallet() {
         </div>
 
         <div className="space-y-8">
+          {cartApi.count > 0 && (
+            <section className="rounded-[26px] border border-[#c3121f]/30 bg-[#140809]/80 p-5 sm:p-6">
+              <h2 className="hive-display text-white text-xl font-bold mb-4">Your cart</h2>
+              <CartPanel
+                cartApi={cartApi}
+                products={products}
+                balance={balance}
+                user={user}
+                onLogin={() => navigate('/auth')}
+                onDone={() => event && user && load(event, user)}
+                onTopUp={(n) => { setAmount(String(n)); setStep('idle'); topupRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}
+              />
+            </section>
+          )}
           <section>
             <div className="flex items-end justify-between mb-4">
               <h2 className="hive-display text-white text-2xl font-bold">My HIVE items</h2>

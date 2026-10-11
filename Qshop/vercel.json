@@ -108,9 +108,71 @@
       "destination": "/api/og?path=home"
     },
     {
+      "source": "/events/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=events/:slug"
+    },
+    {
+      "source": "/events/:slug/wallet",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=events/:slug/wallet"
+    },
+    {
+      "source": "/hive/booth",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=hive/booth"
+    },
+    {
+      "source": "/claim/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=claim/:id"
+    },
+    {
+      "source": "/studentmarketplace",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=studentmarketplace"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
-  "framework": "vite"
+  "framework": "vite",
+  "functions": {
+    "api/og-image.js": {
+      "includeFiles": "api/_og/**",
+      "memory": 1024,
+      "maxDuration": 15
+    }
+  }
 }

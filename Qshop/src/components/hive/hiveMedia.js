@@ -1,5 +1,7 @@
 // Official THE HIVE: NO GOING HOME media, served from public/hive/.
 export const HIVE_SLUG = 'the-hive-no-going-home';
+export const EUPHORIA_SLUGS = ['unihive-opening'];
+export const isEuphoriaSlug = (slug = '') => EUPHORIA_SLUGS.includes(slug) || /euphoria/i.test(slug);
 export const HIVE_STARTS_AT = '2026-10-30T18:00:00+03:00';
 
 const m = (name) => `/hive/media/${name}.webp`;
@@ -50,45 +52,23 @@ export const LINEUP = [
   { name: 'SUPEE', role: 'On stage', poster: m('supee') },
 ];
 
-// Billboard rotation — every official poster and video appears here.
-export const BILLBOARD_SLIDES = [
-  { type: 'video', ...VIDEOS.btsReel, caption: 'Behind the scenes — the Dome, rehearsed' },
-  { type: 'image', src: POSTERS.master, caption: 'THE HIVE · NO GOING HOME · Fri 30 Oct · Sarakasi Dome' },
-  { type: 'image', src: b('ngh158'), caption: 'Rehearsal night at Sarakasi Dome' },
-  { type: 'video', ...VIDEOS.recap, ratio: 16 / 9, caption: 'Last time the Hive opened its doors' },
-  { type: 'image', src: b('ngh242'), caption: 'The Smirnoff booth — Friday 13th energy' },
-  { type: 'video', ...VIDEOS.countdown, caption: 'The countdown to Fright Night begins' },
-  { type: 'image', src: POSTERS.bloodMoon, caption: 'One night. Endless memories.' },
-  { type: 'image', src: POSTERS.wave1, caption: 'Wave 1 — GA 1,000 · Group of 4 3,500 · VIP 2,000' },
-  { type: 'video', ...VIDEOS.euphoriaReel, caption: 'THE HIVE: EUPHORIA — May, Sarakasi Dome' },
-  { type: 'image', src: b('euph025'), caption: 'Euphoria — hands up for the Hive' },
-  { type: 'video', ...VIDEOS.fringe, caption: 'DJ FRINGE will be performing' },
-  { type: 'image', src: m('dj-fringe'), caption: 'On the decks: DJ FRINGE' },
-  { type: 'video', ...VIDEOS.akuku, caption: 'DJ BAHATI AKUKU will be performing' },
-  { type: 'image', src: m('dj-akuku'), caption: 'On the decks: DJ AKUKU' },
-  { type: 'image', src: m('dj-nikx'), caption: 'On the decks: DJ NIKX' },
-  { type: 'image', src: m('dj-piccasso'), caption: 'On the decks: DJ PICCASSO' },
-  { type: 'image', src: m('denzz'), caption: 'On stage: DENZZ' },
-  { type: 'image', src: m('supee'), caption: 'On stage: SUPEE' },
-  { type: 'video', ...VIDEOS.ready, caption: 'Are you ready?' },
-  { type: 'image', src: POSTERS.afterDark, caption: 'Where the darkness dances — AFTER DARK' },
-  { type: 'image', src: b('ngh202'), caption: 'The Hive, in black and white' },
-  { type: 'image', src: b('ngh023'), caption: 'Fog, lights, rehearsal' },
-  { type: 'image', src: POSTERS.guessWho, caption: 'Guess who will be performing?' },
-  { type: 'image', src: POSTERS.whoTakesStage, caption: 'Unforgettable lineup awaits' },
-  { type: 'video', ...VIDEOS.behind, caption: 'Behind the entertainment' },
-  { type: 'image', src: POSTERS.info, caption: 'Regular 1,000 · VIP 2,000 · 6PM till late' },
-  { type: 'image', src: POSTERS.earlyBird, caption: 'Early bird — 40% sold out' },
-  { type: 'image', src: POSTERS.vendors, caption: 'Call for vendors — showcase your brand this Halloween' },
-  { type: 'video', ...VIDEOS.euphoriaWide, ratio: 16 / 9, caption: 'Euphoria, from the floor' },
-  { type: 'image', src: b('euph033'), caption: 'The UniHive booth at Euphoria' },
-];
+export const SOCIALS = {
+  instagram: { label: 'Instagram', handle: '@unihive.entertainment', url: 'https://www.instagram.com/unihive.entertainment/' },
+  tiktok: { label: 'TikTok', handle: '@unihive.entertainment', url: 'https://www.tiktok.com/@unihive.entertainment' },
+};
+
+export const LITTLE = {
+  tickets: 'https://apps.little.africa/events/the-hive-no-going-home-',
+  code: 'UNIHIVE26',
+  offer: 'KSh 200 off Little Cab rides to and from Hive events',
+};
 
 export const PERKS = [
-  { title: 'Ride in on Little', body: 'Use code UNIHIVE on Little Cab drives to the Dome.' },
+  { title: 'Ride with Little', body: 'Code UNIHIVE26 — KSh 200 off Little Cab rides to and from the Dome.' },
   { title: 'VIP treatment', body: 'Complimentary drink and private seating for VIP.' },
   { title: 'Dress to impress', body: 'Come in costume — and disturb.' },
   { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM till late.' },
+  { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — let Little get you home.' },
 ];
 
 export const PARTNERS = ['Little', 'Smirnoff', 'Red Bull', 'Charge24', "Harrison's Pearl Gerar"];
@@ -110,7 +90,7 @@ export const isWebbedCan = (product) => /red bull|guarana/i.test(product?.name |
 // Package → poster backdrop for the Ticket Packs cards.
 export const packagePoster = (pkg) => {
   const n = (pkg?.name || '').toLowerCase();
-  if (n.includes('vip')) return POSTERS.guessWho;
+  if (n.includes('vip')) return m('vip-package');
   if (n.includes('after dark')) return POSTERS.afterDark;
   if (n.includes('crew')) return POSTERS.whoTakesStage;
   if (n.includes('four')) return POSTERS.wave1;

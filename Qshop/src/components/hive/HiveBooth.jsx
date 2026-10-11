@@ -56,7 +56,7 @@ function Lightbox({ items, index, onClose, onNav }) {
       onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (Math.abs(dx) > 50) onNav(dx < 0 ? 1 : -1); }}
     >
       <div className="flex items-center justify-between px-4 h-14 shrink-0">
-        <span className="text-xs text-white/50 tabular-nums">{index + 1} / {items.length}</span>
+        <span />
         <button onClick={onClose} aria-label="Close" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"><X className="w-5 h-5" /></button>
       </div>
       <div className="relative flex-1 min-h-0 flex items-center justify-center px-2">
@@ -98,7 +98,7 @@ export default function HiveBooth() {
       <section className="px-4 sm:px-8 lg:px-12 pt-10 sm:pt-14 pb-6">
         <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold flex items-center gap-2"><Camera className="w-3.5 h-3.5" /> THE HIVE PHOTO BOOTH</p>
         <h1 className="hive-display hive-gold-text text-4xl sm:text-6xl font-extrabold mt-2 leading-tight">Real nights. Real people.</h1>
-        <p className="text-white/60 mt-3 max-w-2xl">Every frame here is from a Hive night. Find yourself, save it, and tag <span className="text-white">@unihive.ke</span>.</p>
+        <p className="text-white/60 mt-3 max-w-2xl">Every frame here is from a Hive night. Find yourself, save it, and tag <a href="https://www.instagram.com/unihive.entertainment/" target="_blank" rel="noreferrer" className="text-white underline-offset-4 hover:underline">@unihive.entertainment</a>.</p>
         <div className="flex flex-wrap gap-2 mt-6">
           {Object.entries(DRIVE_FOLDERS).map(([k, f]) => (
             <a key={k} href={f.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full hive-btn-gold px-4 py-2 text-xs sm:text-sm font-bold">

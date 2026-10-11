@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, CheckCircle2, XCircle, Plus, Wallet, MapPin, Clock, CalendarDays, Sparkles, X, ArrowRight } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Plus, Wallet, MapPin, Clock, CalendarDays, Sparkles, X, ArrowRight, Check, ShoppingBag, Copy } from 'lucide-react';
 import { supabase } from '../SupabaseClient';
-import QRCode from '../QRCode';
 import HiveShell, { useCountdown } from './HiveShell';
-import MediaCarousel from './MediaCarousel';
+import CinemaBillboard from './CinemaBillboard';
 import { CornerWeb } from './HiveTheme';
 import Masonry from './Masonry';
 import Portal from './Portal';
+import HiveShare from './HiveShare';
+import useHiveCart, { cartTotal } from './useHiveCart';
+import CartDrawer from './HiveCart';
 import {
-  HIVE_SLUG, POSTERS, VIDEOS, LINEUP, BILLBOARD_SLIDES, PERKS, PARTNERS, BRANDS, brandOf, isWebbedCan, packagePoster,
+  HIVE_SLUG, POSTERS, VIDEOS, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, packagePoster,
 } from './hiveMedia';
 
 const TABS = [
@@ -28,10 +30,11 @@ const describeItem = (item) => {
   return null;
 };
 
-function ProductPin({ product, onBuy, busy }) {
+function ProductPin({ product, onAdd, added, highlight }) {
   const brand = BRANDS.find((b) => b.key === brandOf(product));
+  const Icon = added ? Check : Plus;
   return (
-    <div className="group">
+    <div id={`item-${product.id}`} className={`group scroll-mt-40 rounded-[24px] transition-shadow duration-700 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
       <div className="hive-card">
         {product.image_url ? (
           <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="hive-card-img" />
@@ -45,22 +48,22 @@ function ProductPin({ product, onBuy, busy }) {
         <span className="absolute top-2.5 left-2.5 z-20 rounded-full bg-black/65 backdrop-blur px-2.5 py-1 text-[11px] font-bold text-white">
           {ksh(product.price)}
         </span>
+        <HiveShare
+          className="absolute top-2.5 right-2.5 z-30 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+          path={`/events/${HIVE_SLUG}?tab=shop&item=${product.id}`}
+          title={`${product.name} — ${ksh(product.price)} at THE HIVE`}
+          text="Pre-order on UniHive, skip the queue."
+        />
         <button
-          onClick={() => onBuy(product)}
-          disabled={busy}
-          aria-label={`Get ${product.name}`}
-          className="hive-touch-only absolute bottom-2.5 right-2.5 z-20 w-10 h-10 rounded-full hive-btn-blood items-center justify-center disabled:opacity-60"
+          onClick={() => onAdd(product)}
+          aria-label={`Add ${product.name} to cart`}
+          className="hive-touch-only absolute bottom-2.5 right-2.5 z-20 w-10 h-10 rounded-full hive-btn-blood items-center justify-center"
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-5 h-5" />}
+          <Icon className="w-5 h-5" />
         </button>
         <div className="hive-card-reveal absolute inset-x-0 bottom-0 z-20 p-2.5 bg-gradient-to-t from-black/80 to-transparent">
-          <button
-            onClick={() => onBuy(product)}
-            disabled={busy}
-            className="w-full hive-btn-blood rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            {busy ? 'Paying…' : 'Get it'}
+          <button onClick={() => onAdd(product)} className="w-full hive-btn-blood rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1.5">
+            <Icon className="w-3.5 h-3.5" /> {added ? 'Added' : 'Add to cart'}
           </button>
         </div>
       </div>
@@ -97,6 +100,32 @@ const EDITORIAL = [
   { at: 20, key: 'ed-faceB', type: 'image', src: POSTERS.faceBoardB, caption: 'Go luminous — UV designs', brand: 'facepaint' },
 ];
 
+function LittleCard() {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(LITTLE.code); } catch { /* blocked */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+  return (
+    <div className="relative shrink-0 w-[72vw] sm:w-[320px] h-[190px] sm:h-[220px] rounded-[22px] overflow-hidden border border-[#f5b700]/25 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#141008,#07050a)]">
+      <div className="relative h-full flex flex-col justify-between p-4">
+        <div>
+          <span className="text-[10px] uppercase tracking-[0.25em] text-[#f5b700]">Ride with Little</span>
+          <p className="text-white/55 text-xs mt-1 leading-snug">KSh 200 off rides to and from the Hive</p>
+        </div>
+        <div>
+          <button onClick={copy} className="group/c inline-flex items-center gap-2 rounded-xl border border-dashed border-[#f5b700]/60 px-3 py-1.5">
+            <span className="hive-display text-white text-xl font-bold tracking-[0.12em]">{LITTLE.code}</span>
+            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#f5b700]" />}
+          </button>
+          <p className="hive-accent text-white/70 text-base mt-2 leading-tight">Usidrive ukiwa maji.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BrandShelf({ products, active, onPick }) {
   const counts = useMemo(() => {
     const c = {};
@@ -105,6 +134,7 @@ function BrandShelf({ products, active, onPick }) {
   }, [products]);
   return (
     <div data-noswipe className="hive-snap-x hive-noscroll flex gap-3 overflow-x-auto px-3 sm:px-6 lg:px-10 scroll-px-3 sm:scroll-px-6 lg:scroll-px-10 pb-1">
+      <LittleCard />
       {BRANDS.filter((b) => counts[b.key]).map((b) => (
         <button
           key={b.key}
@@ -144,6 +174,13 @@ function Hero({ onShop, onPacks }) {
       <div className="absolute inset-0 bg-gradient-to-t from-[#07050a] via-[#07050a]/55 to-[#07050a]/30" />
       <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_100%,rgba(195,18,31,0.45),transparent_70%)]" />
 
+      <HiveShare
+        className="absolute top-5 right-4 sm:right-8 z-10"
+        size="md"
+        path={`/events/${HIVE_SLUG}`}
+        title="THE HIVE: NO GOING HOME — Fri 30 Oct, Sarakasi Dome"
+        text="Who's coming? Packs, drinks & bites on UniHive."
+      />
       <div className="relative h-full flex flex-col justify-end px-4 sm:px-8 lg:px-14 pb-10 sm:pb-14">
         <p className="text-[11px] sm:text-xs tracking-[0.45em] text-white/60 font-semibold">UNIHIVE PRESENTS</p>
         <h1 className="hive-display hive-gold-text font-extrabold leading-[0.9] text-[13.5vw] sm:text-[12vw] lg:text-[9rem] xl:text-[10.5rem] whitespace-nowrap">THE HIVE</h1>
@@ -190,33 +227,48 @@ function Hero({ onShop, onPacks }) {
   );
 }
 
-function PackCard({ pkg, onPick }) {
+function PackCard({ pkg, onPick, highlight }) {
   const items = (pkg.event_package_items || []).map(describeItem).filter(Boolean);
   return (
-    <div className="hive-card group min-h-[420px] sm:min-h-[460px] flex flex-col justify-end">
-      <img src={packagePoster(pkg)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#07050a] via-[#07050a]/60 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-[70%] bg-gradient-to-t from-[#07050a] via-[#07050a]/95 to-transparent" />
-      <div className="relative p-5 sm:p-6">
+    <div id={`pack-${pkg.id}`} className={`group relative scroll-mt-40 rounded-[22px] transition-transform duration-500 hover:-translate-y-1 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
+      <div className="relative aspect-[4/3] rounded-t-[22px] overflow-hidden bg-black">
+        <img src={packagePoster(pkg)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
         {pkg.featured && (
-          <span className="inline-block mb-3 rounded-full bg-[#e7c65f] text-[#1a0f05] text-[10px] font-extrabold tracking-widest px-2.5 py-1">FEATURED</span>
+          <span className="absolute top-3 left-3 rounded-full bg-[#e7c65f] text-[#1a0f05] text-[10px] font-extrabold tracking-widest px-2.5 py-1">FEATURED</span>
         )}
-        <h3 className="hive-display text-white text-2xl sm:text-[1.7rem] font-bold leading-tight">{pkg.name}</h3>
-        {pkg.description && <p className="text-white/65 text-sm mt-1.5 leading-relaxed">{pkg.description}</p>}
+        <HiveShare
+          className="absolute top-3 right-3"
+          path={`/events/${HIVE_SLUG}?tab=packs&pack=${pkg.id}`}
+          title={`${pkg.name} — ${ksh(pkg.base_price)} · THE HIVE`}
+          text="Let's go together? Entry, drinks & credit in one pass."
+        />
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <h3 className="hive-display text-white text-2xl font-bold leading-tight">{pkg.name}</h3>
+          {pkg.description && <p className="text-white/70 text-sm mt-1 leading-snug line-clamp-2">{pkg.description}</p>}
+        </div>
+      </div>
+      <div className="relative h-0">
+        <span className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-[#07050a]" />
+        <span className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-[#07050a]" />
+        <div className="absolute left-4 right-4 top-0 border-t-2 border-dashed border-[#07050a]/80" />
+      </div>
+      <div className="rounded-b-[22px] bg-[linear-gradient(160deg,#9b111d,#5a0a10)] p-5 shadow-[0_24px_60px_-28px_rgba(195,18,31,0.8)]">
         {items.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 mt-4">
+          <div className="flex flex-wrap gap-1.5">
             {items.map((t) => (
-              <span key={t} className="rounded-full bg-white/10 border border-white/10 backdrop-blur px-2.5 py-1 text-[11px] text-white/85">{t}</span>
+              <span key={t} className="rounded-full bg-black/25 border border-white/15 px-2.5 py-1 text-[11px] text-white/90">{t}</span>
             ))}
           </div>
         ) : (
-          <p className="hive-accent text-white/50 mt-3">Details dropping soon.</p>
+          <p className="hive-accent text-white/70">Details dropping soon.</p>
         )}
         <div className="flex items-center justify-between gap-3 mt-5">
-          <span className="hive-display hive-gold-text text-2xl font-bold">{ksh(pkg.base_price)}</span>
-          <button onClick={() => onPick(pkg)} className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold">
-            Get this pack
-          </button>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/55">Admit · 30 Oct</p>
+            <p className="hive-display text-[#ffe9a8] text-2xl font-bold">{ksh(pkg.base_price)}</p>
+          </div>
+          <button onClick={() => onPick(pkg)} className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold">Get this pack</button>
         </div>
       </div>
     </div>
@@ -263,15 +315,18 @@ export default function HiveEventPage() {
   const [balance, setBalance] = useState(null);
   const [filter, setFilter] = useState('all');
 
-  const [buyingId, setBuyingId] = useState(null);
-  const [toast, setToast] = useState('');
-  const [entitlement, setEntitlement] = useState(null);
+  const [addedId, setAddedId] = useState(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [highlight, setHighlight] = useState(null);
 
   const [pkg, setPkg] = useState(null);
   const [phone, setPhone] = useState('');
   const [pkgStep, setPkgStep] = useState('idle');
   const [pkgError, setPkgError] = useState('');
   const pollRef = useRef(null);
+
+  const cartApi = useHiveCart(event?.id);
+  const cartSum = useMemo(() => cartTotal(cartApi.cart, products), [cartApi.cart, products]);
 
   const setTab = useCallback((key) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', key); return n; }), [setParams]);
 
@@ -308,31 +363,27 @@ export default function HiveEventPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [loadBalance]);
 
+  useEffect(() => {
+    if (loading) return;
+    const item = params.get('item');
+    const pack = params.get('pack');
+    const id = item ? `item-${item}` : pack ? `pack-${pack}` : null;
+    if (!id) return;
+    setHighlight(item || pack);
+    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+    const u = setTimeout(() => setHighlight(null), 3500);
+    return () => { clearTimeout(t); clearTimeout(u); };
+  }, [loading, params]);
+
   const goLogin = () => {
     sessionStorage.setItem('postLoginRedirect', `/events/${HIVE_SLUG}?tab=${tab}`);
     navigate('/auth');
   };
 
-  const buyProduct = async (product) => {
-    if (!user) return goLogin();
-    setBuyingId(product.id);
-    try {
-      const { data: wallet } = await supabase.from('event_wallets').select('id').eq('event_id', event.id).eq('user_id', user.id).maybeSingle();
-      if (!wallet || (balance ?? 0) < Number(product.price)) {
-        setToast(`Top up your HIVE Wallet to get ${product.name} (${ksh(product.price)}).`);
-        return;
-      }
-      const { data, error } = await supabase.rpc('wallet_debit_for_purchase', {
-        p_wallet_id: wallet.id, p_product_name: product.name, p_amount: product.price, p_quantity: 1, p_vendor_id: product.seller_id || null,
-      });
-      if (error) throw error;
-      setEntitlement(data);
-      loadBalance(event.id, user.id);
-    } catch (err) {
-      setToast(err.message?.includes('Insufficient') ? 'Not enough in your wallet — top up first.' : err.message || 'Purchase failed');
-    } finally {
-      setBuyingId(null);
-    }
+  const addToCart = (product) => {
+    cartApi.add(product.id);
+    setAddedId(product.id);
+    setTimeout(() => setAddedId((x) => (x === product.id ? null : x)), 1300);
   };
 
   const startPkgPolling = (purchaseId) => {
@@ -457,7 +508,7 @@ export default function HiveEventPage() {
               <Masonry
                 items={shopItems}
                 render={(it) => it.kind === 'product'
-                  ? <ProductPin product={it.product} onBuy={buyProduct} busy={buyingId === it.product.id} />
+                  ? <ProductPin product={it.product} onAdd={addToCart} added={addedId === it.product.id} highlight={highlight === it.product.id} />
                   : <EditorialPin item={it.item} />}
               />
             </div>
@@ -467,13 +518,14 @@ export default function HiveEventPage() {
         {tab === 'packs' && (
           <div className="hive-fade-in pb-16">
             <SectionTitle kicker="Entry + drinks + wallet credit, one payment" title="Ticket Packs" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5 px-3 sm:px-6 lg:px-10">
-              {packages.map((p) => <PackCard key={p.id} pkg={p} onPick={(x) => { setPkg(x); setPkgStep('idle'); setPkgError(''); }} />)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-8 px-3 sm:px-6 lg:px-10">
+              {packages.map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} onPick={(x) => { setPkg(x); setPkgStep('idle'); setPkgError(''); }} />)}
             </div>
             <p className="text-center text-white/40 text-xs mt-8 px-6">
               Bought a ticket on Little Events?{' '}
               <button onClick={() => navigate(`/claim/${HIVE_SLUG}`)} className="text-[#e7c65f] underline underline-offset-4">Claim it here</button>{' '}
-              to unlock your wallet and perks.
+              to unlock your wallet and perks. Prefer Little?{' '}
+              <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="text-[#e7c65f] underline underline-offset-4">Buy on Little Events ↗</a>
             </p>
           </div>
         )}
@@ -481,8 +533,8 @@ export default function HiveEventPage() {
         {tab === 'night' && (
           <div className="hive-fade-in pb-16 space-y-14">
             <section data-noswipe>
-              <SectionTitle kicker="Swipe the billboard" title="Tonight on the Dome" />
-              <MediaCarousel slides={BILLBOARD_SLIDES} mode="reel" />
+              <SectionTitle kicker="The Dome" title="Tonight at the Hive" />
+              <div className="px-3 sm:px-6 lg:px-10"><CinemaBillboard className="rounded-[24px]" /></div>
             </section>
 
             <section>
@@ -545,41 +597,34 @@ export default function HiveEventPage() {
         )}
       </div>
 
-      {tab === 'shop' && user && (
+      {cartApi.count > 0 ? (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed z-[90] bottom-[88px] left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-8 sm:bottom-8 flex items-center gap-2.5 rounded-full hive-btn-blood px-5 py-3 text-sm font-bold shadow-2xl hive-fade-in"
+        >
+          <ShoppingBag className="w-4 h-4" /> Cart · {cartApi.count} · {ksh(cartSum)}
+        </button>
+      ) : tab === 'shop' && user ? (
         <button
           onClick={() => navigate(`/events/${HIVE_SLUG}/wallet`)}
           className="sm:hidden fixed bottom-[88px] left-1/2 -translate-x-1/2 z-[90] flex items-center gap-2 rounded-full bg-[#07050a]/90 border border-[#e7c65f]/40 backdrop-blur-xl px-4 py-2.5 text-sm shadow-2xl"
         >
           <Wallet className="w-4 h-4 text-[#e7c65f]" /> {ksh(balance)} <span className="text-white/40">· Top up</span>
         </button>
-      )}
+      ) : null}
 
-      {toast && (<Portal>
-        <div className="fixed inset-x-3 bottom-[140px] sm:bottom-8 sm:left-auto sm:right-8 sm:w-[380px] z-[120] rounded-2xl bg-[#1a0b0d] border border-[#c3121f]/50 p-4 shadow-2xl hive-fade-in">
-          <div className="flex items-start gap-3">
-            <Wallet className="w-5 h-5 text-[#ff2e3b] shrink-0 mt-0.5" />
-            <p className="text-sm text-white/85 flex-1">{toast}</p>
-            <button onClick={() => setToast('')} aria-label="Dismiss"><X className="w-4 h-4 text-white/50" /></button>
-          </div>
-          <button onClick={() => navigate(`/events/${HIVE_SLUG}/wallet`)} className="mt-3 w-full hive-btn-gold rounded-full py-2.5 text-sm font-bold">
-            Top up wallet
-          </button>
-        </div>
-        </Portal>)}
-
-      {entitlement && (<Portal>
-        <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-[26px] border border-white/10 bg-[#0e0809] p-6 text-center hive-fade-in">
-            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-            <p className="hive-display text-white text-xl font-bold mt-3">{entitlement.product_name}</p>
-            <p className="text-white/55 text-sm mt-1">Paid from your wallet. Show this at the stand.</p>
-            <div className="bg-white p-4 rounded-2xl inline-block mt-5">
-              <QRCode value={entitlement.qr_token} size={190} fgColor="#000000" bgColor="#ffffff" />
-            </div>
-            <button onClick={() => setEntitlement(null)} className="mt-6 w-full hive-btn-gold rounded-full py-3 font-bold">Done</button>
-          </div>
-        </div>
-        </Portal>)}
+      <Portal>
+        <CartDrawer
+          open={cartOpen}
+          onClose={() => setCartOpen(false)}
+          cartApi={cartApi}
+          products={products}
+          balance={balance}
+          user={user}
+          onLogin={goLogin}
+          onDone={() => event && user && loadBalance(event.id, user.id)}
+        />
+      </Portal>
 
       {pkg && (<Portal>
         <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">

@@ -72,12 +72,18 @@ export default function UniHiveBillboard({ slides = UNIHIVE_SLIDES, tips = UNIHI
   return (
     <section
       className={`relative w-full overflow-hidden bg-black text-white ${height} ${className}`}
-      onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
+      onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, t: Date.now() }; }}
       onTouchEnd={(e) => {
-        if (touch.current === null) return;
-        const dx = e.changedTouches[0].clientX - touch.current;
+        if (!touch.current) return;
+        const dx = e.changedTouches[0].clientX - touch.current.x;
+        const quick = Date.now() - touch.current.t < 300;
         touch.current = null;
-        if (Math.abs(dx) > 50) { pause(); go(dx < 0 ? 1 : -1); }
+        if (Math.abs(dx) > 50) { pause(); go(dx < 0 ? 1 : -1); return; }
+        if (quick && !e.target.closest('button, a')) {
+          const r = e.currentTarget.getBoundingClientRect();
+          const x = e.changedTouches[0].clientX - r.left;
+          if (x < r.width * 0.25) { pause(); go(-1); } else if (x > r.width * 0.75) { pause(); go(1); }
+        }
       }}
     >
       {slides.map((sl, k) => (
@@ -113,17 +119,6 @@ export default function UniHiveBillboard({ slides = UNIHIVE_SLIDES, tips = UNIHI
         <div className="flex items-center gap-4 px-5 sm:px-10 lg:px-16 h-14">
           <span className="shrink-0 text-[10px] font-extrabold tracking-[0.3em] text-black bg-[#e7c65f] rounded px-1.5 py-0.5">TIP</span>
           <p key={tip} className="flex-1 min-w-0 truncate text-xs sm:text-sm text-white/80 hive-fade-in">{tips[tip]}</p>
-          <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-            {slides.map((_, k) => (
-              <button
-                key={k}
-                onClick={() => { pause(); setI(k); }}
-                aria-label={`Slide ${k + 1}`}
-                className={`h-1 rounded-full transition-all ${k === i ? 'w-8 bg-[#e7c65f]' : 'w-3 bg-white/30 hover:bg-white/60'}`}
-              />
-            ))}
-          </div>
-          <span className="sm:hidden text-[11px] tabular-nums text-white/50 shrink-0">{String(i + 1).padStart(2, '0')}/{String(slides.length).padStart(2, '0')}</span>
         </div>
       </div>
     </section>

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../Navbar';
 import MobileNavbar from '../MobileNavbar';
 import HiveTheme from './HiveTheme';
-import { HIVE_SLUG, HIVE_STARTS_AT } from './hiveMedia';
+import { HIVE_SLUG, HIVE_STARTS_AT, SOCIALS, LITTLE } from './hiveMedia';
 
 export function useIsMobile(bp = 768) {
   const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < bp);
@@ -80,6 +80,23 @@ function HiveNav() {
   );
 }
 
+function HiveFooter() {
+  return (
+    <footer className="mt-10 border-t border-white/[0.06] px-4 sm:px-8 lg:px-12 py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 text-sm">
+      <div>
+        <p className="hive-display hive-gold-text font-bold">THE HIVE</p>
+        <p className="text-white/40 text-xs mt-1">Kuja tukate tukatiane.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-white/60">
+        {Object.values(SOCIALS).map((s) => (
+          <a key={s.label} href={s.url} target="_blank" rel="noreferrer" className="hover:text-white">{s.label} {s.handle}</a>
+        ))}
+        <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hover:text-white">Tickets on Little Events ↗</a>
+      </div>
+    </footer>
+  );
+}
+
 export default function HiveShell({ children, hideSubnav = false }) {
   const isMobile = useIsMobile();
   return (
@@ -89,6 +106,7 @@ export default function HiveShell({ children, hideSubnav = false }) {
         <div className="md:pt-16 pb-28 md:pb-0">
           {!hideSubnav && <HiveNav />}
           {children}
+          <HiveFooter />
         </div>
       </HiveTheme>
     </>

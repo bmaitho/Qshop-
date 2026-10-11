@@ -41,14 +41,14 @@ import ClaimHiveTicket from './components/ClaimHiveTicket';
 import HiveEventPage from './components/hive/HiveEventPage';
 import HiveBooth from './components/hive/HiveBooth';
 import EuphoriaRecap from './components/hive/EuphoriaRecap';
-import { HIVE_SLUG } from './components/hive/hiveMedia';
+import { HIVE_SLUG, isEuphoriaSlug } from './components/hive/hiveMedia';
 import HiveWallet from './components/HiveWallet';
 import VendorRedeem from './components/VendorRedeem';
 
 const EventRoute = ({ token }) => {
   const { slug } = useParams();
   if (slug === HIVE_SLUG) return <HiveEventPage />;
-  if (/euphoria/i.test(slug || '')) return <EuphoriaRecap />;
+  if (isEuphoriaSlug(slug)) return <EuphoriaRecap />;
   return <EventPage token={token} />;
 };
 
