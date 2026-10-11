@@ -20,7 +20,7 @@ export const HIVE_SCENES = [
   { layout: 'poster', media: [img(m('vip-experience'))], caption: 'VIP — a Red Bull or Smirnoff on arrival' },
   { layout: 'split', media: [img(m('dj-fringe')), vid(VIDEOS.fringe)], caption: 'On the decks: DJ Fringe' },
   { layout: 'full', media: [vid(VIDEOS.euphoriaWide)], caption: 'From the floor' },
-  { layout: 'split', media: [img(b('ngh242')), img(b('ngh202'))], caption: 'The Hive, after dark' },
+  { layout: 'split', media: [img(b('smirnoff-story')), img(b('ngh202'))], caption: 'The story that landed us Smirnoff' },
   { layout: 'poster', media: [img(POSTERS.wave1)], caption: 'Wave 1 tickets' },
   { layout: 'split', media: [vid(VIDEOS.akuku), img(m('dj-akuku'))], caption: 'On the decks: DJ Bahati Akuku' },
   { layout: 'poster', media: [img(POSTERS.afterDark)], caption: 'Where the darkness dances' },

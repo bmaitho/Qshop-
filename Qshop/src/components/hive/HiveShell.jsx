@@ -92,6 +92,7 @@ function HiveFooter() {
           <a key={s.label} href={s.url} target="_blank" rel="noreferrer" className="hover:text-white">{s.label} {s.handle}</a>
         ))}
         <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hover:text-white">Tickets on Little Events ↗</a>
+        <Link to="/partner" className="hover:text-white">Partner login</Link>
       </div>
     </footer>
   );

@@ -5,6 +5,7 @@ import { ArrowRight, ExternalLink } from 'lucide-react';
 import HiveShell from './HiveShell';
 import Masonry from './Masonry';
 import Portal from './Portal';
+import DriveLink from './DriveLink';
 import { BOOTH_PHOTOS } from './boothMedia';
 import { VIDEOS, DRIVE_FOLDERS, HIVE_SLUG, POSTERS } from './hiveMedia';
 
@@ -32,9 +33,9 @@ export default function EuphoriaRecap() {
             <button onClick={() => navigate(`/events/${HIVE_SLUG}`)} className="hive-btn-blood rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
               Next up: No Going Home <ArrowRight className="w-4 h-4" />
             </button>
-            <a href={DRIVE_FOLDERS.euphoria.url} target="_blank" rel="noreferrer" className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur flex items-center gap-2">
-              Find your photos <ExternalLink className="w-4 h-4" />
-            </a>
+            <DriveLink url={DRIVE_FOLDERS.euphoria.url} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur flex items-center gap-2" lockedLabel="Sign in for your photos">
+              Find your photos
+            </DriveLink>
           </div>
         </div>
       </section>

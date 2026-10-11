@@ -128,6 +128,15 @@ const styles = `
   }
 
   /* ── Provider card ── */
+  .buzz-events {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 720px) { .buzz-events { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .buzz-events { grid-template-columns: repeat(3, 1fr); } .buzz-events .buzz-pinned { grid-column: span 2; } }
+  .buzz-events > * { display: flex; flex-direction: column; }
+  .buzz-section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--text); margin: 0; }
   .provider-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -822,7 +831,7 @@ export default function ServicesPage() {
 
         {/* ── Events & Tickets Section ── */}
         {upcomingEvents.length > 0 && (
-          <div style={{ padding: '0 24px 8px', maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ padding: '0 24px 8px', maxWidth: '1100px', margin: '0 auto' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
@@ -838,20 +847,20 @@ export default function ServicesPage() {
                 View all →
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            <div className="buzz-events">
               {upcomingEvents.map((evt) => {
                 const spotsLeft = evt.max_capacity ? evt.max_capacity - (evt.tickets_sold || 0) : null;
                 const isPinned = evt.slug === PINNED_EVENT_SLUG;
                 return (
                   <div
                     key={evt.id}
+                    className={isPinned ? 'buzz-pinned' : ''}
                     onClick={() => navigate(`/events/${evt.slug}`)}
                     style={{
                       background: 'var(--surface)',
                       border: isPinned ? '1.5px solid #E7C65F' : '1px solid var(--border)',
                       borderRadius: 'var(--radius)', overflow: 'hidden', cursor: 'pointer',
                       transition: 'transform 0.2s, border-color 0.2s',
-                      gridColumn: isPinned ? 'span 2' : undefined,
                       position: 'relative',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(231,198,95,0.4)'; }}
@@ -867,7 +876,7 @@ export default function ServicesPage() {
                       </span>
                     )}
                     {(evt.image_url || isPinned) && (
-                      <div style={{ height: isPinned ? '260px' : '120px', overflow: 'hidden' }}>
+                      <div style={{ height: '240px', overflow: 'hidden' }}>
                         <img
                           src={evt.image_url || PINNED_EVENT_POSTER}
                           alt={evt.title}
@@ -922,6 +931,10 @@ export default function ServicesPage() {
             <p>Check back soon — experiences are coming.</p>
           </div>
         ) : (
+          <>
+          <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 24px 0' }}>
+            <h2 className="buzz-section-title">✨ Getaways & experiences</h2>
+          </div>
           <div className="provider-grid">
             {providers.map((provider) => {
               const activeServices = provider.services?.filter(
@@ -988,6 +1001,7 @@ export default function ServicesPage() {
               );
             })}
           </div>
+          </>
         )}
 
         {/* ── Individual Gig Services ── */}

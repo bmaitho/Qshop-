@@ -1,13 +1,15 @@
 // Updated Home.jsx with green hue removed from category cards
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import { Button } from "@/components/ui/button";
 import { Store, ShoppingBag, Sparkles, Shirt, Coffee, BookOpen, Laptop, Headphones, Car, Pencil, GraduationCap } from 'lucide-react';
 import FeaturedShops from './FeaturedShops';
 import GoodsServicesToggle from './GoodsServicesToggle';
-import UniHiveBillboard from './hive/UniHiveBillboard';
+import UniHiveBillboard, { buildHomeSlides } from './hive/UniHiveBillboard';
+import OfficialPartners from './hive/OfficialPartners';
+import { supabase } from './SupabaseClient';
 
 // Import local images for categories
 import TextbooksImage from '../assets/categories/textbooks.jpg';
@@ -17,6 +19,21 @@ import StudyMaterialsImage from '../assets/categories/study-materials.jpg';
 
 const Home = () => {
   const navigate = useNavigate();
+  const [media, setMedia] = useState({ banners: [], products: [] });
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: shops }, { data: prods }] = await Promise.all([
+        supabase.from('shops').select('banner_url').not('banner_url', 'is', null).limit(12),
+        supabase.from('products').select('image_url').eq('status', 'active').not('image_url', 'is', null).order('created_at', { ascending: false }).limit(12),
+      ]);
+      setMedia({
+        banners: (shops || []).map((x) => x.banner_url).filter(Boolean),
+        products: (prods || []).map((x) => x.image_url).filter(Boolean),
+      });
+    })();
+  }, []);
+  const slides = useMemo(() => buildHomeSlides(media), [media]);
 
   const categories = [
     { 
@@ -54,7 +71,7 @@ const Home = () => {
       <Navbar />
       
       {/* Hero — UniHive billboard (real event media + rotating tips) */}
-      <UniHiveBillboard>
+      <UniHiveBillboard slides={slides}>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <Button
             size="lg"
@@ -103,6 +120,8 @@ const Home = () => {
         </div>
       </div>
 
+      <OfficialPartners />
+
       {/* Categories Section - UPDATED: Removed green hue */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
@@ -110,7 +129,7 @@ const Home = () => {
             Browse Categories
           </h2>
           <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Explore our wide range of student essentials, from textbooks to technology
+            Explore what the Hive is selling — from tech to everyday essentials
           </p>
         </div>
         

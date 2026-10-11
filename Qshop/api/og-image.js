@@ -64,7 +64,6 @@ export default async function handler(req, res) {
     return res.status(200).send(out);
   } catch (err) {
     console.error('og-image error:', err.message);
-    res.setHeader('X-OG-Error', String(err.message || err).replace(/[^\x20-\x7e]/g, '').slice(0, 180));
     res.statusCode = 302;
     res.setHeader('Location', `${SITE_URL}/og-default.jpg`);
     return res.end();

@@ -161,3 +161,7 @@
 .hive-drift { animation: hive-drift 9s ease-out both; transform-origin: 50% 40%; }
 @keyframes hive-drift { from { transform: scale(1.0); } to { transform: scale(1.07); } }
 @media (prefers-reduced-motion: reduce) { .hive-drift { animation: none; } }
+
+.hive-scanline { top: 10%; animation: hive-scan 2.4s ease-in-out infinite; box-shadow: 0 0 12px 2px rgba(255, 46, 59, 0.6); }
+@keyframes hive-scan { 0%, 100% { top: 10%; } 50% { top: 88%; } }
+@media (prefers-reduced-motion: reduce) { .hive-scanline { animation: none; } }

@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight, ExternalLink, Camera } from 'lucide-react
 import HiveShell from './HiveShell';
 import Masonry from './Masonry';
 import Portal from './Portal';
+import DriveLink from './DriveLink';
 import { BOOTH_PHOTOS } from './boothMedia';
 import { VIDEOS, DRIVE_FOLDERS } from './hiveMedia';
 
@@ -70,9 +71,9 @@ function Lightbox({ items, index, onClose, onNav }) {
       </div>
       {folder && (
         <div className="shrink-0 px-4 py-4 flex justify-center">
-          <a href={folder.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs sm:text-sm text-white/80 hover:bg-white/10">
-            Full-quality originals: {folder.label} <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          <DriveLink url={folder.url} className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-xs sm:text-sm text-white/80 hover:bg-white/10">
+            Full-quality originals: {folder.label}
+          </DriveLink>
         </div>
       )}
     </div>
@@ -101,9 +102,9 @@ export default function HiveBooth() {
         <p className="text-white/60 mt-3 max-w-2xl">Every frame here is from a Hive night. Find yourself, save it, and tag <a href="https://www.instagram.com/unihive.entertainment/" target="_blank" rel="noreferrer" className="text-white underline-offset-4 hover:underline">@unihive.entertainment</a>.</p>
         <div className="flex flex-wrap gap-2 mt-6">
           {Object.entries(DRIVE_FOLDERS).map(([k, f]) => (
-            <a key={k} href={f.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full hive-btn-gold px-4 py-2 text-xs sm:text-sm font-bold">
-              Find yours — {k === 'euphoria' ? 'Euphoria' : 'No Going Home BTS'} <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <DriveLink key={k} url={f.url} className="inline-flex items-center gap-2 rounded-full hive-btn-gold px-4 py-2 text-xs sm:text-sm font-bold" lockedLabel={`Sign in to find yours — ${k === 'euphoria' ? 'Euphoria' : 'No Going Home BTS'}`}>
+              Find yours — {k === 'euphoria' ? 'Euphoria' : 'No Going Home BTS'}
+            </DriveLink>
           ))}
         </div>
       </section>

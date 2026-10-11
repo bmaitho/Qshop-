@@ -8,27 +8,36 @@ import './hive.css';
 
 const { b } = BOOTH;
 
-export const UNIHIVE_SLIDES = [
-  { kicker: 'Now booking · Fri 30 Oct', title: 'No Going Home.', body: 'Halloween at Sarakasi Dome — tickets, drinks and bites, all on UniHive.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
-  { kicker: 'The culture', title: 'Built by us. For us.', body: 'A marketplace and a movement, run by the people in it.', media: { type: 'image', src: b('euph025') } },
-  { kicker: 'THE HIVE: EUPHORIA', title: "We don't do quiet.", body: 'Relive Euphoria — then come make the next one.', media: { type: 'video', ...VIDEOS.euphoriaReel }, cta: { label: 'Relive it', to: '/hive/booth' } },
-  { kicker: 'Why UniHive', title: 'Pay safe. Get paid.', body: 'M-Pesa checkout. Sellers are paid once the buyer confirms delivery.', media: { type: 'image', src: b('euph033') } },
-  { kicker: 'Student prices', title: 'Less spend. More living.', body: 'Deals from people who get your budget.', media: { type: 'image', src: b('ngh193') } },
-  { kicker: 'Respect the Hive', title: 'Everyone belongs here.', body: 'Zero tolerance for harassment, scams or hate. Look out for each other.', media: { type: 'image', src: b('ngh202') } },
-  { kicker: 'How it works', title: 'Find it. Pay it. Pick it up.', body: 'Shop, pay with M-Pesa, collect at a PickUp Mtaani point near you.', media: { type: 'image', src: b('ngh158') } },
-  { kicker: 'Sell on UniHive', title: 'Your shop, live today.', body: 'Open a shop, list your products, and reach the whole Hive.', media: { type: 'image', src: b('ngh241') }, cta: { label: 'Open your shop', to: '/myshop' } },
-  { kicker: 'Explore', title: 'Goods & The Buzz.', body: 'Shop the marketplace — or catch what’s happening next.', media: { type: 'video', ...VIDEOS.euphoriaWide }, cta: { label: 'See The Buzz', to: '/services' } },
-];
+// Home billboard. At most three slides carry event media; the rest put
+// storefronts, products and partners first. Mosaic slides are filled with
+// live shop banners / product photos passed in by the page.
+const PARTNER_SHOTS = ['/hive/products/smirnoff-vodka.png', '/hive/products/redbull-webs.webp', '/hive/products/shawarma.png', '/hive/products/smirnoff-ice-black.png', '/hive/products/hive-cup-fang.webp', '/hive/products/smirnoff-ice-pineapple.png'];
+
+export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
+  const shopMosaic = banners.length >= 3 ? banners : products;
+  const productMosaic = products.length >= 3 ? products : banners;
+  return [
+    { kicker: 'UniHive presents · Fri 30 Oct', title: 'No Going Home.', body: 'THE HIVE at Sarakasi Dome — tickets, drinks and bites, all on UniHive.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
+    { kicker: 'Storefronts', title: 'Shops worth following.', body: 'Real businesses, built by people in the Hive. Discover them, back them, buy from them.', media: shopMosaic.length >= 3 ? { type: 'mosaic', srcs: shopMosaic } : { type: 'image', src: PARTNER_SHOTS[3] }, cta: { label: 'Start shopping', to: '/studentmarketplace' } },
+    { kicker: 'No scams. No stress.', title: 'Shop with confidence.', body: 'Pay with M-Pesa on UniHive. Sellers are paid once you confirm delivery.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice().reverse() } : { type: 'image', src: PARTNER_SHOTS[5] } },
+    { kicker: 'Experiences worth having', title: 'Nights people talk about.', body: 'We’re intentional about every experience — worth showing up for, worth remembering.', media: { type: 'image', src: b('euph033') }, cta: { label: 'See The Buzz', to: '/services' } },
+    { kicker: 'We grow together', title: 'When one wins, the Hive wins.', body: 'Open a shop and grow with entrepreneurs, creatives and brands growing with you.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice(3).concat(productMosaic.slice(0, 3)) } : { type: 'image', src: PARTNER_SHOTS[4] }, cta: { label: 'Open your shop', to: '/myshop' } },
+    { kicker: 'Official partners', title: 'People to possibilities.', body: 'Smirnoff, Red Bull, Little and Harrison’s Pearl Gerar — brands building with the Hive.', media: { type: 'mosaic', srcs: PARTNER_SHOTS } },
+    { kicker: 'The culture', title: 'Built by us. For us.', body: 'Not just a platform — a community you’re proud to be part of, online and in person.', media: { type: 'image', src: b('ngh193') } },
+  ];
+};
+
+export const UNIHIVE_SLIDES = buildHomeSlides();
 
 export const UNIHIVE_TIPS = [
-  'Top up your HIVE Wallet before the night — skip the bar queue.',
-  'Bought on Little Events? Claim your ticket to unlock wallet and perks.',
-  'Always pay through UniHive — never send money to a seller directly.',
-  'Sellers get paid when you confirm delivery, so confirm only once it’s in your hands.',
+  'No scams, no stress — always pay through UniHive, never directly to a seller.',
+  'Sellers get paid when you confirm delivery, so confirm once it’s in your hands.',
   'Collect orders at PickUp Mtaani points across Nairobi.',
+  'Follow the shops you love — new drops land in your feed first.',
+  'Open your shop in minutes from “My shop”. We grow better together.',
   'Respect the Hive: no harassment, no scams, no exceptions.',
-  'Find yourself in the Hive Photo Booth after every event.',
-  'Open your shop in minutes from “My shop”.',
+  'THE HIVE: No Going Home — Fri 30 Oct, Sarakasi Dome.',
+  'Ride with Little: code UNIHIVE26 for KSh 200 off rides to and from the Hive.',
 ];
 
 const AUTO_MS = 7000;
@@ -42,6 +51,18 @@ function Media({ media, active }) {
     if (active) el.play().catch(() => {});
     else el.pause();
   }, [active]);
+  if (media.type === 'mosaic') {
+    const srcs = media.srcs.slice(0, 6);
+    return (
+      <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-1 bg-black">
+        {srcs.map((src, k) => (
+          <div key={k} className={`relative overflow-hidden ${srcs.length < 6 && k === 0 ? 'row-span-2' : ''}`}>
+            <img src={src} alt="" loading={active ? 'eager' : 'lazy'} decoding="async" className={`absolute inset-0 w-full h-full object-cover ${active ? 'hive-drift' : ''}`} />
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (media.type === 'video') {
     return <video ref={ref} src={media.src} poster={media.poster} muted loop playsInline preload={active ? 'auto' : 'none'} className="absolute inset-0 w-full h-full object-cover" />;
   }

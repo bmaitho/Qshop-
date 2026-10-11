@@ -313,7 +313,7 @@ export default function HiveEventPage() {
   const [products, setProducts] = useState([]);
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(() => (BRANDS.some((b) => b.key === params.get('brand')) ? params.get('brand') : 'all'));
 
   const [addedId, setAddedId] = useState(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -533,7 +533,7 @@ export default function HiveEventPage() {
         {tab === 'night' && (
           <div className="hive-fade-in pb-16 space-y-14">
             <section data-noswipe>
-              <SectionTitle kicker="The Dome" title="Tonight at the Hive" />
+              <SectionTitle title="Tonight at THE Sarakasi Dome" />
               <div className="px-3 sm:px-6 lg:px-10"><CinemaBillboard className="rounded-[24px]" /></div>
             </section>
 
@@ -579,7 +579,7 @@ export default function HiveEventPage() {
                 <button onClick={() => navigate('/hive/booth')} className="text-sm text-[#e7c65f] shrink-0">See all →</button>
               </SectionTitle>
               <div data-noswipe className="hive-snap-x hive-noscroll flex gap-3 overflow-x-auto px-3 sm:px-6 lg:px-10 scroll-px-3 sm:scroll-px-6 lg:scroll-px-10">
-                {[VIDEOS.btsReel, ...['ngh158', 'ngh242', 'ngh023', 'ngh202', 'euph025', 'ngh065', 'euph033', 'ngh251'].map((k) => `/hive/booth/${k}.webp`)].map((m, i) => (
+                {[VIDEOS.btsReel, ...['ngh158', 'smirnoff-story', 'ngh023', 'ngh202', 'euph025', 'ngh065', 'euph033', 'ngh251'].map((k) => `/hive/booth/${k}.webp`)].map((m, i) => (
                   <button key={i} onClick={() => navigate('/hive/booth')} className="relative shrink-0 w-[46vw] sm:w-[240px] aspect-[3/4] rounded-[20px] overflow-hidden bg-black">
                     {typeof m === 'string'
                       ? <img src={m} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
