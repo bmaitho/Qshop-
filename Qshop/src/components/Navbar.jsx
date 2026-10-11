@@ -192,7 +192,7 @@ const Navbar = () => {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/services" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
+          <Link to="/my-tickets" className="cursor-pointer flex items-center hover:bg-accent dark:hover:bg-accent">
             <Ticket className="mr-2 h-4 w-4" style={goldIconStyle} />
             <span style={goldTextStyle}>My Tickets</span>
           </Link>
@@ -279,7 +279,7 @@ const Navbar = () => {
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>My Tickets</p>
+                  <p>The Buzz</p>
                 </TooltipContent>
               </Tooltip>
 

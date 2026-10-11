@@ -41,6 +41,7 @@ import ClaimHiveTicket from './components/ClaimHiveTicket';
 import HiveEventPage from './components/hive/HiveEventPage';
 import HiveBooth from './components/hive/HiveBooth';
 import EuphoriaRecap from './components/hive/EuphoriaRecap';
+import PartnerDashboard from './components/hive/PartnerDashboard';
 import { HIVE_SLUG, isEuphoriaSlug } from './components/hive/hiveMedia';
 import HiveWallet from './components/HiveWallet';
 import VendorRedeem from './components/VendorRedeem';
@@ -76,6 +77,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/events" element={<EventsPage token={token} />} />
       <Route path="/events/:slug" element={<EventRoute token={token} />} />
       <Route path="/hive/booth" element={<HiveBooth />} />
+      <Route path="/partner" element={<PartnerDashboard />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />

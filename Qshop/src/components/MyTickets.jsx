@@ -35,7 +35,7 @@ const MyTickets = () => {
       const { data: ticketData, error: ticketError } = await supabase
         .from('event_tickets')
         .select('*')
-        .eq('user_id', user.id)
+        .or(`user_id.eq.${user.id},hive_claimed_by.eq.${user.id}`)
         .eq('payment_status', 'completed')
         .order('created_at', { ascending: false });
 

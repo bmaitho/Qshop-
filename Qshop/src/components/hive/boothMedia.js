@@ -2,7 +2,7 @@
 export const BOOTH_PHOTOS = [{"src": "/hive/booth/ngh001.webp", "w": 787, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh023.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh031.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
-{"src": "/hive/booth/euph025.webp", "w": 788, "h": 1400, "event": "euphoria"},
+{"src": "/hive/booth/euph025.webp", "w": 788, "h": 780, "event": "euphoria"},
 {"src": "/hive/booth/ngh046.webp", "w": 1080, "h": 1080, "event": "no-going-home"},
 {"src": "/hive/booth/ngh054.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh060.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
@@ -45,7 +45,7 @@ export const BOOTH_PHOTOS = [{"src": "/hive/booth/ngh001.webp", "w": 787, "h": 1
 {"src": "/hive/booth/euph039.webp", "w": 1400, "h": 1050, "event": "euphoria"},
 {"src": "/hive/booth/ngh202.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh217.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
-{"src": "/hive/booth/ngh242.webp", "w": 1400, "h": 1400, "event": "no-going-home"},
+{"src": "/hive/booth/smirnoff-story.webp", "w": 828, "h": 700, "event": "no-going-home"},
 {"src": "/hive/booth/euph066.webp", "w": 788, "h": 1400, "event": "euphoria"},
-{"src": "/hive/booth/ngh251.webp", "w": 790, "h": 1400, "event": "no-going-home"},
-{"src": "/hive/booth/smirnoff-booth-strip.webp", "w": 799, "h": 1400, "event": "no-going-home"}];
+{"src": "/hive/booth/ngh251.webp", "w": 790, "h": 1400, "event": "no-going-home"}
+];
