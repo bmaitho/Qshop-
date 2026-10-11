@@ -44,7 +44,7 @@ const GoodsServicesToggle = ({ className = '', variant = 'auto' }) => {
         🛍️ Goods
       </button>
       <button style={btn(isServices)} onClick={() => navigate('/services')}>
-        ✨ Services
+        ✨ The Buzz
       </button>
     </div>
   );

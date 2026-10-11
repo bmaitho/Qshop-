@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Store, ShoppingBag, Sparkles, Shirt, Coffee, BookOpen, Laptop, Headphones, Car, Pencil, GraduationCap } from 'lucide-react';
 import FeaturedShops from './FeaturedShops';
 import GoodsServicesToggle from './GoodsServicesToggle';
+import UniHiveBillboard from './hive/UniHiveBillboard';
 
 // Import local images for categories
 import TextbooksImage from '../assets/categories/textbooks.jpg';
@@ -52,43 +53,31 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-[#113b1e] text-white">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#113b1e] to-[#0a2412] opacity-90"></div>
-        <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 relative">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">
-              Your Marketplace
-            </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Buy, sell, and discover great deals on fashion, gadgets, and campus must-haves—all in one Hive!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                className="bg-[#e7c65f] text-[#113b1e] hover:bg-[#e7c65f]/90 w-full sm:w-auto"
-                onClick={() => navigate('/studentmarketplace')}
-              >
-                Start Shopping
-                <ShoppingBag className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="bg-black border-[#e7c65f] hover:bg-[#e7c65f]/20 w-full sm:w-auto text-[#e7c65f]"
-                onClick={() => navigate('/myshop')}
-              >
-                Open Your Shop
-                <Sparkles className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-            {/* Toggle sits below the CTAs with generous breathing room */}
-            <div className="flex justify-center mt-10">
-              <GoodsServicesToggle variant="dark" />
-            </div>
+      {/* Hero — UniHive billboard (real event media + rotating tips) */}
+      <UniHiveBillboard>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <Button
+            size="lg"
+            className="bg-[#e7c65f] text-[#113b1e] hover:bg-[#e7c65f]/90 w-full sm:w-auto"
+            onClick={() => navigate('/studentmarketplace')}
+          >
+            Start Shopping
+            <ShoppingBag className="ml-2 h-5 w-5" />
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-black/40 backdrop-blur border-[#e7c65f] hover:bg-[#e7c65f]/20 w-full sm:w-auto text-[#e7c65f]"
+            onClick={() => navigate('/myshop')}
+          >
+            Open Your Shop
+            <Sparkles className="ml-2 h-5 w-5" />
+          </Button>
+          <div className="sm:ml-2 flex justify-center">
+            <GoodsServicesToggle variant="dark" />
           </div>
         </div>
-      </div>
+      </UniHiveBillboard>
 
       {/* Featured Shops Section */}
       <div className="max-w-7xl mx-auto px-4 py-16 border-b border-gray-200 dark:border-gray-800">

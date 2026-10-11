@@ -39,13 +39,17 @@ import VerifyTicket from './components/VerifyTicket';
 import StaffScanner from './components/StaffScanner';
 import ClaimHiveTicket from './components/ClaimHiveTicket';
 import HiveEventPage from './components/hive/HiveEventPage';
+import HiveBooth from './components/hive/HiveBooth';
+import EuphoriaRecap from './components/hive/EuphoriaRecap';
 import { HIVE_SLUG } from './components/hive/hiveMedia';
 import HiveWallet from './components/HiveWallet';
 import VendorRedeem from './components/VendorRedeem';
 
 const EventRoute = ({ token }) => {
   const { slug } = useParams();
-  return slug === HIVE_SLUG ? <HiveEventPage /> : <EventPage token={token} />;
+  if (slug === HIVE_SLUG) return <HiveEventPage />;
+  if (/euphoria/i.test(slug || '')) return <EuphoriaRecap />;
+  return <EventPage token={token} />;
 };
 
 const PackagesRedirect = () => {
@@ -71,6 +75,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/services" element={<ServicePage />} />
       <Route path="/events" element={<EventsPage token={token} />} />
       <Route path="/events/:slug" element={<EventRoute token={token} />} />
+      <Route path="/hive/booth" element={<HiveBooth />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />

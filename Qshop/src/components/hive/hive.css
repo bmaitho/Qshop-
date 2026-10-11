@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap');
 
-.hive-root {
+.hive-root, .hive-portal {
   --hive-ink: #07050a;
   --hive-ink-2: #110a0c;
   --hive-blood: #c3121f;
@@ -9,6 +9,9 @@
   --hive-gold: #e7c65f;
   --hive-gold-2: #f6dd8c;
   --hive-bone: #f3ece2;
+  color: var(--hive-bone);
+}
+.hive-root {
   background: var(--hive-ink);
   color: var(--hive-bone);
   min-height: 100vh;
