@@ -158,26 +158,12 @@ const EventPage = ({ token }) => {
     setProductError('');
     setBuyingProductId(product.id);
     try {
-      const { data: wallet, error: walletErr } = await supabase
-        .from('event_wallets')
-        .select('id')
-        .eq('event_id', event.id)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-      if (walletErr) throw walletErr;
-      if (!wallet) {
-        setProductError('Top up your HIVE Wallet first — no wallet found for this event yet.');
-        return;
-      }
-
-      const { data: entitlement, error: debitErr } = await supabase.rpc('wallet_debit_for_purchase', {
-        p_wallet_id: wallet.id,
-        p_product_name: product.name,
-        p_amount: product.price,
-        p_quantity: 1,
-        p_vendor_id: product.seller_id || null,
+      const { data: ents, error: debitErr } = await supabase.rpc('wallet_checkout_cart', {
+        p_event_id: event.id,
+        p_items: [{ product_id: product.id, quantity: 1 }],
       });
       if (debitErr) throw debitErr;
+      const entitlement = ents?.[0];
 
       setRedeemedEntitlement(entitlement);
       refreshWalletBalance(event.id, currentUser.id);
