@@ -170,7 +170,6 @@
   "framework": "vite",
   "functions": {
     "api/og-image.js": {
-      "includeFiles": "api/_og/**",
       "memory": 1024,
       "maxDuration": 15
     }

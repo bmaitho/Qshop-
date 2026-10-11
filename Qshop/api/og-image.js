@@ -4,8 +4,6 @@
 //
 // GET /api/og-image?src=<image url or /path>&v=unihive|hive
 import sharp from 'sharp';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 const SITE_URL = 'https://unihive.shop';
 const ALLOWED_HOSTS = new Set(['unihive.shop', 'www.unihive.shop', 'vycftqpspmxdohfbkqjb.supabase.co']);
@@ -13,9 +11,13 @@ const W = 1200;
 const H = 630;
 
 const frames = {};
-const frame = (v) => {
+const frame = async (v) => {
   const key = v === 'hive' ? 'hive' : 'unihive';
-  if (!frames[key]) frames[key] = readFileSync(join(process.cwd(), 'api', '_og', `frame-${key}.png`));
+  if (!frames[key]) {
+    const r = await fetch(`${SITE_URL}/og/frame-${key}.png`);
+    if (!r.ok || !(r.headers.get('content-type') || '').startsWith('image/')) throw new Error(`frame unavailable (${r.status})`);
+    frames[key] = Buffer.from(await r.arrayBuffer());
+  }
   return frames[key];
 };
 
@@ -52,7 +54,7 @@ export default async function handler(req, res) {
     const out = await sharp(backdrop)
       .composite([
         { input: subject, left: Math.round((W - meta.width) / 2), top: Math.max(24, Math.round((H - 120 - meta.height) / 2)) },
-        { input: frame(req.query.v), left: 0, top: 0 },
+        { input: await frame(req.query.v), left: 0, top: 0 },
       ])
       .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
