@@ -6,6 +6,8 @@ import QRCode from '../QRCode';
 import HiveShell, { useCountdown } from './HiveShell';
 import MediaCarousel from './MediaCarousel';
 import { CornerWeb } from './HiveTheme';
+import Masonry from './Masonry';
+import Portal from './Portal';
 import {
   HIVE_SLUG, POSTERS, VIDEOS, LINEUP, BILLBOARD_SLIDES, PERKS, PARTNERS, BRANDS, brandOf, isWebbedCan, packagePoster,
 } from './hiveMedia';
@@ -25,44 +27,6 @@ const describeItem = (item) => {
   if (item.item_type === 'wallet_credit') return `${ksh(item.wallet_credit_amount * item.quantity)} wallet credit`;
   return null;
 };
-
-// Column count follows viewport width; items are dealt round-robin so the
-// reading order stays left-to-right like Pinterest.
-function useColumnCount() {
-  const calc = () => {
-    const w = window.innerWidth;
-    if (w < 640) return 2;
-    if (w < 1024) return 3;
-    if (w < 1280) return 4;
-    if (w < 1680) return 5;
-    return 6;
-  };
-  const [n, setN] = useState(() => (typeof window === 'undefined' ? 2 : calc()));
-  useEffect(() => {
-    const on = () => setN(calc());
-    window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
-  }, []);
-  return n;
-}
-
-function Masonry({ items, render }) {
-  const n = useColumnCount();
-  const cols = useMemo(() => {
-    const c = Array.from({ length: n }, () => []);
-    items.forEach((it, i) => c[i % n].push(it));
-    return c;
-  }, [items, n]);
-  return (
-    <div className="flex gap-3 sm:gap-4 items-start">
-      {cols.map((col, ci) => (
-        <div key={ci} className="flex-1 min-w-0 flex flex-col gap-3 sm:gap-4">
-          {col.map((it) => <div key={it.key} className="hive-fade-in">{render(it)}</div>)}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function ProductPin({ product, onBuy, busy }) {
   const brand = BRANDS.find((b) => b.key === brandOf(product));
@@ -558,6 +522,21 @@ export default function HiveEventPage() {
               </div>
             </section>
 
+            <section>
+              <SectionTitle kicker="Real nights · real people" title="Hive Photo Booth">
+                <button onClick={() => navigate('/hive/booth')} className="text-sm text-[#e7c65f] shrink-0">See all →</button>
+              </SectionTitle>
+              <div data-noswipe className="hive-snap-x hive-noscroll flex gap-3 overflow-x-auto px-3 sm:px-6 lg:px-10 scroll-px-3 sm:scroll-px-6 lg:scroll-px-10">
+                {[VIDEOS.btsReel, ...['ngh158', 'ngh242', 'ngh023', 'ngh202', 'euph025', 'ngh065', 'euph033', 'ngh251'].map((k) => `/hive/booth/${k}.webp`)].map((m, i) => (
+                  <button key={i} onClick={() => navigate('/hive/booth')} className="relative shrink-0 w-[46vw] sm:w-[240px] aspect-[3/4] rounded-[20px] overflow-hidden bg-black">
+                    {typeof m === 'string'
+                      ? <img src={m} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                      : <video src={m.src} poster={m.poster} muted loop autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />}
+                  </button>
+                ))}
+              </div>
+            </section>
+
             <section className="px-3 sm:px-6 lg:px-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
               <div className="hive-card"><img src={POSTERS.vendors} alt="Call for vendors" loading="lazy" className="hive-card-img" /></div>
               <div className="hive-card"><video src={VIDEOS.behind.src} poster={VIDEOS.behind.poster} muted loop autoPlay playsInline preload="metadata" className="w-full h-full object-cover block" /></div>
@@ -575,7 +554,7 @@ export default function HiveEventPage() {
         </button>
       )}
 
-      {toast && (
+      {toast && (<Portal>
         <div className="fixed inset-x-3 bottom-[140px] sm:bottom-8 sm:left-auto sm:right-8 sm:w-[380px] z-[120] rounded-2xl bg-[#1a0b0d] border border-[#c3121f]/50 p-4 shadow-2xl hive-fade-in">
           <div className="flex items-start gap-3">
             <Wallet className="w-5 h-5 text-[#ff2e3b] shrink-0 mt-0.5" />
@@ -586,9 +565,9 @@ export default function HiveEventPage() {
             Top up wallet
           </button>
         </div>
-      )}
+        </Portal>)}
 
-      {entitlement && (
+      {entitlement && (<Portal>
         <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-[26px] border border-white/10 bg-[#0e0809] p-6 text-center hive-fade-in">
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
@@ -600,9 +579,9 @@ export default function HiveEventPage() {
             <button onClick={() => setEntitlement(null)} className="mt-6 w-full hive-btn-gold rounded-full py-3 font-bold">Done</button>
           </div>
         </div>
-      )}
+        </Portal>)}
 
-      {pkg && (
+      {pkg && (<Portal>
         <div className="fixed inset-0 z-[130] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
           <div className="relative w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px] overflow-hidden border border-white/10 bg-[#0e0809] hive-fade-in">
             <div className="relative h-40">
@@ -657,7 +636,7 @@ export default function HiveEventPage() {
             </div>
           </div>
         </div>
-      )}
+        </Portal>)}
     </HiveShell>
   );
 }

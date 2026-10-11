@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import ProductGrid from './ProductGrid';
-import Billboard from './Billboard';
+import UniHiveBillboard from './hive/UniHiveBillboard';
 
 // Function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -205,7 +205,7 @@ const StudentMarketplace = ({ token }) => {
 
         {/* Ad spot — a single rotating placement, not a banner farm */}
         <div className="mb-4">
-          <Billboard variant="banner" aspect="aspect-[16/9] sm:aspect-[21/9] lg:aspect-[32/9]" />
+          <UniHiveBillboard compact height="h-[52svh] min-h-[380px] max-h-[480px]" className="rounded-[22px]" />
         </div>
 
         {/* Mobile search bar - Added class for tutorial targeting */}

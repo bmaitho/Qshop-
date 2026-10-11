@@ -27,6 +27,18 @@ export const VIDEOS = {
   countdown: v('countdown'),
   fringe: v('dj-fringe'),
   ready: v('are-you-ready'),
+  btsReel: v('ngh-bts-reel'),
+  euphoriaReel: v('euphoria-reel'),
+  euphoriaWide: v('euphoria-wide'),
+};
+
+const b = (name) => `/hive/booth/${name}.webp`;
+export const BOOTH = { b };
+
+// Public Drive folders holding the full-quality event photography.
+export const DRIVE_FOLDERS = {
+  'no-going-home': { label: 'THE HIVE: NO GOING HOME — behind the scenes', url: 'https://drive.google.com/drive/folders/1PM0zcV4uM_oU3N1od241dKbwHrlG8P3Z' },
+  euphoria: { label: 'THE HIVE: EUPHORIA', url: 'https://drive.google.com/drive/folders/1d1SgXLvHK8Ku7wFRLXSYPUuKVK-vo1uy' },
 };
 
 export const LINEUP = [
@@ -40,11 +52,16 @@ export const LINEUP = [
 
 // Billboard rotation — every official poster and video appears here.
 export const BILLBOARD_SLIDES = [
-  { type: 'video', ...VIDEOS.recap, ratio: 16 / 9, caption: 'Last time the Hive opened its doors' },
+  { type: 'video', ...VIDEOS.btsReel, caption: 'Behind the scenes — the Dome, rehearsed' },
   { type: 'image', src: POSTERS.master, caption: 'THE HIVE · NO GOING HOME · Fri 30 Oct · Sarakasi Dome' },
+  { type: 'image', src: b('ngh158'), caption: 'Rehearsal night at Sarakasi Dome' },
+  { type: 'video', ...VIDEOS.recap, ratio: 16 / 9, caption: 'Last time the Hive opened its doors' },
+  { type: 'image', src: b('ngh242'), caption: 'The Smirnoff booth — Friday 13th energy' },
   { type: 'video', ...VIDEOS.countdown, caption: 'The countdown to Fright Night begins' },
   { type: 'image', src: POSTERS.bloodMoon, caption: 'One night. Endless memories.' },
   { type: 'image', src: POSTERS.wave1, caption: 'Wave 1 — GA 1,000 · Group of 4 3,500 · VIP 2,000' },
+  { type: 'video', ...VIDEOS.euphoriaReel, caption: 'THE HIVE: EUPHORIA — May, Sarakasi Dome' },
+  { type: 'image', src: b('euph025'), caption: 'Euphoria — hands up for the Hive' },
   { type: 'video', ...VIDEOS.fringe, caption: 'DJ FRINGE will be performing' },
   { type: 'image', src: m('dj-fringe'), caption: 'On the decks: DJ FRINGE' },
   { type: 'video', ...VIDEOS.akuku, caption: 'DJ BAHATI AKUKU will be performing' },
@@ -55,12 +72,16 @@ export const BILLBOARD_SLIDES = [
   { type: 'image', src: m('supee'), caption: 'On stage: SUPEE' },
   { type: 'video', ...VIDEOS.ready, caption: 'Are you ready?' },
   { type: 'image', src: POSTERS.afterDark, caption: 'Where the darkness dances — AFTER DARK' },
+  { type: 'image', src: b('ngh202'), caption: 'The Hive, in black and white' },
+  { type: 'image', src: b('ngh023'), caption: 'Fog, lights, rehearsal' },
   { type: 'image', src: POSTERS.guessWho, caption: 'Guess who will be performing?' },
   { type: 'image', src: POSTERS.whoTakesStage, caption: 'Unforgettable lineup awaits' },
   { type: 'video', ...VIDEOS.behind, caption: 'Behind the entertainment' },
   { type: 'image', src: POSTERS.info, caption: 'Regular 1,000 · VIP 2,000 · 6PM till late' },
   { type: 'image', src: POSTERS.earlyBird, caption: 'Early bird — 40% sold out' },
   { type: 'image', src: POSTERS.vendors, caption: 'Call for vendors — showcase your brand this Halloween' },
+  { type: 'video', ...VIDEOS.euphoriaWide, ratio: 16 / 9, caption: 'Euphoria, from the floor' },
+  { type: 'image', src: b('euph033'), caption: 'The UniHive booth at Euphoria' },
 ];
 
 export const PERKS = [

@@ -805,8 +805,8 @@ export default function ServicesPage() {
 
         {/* ── Hero */}
         <div className="services-hero">
-          <h1>Experiences & Services</h1>
-          <p>Curated trips, events, and experiences — book directly through UniHive.</p>
+          <h1>The Buzz</h1>
+          <p>Events, experiences and the people who make them — straight from the Hive.</p>
           {/* ── Toggle below subtitle */}
           <div className="mode-toggle-wrap" style={{ padding: '24px 20px 0' }}>
             <GoodsServicesToggle />
