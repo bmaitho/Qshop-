@@ -205,7 +205,7 @@ const StudentMarketplace = ({ token }) => {
 
         {/* Ad spot — a single rotating placement, not a banner farm */}
         <div className="mb-4">
-          <Billboard linkTo="/events/the-hive-no-going-home" aspect="aspect-[21/9] sm:aspect-[32/9]" />
+          <Billboard variant="banner" aspect="aspect-[16/9] sm:aspect-[21/9] lg:aspect-[32/9]" />
         </div>
 
         {/* Mobile search bar - Added class for tutorial targeting */}

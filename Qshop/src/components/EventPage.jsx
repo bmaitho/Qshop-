@@ -8,7 +8,6 @@ import { initGuestTicket } from '../Services/eventTicketService';
 import Navbar from './Navbar';
 import MobileNavbar from './MobileNavbar';
 import QRCode from './QRCode';
-import Billboard from './Billboard';
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 40; // ~2 minutes
@@ -766,13 +765,6 @@ const EventPage = ({ token }) => {
 
             {view === 'event' && (
               <div className="space-y-6 mb-8">
-                <Billboard />
-                <div>
-                  <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-2">Lineup</h2>
-                  <p className="text-foreground/75 text-sm">
-                    On the decks: <span className="font-semibold">DJ NIKX</span>, <span className="font-semibold">DJ AKUKU</span>, <span className="font-semibold">DJ PICCASSO</span>. On stage: <span className="font-semibold">DENZZ</span>. More names dropping soon.
-                  </p>
-                </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => navigate(`/events/${event.id}/wallet`)}

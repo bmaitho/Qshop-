@@ -1,26 +1,42 @@
 // src/components/ClaimHiveTicket.jsx
 //
-// Attendee-facing: link an externally-bought ticket (e.g. Little Events)
-// to a UniHive account. This is the "claim" half of the bridge — it
-// NEVER grants or checks entry. The external platform's own scanner
-// stays the sole authority there. Claiming only unlocks UniHive-side
-// benefits (wallet, catalogue, tier perks) once built.
+// Attendee-facing: link an externally-bought ticket (Little Events) to a
+// UniHive account. This NEVER grants or checks entry — Little's own
+// scanner stays the sole authority there. Claiming only unlocks UniHive
+// benefits (wallet, catalogue, perks).
 //
-// Reached via a QR/link that carries the event id and, ideally, the
-// partner's reference baked in as a query param (?ref=...) so the
-// attendee doesn't have to type anything cryptic. Falls back to a
-// manual field if the link didn't carry one.
+// Accepts an event id or slug in the URL; anything unresolvable falls
+// back to THE HIVE so a mistyped/shared link never dead-ends.
 
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, Loader2, CheckCircle2, XCircle, Lock } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle2, XCircle, Lock, Ticket, Phone, Mail, ArrowRight } from 'lucide-react';
 import { supabase } from './SupabaseClient';
+import HiveShell from './hive/HiveShell';
+import { HIVE_SLUG, POSTERS, VIDEOS } from './hive/hiveMedia';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const tierPerks = (tier) => {
   const t = (tier || '').toLowerCase();
-  if (t.includes('vip')) return ['Complimentary drink on arrival', 'Priority entry lane'];
-  return [];
+  if (t.includes('vip')) return ['Complimentary drink on arrival', 'Private seating', 'HIVE Wallet + catalogue access'];
+  return ['HIVE Wallet + catalogue access', 'Pre-order drinks & bites, skip the queue'];
 };
+
+function PosterWall() {
+  return (
+    <div className="relative h-[340px] lg:h-auto overflow-hidden">
+      <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-2 p-2 opacity-90">
+        <video src={VIDEOS.ready.src} poster={VIDEOS.ready.poster} muted loop autoPlay playsInline className="w-full h-full object-cover rounded-2xl row-span-2" />
+        <img src={POSTERS.bloodMoon} alt="" className="w-full h-full object-cover rounded-2xl" />
+        <img src={POSTERS.earlyBird} alt="" className="w-full h-full object-cover rounded-2xl" />
+        <img src={POSTERS.afterDark} alt="" className="w-full h-full object-cover rounded-2xl" />
+        <img src={POSTERS.wave1} alt="" className="w-full h-full object-cover rounded-2xl" />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#07050a] via-[#07050a]/50 to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-[#07050a]/40 lg:to-[#07050a]" />
+    </div>
+  );
+}
 
 export default function ClaimHiveTicket() {
   const { eventId } = useParams();
@@ -47,14 +63,16 @@ export default function ClaimHiveTicket() {
   }, []);
 
   useEffect(() => {
-    if (!eventId) return;
     (async () => {
-      const { data } = await supabase
-        .from('events')
-        .select('id, title, event_date, venue')
-        .eq('id', eventId)
-        .maybeSingle();
-      setEvent(data || null);
+      const cols = 'id, title, slug, event_date, venue';
+      let row = null;
+      if (eventId && UUID_RE.test(eventId)) {
+        ({ data: row } = await supabase.from('events').select(cols).eq('id', eventId).maybeSingle());
+      } else if (eventId) {
+        ({ data: row } = await supabase.from('events').select(cols).eq('slug', eventId).maybeSingle());
+      }
+      if (!row) ({ data: row } = await supabase.from('events').select(cols).eq('slug', HIVE_SLUG).maybeSingle());
+      setEvent(row || null);
     })();
   }, [eventId]);
 
@@ -66,16 +84,14 @@ export default function ClaimHiveTicket() {
   const handleClaim = async (e) => {
     e.preventDefault();
     setError('');
-
     if (!reference.trim()) {
-      setError("Enter the reference from your ticket confirmation — it's usually in the email or SMS.");
+      setError('Enter the Payment Key from your Little Events confirmation email or SMS.');
       return;
     }
     if (!phone.trim() && !email.trim()) {
       setError('Enter the phone or email you used to buy the ticket.');
       return;
     }
-
     setSubmitting(true);
     try {
       const { data, error: rpcError } = await supabase.rpc('claim_external_ticket', {
@@ -83,7 +99,6 @@ export default function ClaimHiveTicket() {
         p_phone: phone.trim() || null,
         p_email: email.trim() || null,
       });
-
       if (rpcError) {
         setError(
           rpcError.message?.includes('No matching ticket')
@@ -94,7 +109,6 @@ export default function ClaimHiveTicket() {
         );
         return;
       }
-
       setClaimed(data);
     } catch (err) {
       setError(err.message || 'Something went wrong claiming this ticket.');
@@ -103,133 +117,88 @@ export default function ClaimHiveTicket() {
     }
   };
 
+  const slug = event?.slug || HIVE_SLUG;
+
+  let panel;
   if (!authChecked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0D2B20] text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-[#E7C65F]" />
+    panel = <div className="py-20 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#e7c65f]" /></div>;
+  } else if (!user) {
+    panel = (
+      <div className="text-center space-y-5">
+        <div className="w-16 h-16 rounded-full bg-[#e7c65f]/10 border border-[#e7c65f]/30 flex items-center justify-center mx-auto">
+          <Lock className="w-7 h-7 text-[#e7c65f]" />
+        </div>
+        <p className="text-white/65">Log in or create a UniHive account first — your ticket links to it.</p>
+        <button onClick={goLogin} className="w-full hive-btn-gold rounded-full py-3.5 font-bold flex items-center justify-center gap-2">
+          Continue <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
     );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#0D2B20] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 overflow-hidden">
-          <div className="p-8 text-center bg-[#E7C65F]/10">
-            <Lock className="w-12 h-12 text-[#E7C65F] mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-[#E7C65F] mb-1">Claim Your HIVE</h2>
-            <p className="text-white/60 text-sm">Log in or create a UniHive account to link your ticket.</p>
-          </div>
-          <div className="p-6">
-            <button
-              onClick={goLogin}
-              className="w-full bg-[#E7C65F] hover:bg-[#d4b550] text-[#0D2B20] font-bold py-3.5 rounded-xl"
-            >
-              Continue
-            </button>
-          </div>
+  } else if (claimed) {
+    panel = (
+      <div className="text-center space-y-5 hive-fade-in">
+        <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto" />
+        <div>
+          <p className="hive-display hive-gold-text text-3xl font-bold">HIVE ACTIVATED</p>
+          <p className="text-white/70 mt-1">{claimed.tier} — linked to your account</p>
         </div>
+        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-4 text-left space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/40">Unlocked</p>
+          {tierPerks(claimed.tier).map((p) => (
+            <p key={p} className="flex items-center gap-2 text-sm text-white/85"><Sparkles className="w-4 h-4 text-[#e7c65f] shrink-0" /> {p}</p>
+          ))}
+        </div>
+        <button onClick={() => navigate(`/events/${slug}?tab=shop`)} className="w-full hive-btn-blood rounded-full py-3.5 font-bold">Shop the night</button>
+        <p className="text-white/35 text-xs">Entry is still scanned by Little Events at the door — this only unlocks your UniHive benefits.</p>
       </div>
     );
-  }
-
-  if (claimed) {
-    const perks = tierPerks(claimed.tier);
-    return (
-      <div className="min-h-screen bg-[#0D2B20] flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-emerald-600 rounded-3xl overflow-hidden text-white text-center p-8">
-          <CheckCircle2 className="w-16 h-16 mx-auto mb-3" />
-          <h2 className="text-3xl font-extrabold">HIVE ACTIVATED</h2>
-          <p className="mt-2 text-white/90">{claimed.tier} — linked to your account</p>
-          {perks.length > 0 && (
-            <div className="mt-5 bg-black/20 rounded-xl p-4 text-left space-y-1.5">
-              <p className="text-xs uppercase tracking-wider text-white/60 mb-2">Your perks</p>
-              {perks.map((p) => (
-                <p key={p} className="flex items-center gap-2 text-sm">
-                  <Sparkles className="w-4 h-4 shrink-0" /> {p}
-                </p>
-              ))}
-            </div>
-          )}
-          <p className="mt-5 text-white/70 text-xs">
-            Entry is still validated by whoever you bought the ticket from — this only unlocks your UniHive account benefits.
-          </p>
-        </div>
-      </div>
+  } else {
+    panel = (
+      <form onSubmit={handleClaim} className="space-y-4">
+        <label className="block">
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/45 mb-2"><Ticket className="w-3.5 h-3.5" /> Payment key</span>
+          <input type="text" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="From your Little Events email / SMS" className="hive-input" />
+        </label>
+        <label className="block">
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/45 mb-2"><Phone className="w-3.5 h-3.5" /> Phone used at purchase</span>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="2547XXXXXXXX" className="hive-input" />
+        </label>
+        <div className="flex items-center gap-3 text-white/30 text-xs"><span className="flex-1 h-px bg-white/10" />or<span className="flex-1 h-px bg-white/10" /></div>
+        <label className="block">
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-white/45 mb-2"><Mail className="w-3.5 h-3.5" /> Email used at purchase</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="hive-input" />
+        </label>
+        {error && (
+          <div className="flex items-start gap-2 rounded-2xl bg-[#c3121f]/10 border border-[#c3121f]/40 p-3 text-[#ffb3b8] text-sm">
+            <XCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
+          </div>
+        )}
+        <button type="submit" disabled={submitting} className="w-full hive-btn-blood rounded-full py-3.5 font-bold flex items-center justify-center gap-2 disabled:opacity-60">
+          {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+          {submitting ? 'Claiming…' : 'Claim my HIVE'}
+        </button>
+      </form>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0D2B20] text-white flex items-center justify-center p-4">
-      <form onSubmit={handleClaim} className="w-full max-w-sm bg-white/5 border border-white/10 rounded-3xl p-6 space-y-4">
-        <div className="text-center mb-2">
-          <Sparkles className="w-10 h-10 text-[#E7C65F] mx-auto mb-2" />
-          <h1 className="text-xl font-bold text-[#E7C65F]">Claim Your HIVE</h1>
-          {event && <p className="text-white/50 text-sm mt-1">{event.title} — {event.venue}</p>}
-          <p className="text-white/40 text-xs mt-2">
-            Bought your ticket somewhere other than UniHive? Link it here to unlock wallet, perks, and more.
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-            Ticket reference
-          </label>
-          <input
-            type="text"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="From your confirmation email/SMS"
-            className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/30"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-            Phone used at purchase
-          </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="2547XXXXXXXX"
-            className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/30"
-          />
-        </div>
-
-        <div className="relative text-center text-white/30 text-xs">
-          <span className="bg-[#0D2B20] px-2 relative z-10">or</span>
-          <div className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
-        </div>
-
-        <div>
-          <label className="block text-xs uppercase tracking-wider text-white/40 mb-1.5">
-            Email used at purchase
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="w-full bg-black/30 border border-white/20 rounded-lg px-3 py-2.5 text-sm text-white placeholder-white/30"
-          />
-        </div>
-
-        {error && (
-          <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-200 text-sm">
-            <XCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
+    <HiveShell>
+      <div className="lg:grid lg:grid-cols-2 lg:min-h-[calc(100vh-112px)]">
+        <PosterWall />
+        <div className="relative -mt-24 lg:mt-0 flex items-center justify-center px-4 sm:px-8 pb-12 lg:py-12">
+          <div className="w-full max-w-md">
+            <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold">BOUGHT ON LITTLE EVENTS?</p>
+            <h1 className="hive-display hive-gold-text text-4xl sm:text-5xl font-extrabold leading-[1.05] mt-2">Claim your HIVE</h1>
+            <p className="hive-accent text-white/70 text-xl mt-2">{event ? `${event.title} — ${event.venue}` : 'THE HIVE: NO GOING HOME'}</p>
+            <p className="text-white/50 text-sm mt-3 leading-relaxed">
+              Link your ticket to unlock the HIVE Wallet, the bar & bites catalogue, and your tier perks.
+            </p>
+            <div className="mt-7 rounded-[26px] border border-white/10 bg-[#0e0809]/80 backdrop-blur-xl p-5 sm:p-7 shadow-[0_30px_80px_-30px_rgba(195,18,31,0.5)]">
+              {panel}
+            </div>
           </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-[#E7C65F] hover:bg-[#d4b550] disabled:opacity-50 text-[#0D2B20] font-bold py-3.5 rounded-xl flex items-center justify-center gap-2"
-        >
-          {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-          {submitting ? 'Claiming…' : 'Claim my HIVE'}
-        </button>
-      </form>
-    </div>
+        </div>
+      </div>
+    </HiveShell>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -38,9 +38,20 @@ import MyTickets from './components/MyTickets';
 import VerifyTicket from './components/VerifyTicket';
 import StaffScanner from './components/StaffScanner';
 import ClaimHiveTicket from './components/ClaimHiveTicket';
-import HivePackages from './components/HivePackages';
+import HiveEventPage from './components/hive/HiveEventPage';
+import { HIVE_SLUG } from './components/hive/hiveMedia';
 import HiveWallet from './components/HiveWallet';
 import VendorRedeem from './components/VendorRedeem';
+
+const EventRoute = ({ token }) => {
+  const { slug } = useParams();
+  return slug === HIVE_SLUG ? <HiveEventPage /> : <EventPage token={token} />;
+};
+
+const PackagesRedirect = () => {
+  const { slug } = useParams();
+  return <Navigate to={`/events/${slug}?tab=packs`} replace />;
+};
 
 const AppRoutes = ({ token, setToken }) => {
   const handleLogout = () => {
@@ -59,7 +70,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/seller/:id" element={<SellerProfile />} />
       <Route path="/services" element={<ServicePage />} />
       <Route path="/events" element={<EventsPage token={token} />} />
-      <Route path="/events/:slug" element={<EventPage token={token} />} />
+      <Route path="/events/:slug" element={<EventRoute token={token} />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />
@@ -87,8 +98,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/admin/events/import-tickets" element={token ? <EventTicketImport /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
       <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
-      <Route path="/events/:slug/packages" element={token ? <HivePackages /> : <Navigate to="/auth" replace />} />
-      <Route path="/events/:eventId/wallet" element={token ? <HiveWallet /> : <Navigate to="/auth" replace />} />
+      <Route path="/events/:slug/packages" element={<PackagesRedirect />} />
+      <Route path="/events/:eventId/wallet" element={<HiveWallet />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

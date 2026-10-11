@@ -7,6 +7,7 @@ import UserServiceBookingModal from "./UserServiceBookingModal";
 import Billboard from "./Billboard";
 
 const PINNED_EVENT_SLUG = 'the-hive-no-going-home';
+const PINNED_EVENT_POSTER = '/hive/media/blood-moon.webp';
 
 // ─── Supabase client ───────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -812,14 +813,16 @@ export default function ServicesPage() {
           </div>
         </div>
 
+        {/* ── Pinned event billboard — full-bleed, edge to edge ── */}
+        {upcomingEvents.some((e) => e.slug === PINNED_EVENT_SLUG) && (
+          <div style={{ margin: '8px 0 28px' }}>
+            <Billboard linkTo={`/events/${PINNED_EVENT_SLUG}`} height="clamp(340px, 58vh, 560px)" />
+          </div>
+        )}
+
         {/* ── Events & Tickets Section ── */}
         {upcomingEvents.length > 0 && (
-          <div style={{ padding: '0 24px 8px', maxWidth: '1100px', margin: '0 auto' }}>
-            {upcomingEvents.some((e) => e.slug === PINNED_EVENT_SLUG) && (
-              <div style={{ marginBottom: '20px' }}>
-                <Billboard linkTo={`/events/${PINNED_EVENT_SLUG}`} />
-              </div>
-            )}
+          <div style={{ padding: '0 24px 8px', maxWidth: '1400px', margin: '0 auto' }}>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
@@ -863,9 +866,14 @@ export default function ServicesPage() {
                         Featured
                       </span>
                     )}
-                    {evt.image_url && (
-                      <div style={{ height: isPinned ? '180px' : '120px', overflow: 'hidden' }}>
-                        <img src={evt.image_url} alt={evt.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {(evt.image_url || isPinned) && (
+                      <div style={{ height: isPinned ? '260px' : '120px', overflow: 'hidden' }}>
+                        <img
+                          src={evt.image_url || PINNED_EVENT_POSTER}
+                          alt={evt.title}
+                          loading="lazy"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: isPinned ? 'center 30%' : 'center' }}
+                        />
                       </div>
                     )}
                     <div style={{ padding: '12px 14px' }}>
