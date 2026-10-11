@@ -51,6 +51,7 @@ const EventPage = ({ token }) => {
 
   // View tab + catalogue (package) purchase state
   const [view, setView] = useState('shop'); // shop | event
+  const [shopView, setShopView] = useState('catalogue'); // catalogue | packages — catalogue shown first
   const [packages, setPackages] = useState([]);
   const [expandedPkgId, setExpandedPkgId] = useState(null);
   const [products, setProducts] = useState([]);
@@ -789,10 +790,10 @@ const EventPage = ({ token }) => {
               </div>
             )}
 
-            {view === 'shop' && packages.length > 0 && (
-              <div className="space-y-3 mb-8">
+            {view === 'shop' && (packages.length > 0 || products.length > 0) && (
+              <>
                 {existingTicket && (
-                  <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 flex flex-col items-center text-center mb-2">
+                  <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 flex flex-col items-center text-center mb-4">
                     <CheckCircle className="w-9 h-9 text-green-500 mb-2" />
                     <p className="font-semibold text-green-700 dark:text-green-400">You're already in — check My Tickets for your QR.</p>
                     <button onClick={() => navigate('/my-tickets')} className="mt-3 text-sm text-primary hover:underline font-medium">
@@ -800,93 +801,122 @@ const EventPage = ({ token }) => {
                     </button>
                   </div>
                 )}
-                {packages.map((pkg) => {
-                  const items = pkg.event_package_items || [];
-                  const expanded = expandedPkgId === pkg.id;
-                  return (
-                    <div key={pkg.id} className="border border-border rounded-2xl p-5 bg-card space-y-3">
-                      <div className="flex justify-between items-start gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-lg text-foreground">{pkg.name}</h3>
-                            {pkg.featured && (
-                              <span className="text-[10px] uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                                Featured
-                              </span>
-                            )}
+
+                {/* Catalogue / Packages — two dedicated spaces, toggled, catalogue shown first */}
+                <div className="inline-flex p-1 rounded-full bg-muted/60 mb-4">
+                  <button
+                    onClick={() => setShopView('catalogue')}
+                    className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                      shopView === 'catalogue' ? 'bg-primary text-primary-foreground' : 'text-foreground/60 hover:text-foreground'
+                    }`}
+                  >
+                    Catalogue
+                  </button>
+                  <button
+                    onClick={() => setShopView('packages')}
+                    className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                      shopView === 'packages' ? 'bg-primary text-primary-foreground' : 'text-foreground/60 hover:text-foreground'
+                    }`}
+                  >
+                    Ticket Packs
+                  </button>
+                </div>
+
+                {shopView === 'catalogue' && products.length > 0 && (
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">
+                        Pay from your HIVE Wallet
+                      </h2>
+                      {currentUser && (
+                        <span className="text-xs text-foreground/50">
+                          Balance: <span className="font-semibold text-primary">KSh {walletBalance ?? 0}</span>
+                        </span>
+                      )}
+                    </div>
+                    {/* Masonry — varied card heights, Pinterest-style, not a uniform grid */}
+                    <div className="columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
+                      {products.map((product, i) => (
+                        <div
+                          key={product.id}
+                          className="break-inside-avoid mb-3 border border-border rounded-2xl overflow-hidden bg-card flex flex-col"
+                        >
+                          {product.image_url ? (
+                            <div className={`${i % 3 === 0 ? 'aspect-[4/5]' : i % 3 === 1 ? 'aspect-square' : 'aspect-[4/3]'} bg-muted overflow-hidden`}>
+                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-square bg-muted" />
+                          )}
+                          <div className="p-3 flex flex-col gap-2">
+                            <p className="text-sm font-semibold text-foreground leading-tight">{product.name}</p>
+                            <p className="text-primary font-bold text-sm">KSh {product.price}</p>
+                            <button
+                              onClick={() => handleBuyProduct(product)}
+                              disabled={buyingProductId === product.id}
+                              className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg disabled:opacity-50"
+                            >
+                              {buyingProductId === product.id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Buy'}
+                            </button>
                           </div>
-                          {pkg.description && <p className="text-foreground/50 text-sm mt-0.5">{pkg.description}</p>}
                         </div>
-                        <div className="text-xl font-bold text-primary shrink-0">KSh {pkg.base_price}</div>
-                      </div>
-
-                      {items.length > 0 && (
-                        <button
-                          onClick={() => setExpandedPkgId(expanded ? null : pkg.id)}
-                          className="text-xs text-foreground/50 underline"
-                        >
-                          {expanded ? 'Hide' : "What's included"}
-                        </button>
-                      )}
-                      {expanded && (
-                        <ul className="text-sm text-foreground/70 space-y-1 pl-1">
-                          {items.map((item) => <li key={item.id}>• {describePackageItem(item)}</li>)}
-                        </ul>
-                      )}
-
-                      <button
-                        onClick={() => { setSelectedPackage(pkg); setPkgStep('idle'); setPkgError(''); }}
-                        className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl hover:opacity-90"
-                      >
-                        Get this package
-                      </button>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {view === 'shop' && products.length > 0 && (
-              <div className="mb-8">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xs font-semibold text-foreground/40 uppercase tracking-wider">
-                    À la carte — pay from your HIVE Wallet
-                  </h2>
-                  {currentUser && (
-                    <span className="text-xs text-foreground/50">
-                      Balance: <span className="font-semibold text-primary">KSh {walletBalance ?? 0}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {products.map((product) => (
-                    <div key={product.id} className="border border-border rounded-2xl overflow-hidden bg-card flex flex-col">
-                      {product.image_url ? (
-                        <div className="aspect-square bg-muted overflow-hidden">
-                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="aspect-square bg-muted" />
-                      )}
-                      <div className="p-3 flex flex-col gap-2 flex-1">
-                        <p className="text-sm font-semibold text-foreground leading-tight">{product.name}</p>
-                        <p className="text-primary font-bold text-sm mt-auto">KSh {product.price}</p>
-                        <button
-                          onClick={() => handleBuyProduct(product)}
-                          disabled={buyingProductId === product.id}
-                          className="w-full bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg disabled:opacity-50"
-                        >
-                          {buyingProductId === product.id ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Buy'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {productError && <p className="text-red-500 text-sm mt-2">{productError}</p>}
-                {!currentUser && (
-                  <p className="text-xs text-foreground/40 mt-2">Log in and top up your HIVE Wallet to buy à la carte items.</p>
+                    {productError && <p className="text-red-500 text-sm mt-2">{productError}</p>}
+                    {!currentUser && (
+                      <p className="text-xs text-foreground/40 mt-2">Log in and top up your HIVE Wallet to buy from the catalogue.</p>
+                    )}
+                  </div>
                 )}
-              </div>
+
+                {shopView === 'packages' && packages.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+                    {packages.map((pkg) => {
+                      const items = pkg.event_package_items || [];
+                      const expanded = expandedPkgId === pkg.id;
+                      return (
+                        <div key={pkg.id} className="border border-border rounded-2xl p-5 bg-card space-y-3 flex flex-col">
+                          <div className="flex justify-between items-start gap-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-lg text-foreground">{pkg.name}</h3>
+                                {pkg.featured && (
+                                  <span className="text-[10px] uppercase tracking-wider bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                                    Featured
+                                  </span>
+                                )}
+                              </div>
+                              {pkg.description && <p className="text-foreground/50 text-sm mt-0.5">{pkg.description}</p>}
+                            </div>
+                            <div className="text-xl font-bold text-primary shrink-0">KSh {pkg.base_price}</div>
+                          </div>
+
+                          {items.length > 0 && (
+                            <button
+                              onClick={() => setExpandedPkgId(expanded ? null : pkg.id)}
+                              className="text-xs text-foreground/50 underline text-left"
+                            >
+                              {expanded ? 'Hide' : "What's included"}
+                            </button>
+                          )}
+                          {expanded && (
+                            <ul className="text-sm text-foreground/70 space-y-1 pl-1">
+                              {items.map((item) => <li key={item.id}>• {describePackageItem(item)}</li>)}
+                            </ul>
+                          )}
+
+                          <button
+                            onClick={() => { setSelectedPackage(pkg); setPkgStep('idle'); setPkgError(''); }}
+                            className="w-full bg-primary text-primary-foreground font-bold py-2.5 rounded-xl hover:opacity-90 mt-auto"
+                          >
+                            Get this package
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
 
             <div className="border-t border-border mb-6" />
