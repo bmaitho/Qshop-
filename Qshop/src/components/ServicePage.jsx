@@ -816,7 +816,7 @@ export default function ServicesPage() {
         {/* ── Pinned event billboard — full-bleed, edge to edge ── */}
         {upcomingEvents.some((e) => e.slug === PINNED_EVENT_SLUG) && (
           <div style={{ margin: '8px 0 28px' }}>
-            <Billboard linkTo={`/events/${PINNED_EVENT_SLUG}`} height="clamp(340px, 58vh, 560px)" />
+            <Billboard linkTo={`/events/${PINNED_EVENT_SLUG}`} />
           </div>
         )}
 

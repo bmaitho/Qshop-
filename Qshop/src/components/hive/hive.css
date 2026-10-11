@@ -157,3 +157,7 @@
   .hive-ember, .hive-spider, .hive-grain::after, .hive-shimmer { animation: none !important; }
   .hive-snap-x { scroll-behavior: auto; }
 }
+
+.hive-drift { animation: hive-drift 9s ease-out both; transform-origin: 50% 40%; }
+@keyframes hive-drift { from { transform: scale(1.0); } to { transform: scale(1.07); } }
+@media (prefers-reduced-motion: reduce) { .hive-drift { animation: none; } }
