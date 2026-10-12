@@ -183,7 +183,7 @@ const EditProductForm = ({ product, onSuccess, onCancel }) => {
 
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, compressed, { contentType: 'image/jpeg' });
+        .upload(filePath, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' });
 
       if (uploadError) throw uploadError;
 
