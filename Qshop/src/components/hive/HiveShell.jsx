@@ -46,7 +46,7 @@ function HiveNav() {
   const tab = new URLSearchParams(search).get('tab');
   const c = useCountdown();
   return (
-    <div className="sticky top-0 pt-[52px] md:pt-0 md:top-16 z-50 border-b border-white/[0.06] bg-[#07050a]/95 backdrop-blur-xl">
+    <div className="sticky top-0 pt-[52px] md:pt-0 md:top-16 z-50 border-b border-white/[0.08] bg-[#07050a]/45 md:bg-[#07050a]/95 backdrop-blur-2xl backdrop-saturate-150">
       <div className="flex items-center gap-4 px-3 sm:px-6 lg:px-10 h-12">
         <Link to={`/events/${HIVE_SLUG}`} className="hive-display hive-gold-text text-sm sm:text-base font-bold shrink-0">
           THE HIVE
