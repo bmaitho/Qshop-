@@ -551,7 +551,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
                     </div>
 
                     <div>
-                      <Label>Campus Location</Label>
+                      <Label>Shop location</Label>
                       <select
                         value={locationFormData.campus_id || ''}
                         onChange={(e) => setLocationFormData(prev => ({

@@ -284,7 +284,7 @@ const CategoryPage = () => {
       </div>
       
       <div>
-        <h4 className="font-medium mb-3">Campus Location</h4>
+        <h4 className="font-medium mb-3">Location</h4>
         <div className="space-y-2">
           {['Main Campus', 'City Campus', 'Parklands Campus', 'Westlands Campus'].map(location => (
             <div key={location} className="flex items-center space-x-2">
