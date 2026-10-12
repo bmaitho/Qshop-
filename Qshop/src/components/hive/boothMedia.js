@@ -6,7 +6,7 @@ export const BOOTH_PHOTOS = [{"src": "/hive/booth/ngh001.webp", "w": 787, "h": 1
 {"src": "/hive/booth/ngh046.webp", "w": 1080, "h": 1080, "event": "no-going-home"},
 {"src": "/hive/booth/ngh054.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh060.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
-{"src": "/hive/booth/euph033.webp", "w": 1050, "h": 1400, "event": "euphoria"},
+{"src": "/hive/booth/euph033.webp", "w": 780, "h": 1400, "event": "euphoria"},
 {"src": "/hive/booth/ngh067.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh081.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh100.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
