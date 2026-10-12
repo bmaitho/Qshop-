@@ -38,3 +38,10 @@ jobs:
             if [ "$days" -lt 14 ]; then echo "::error::$host certificate expires in $days days"; exit 1; fi
           done
 
+
+      - name: Backend API (Render) is up
+        run: |
+          # Free/suspended Render services can take a while to wake; allow 60s.
+          body=$(curl -sS --max-time 60 https://unihive-wba0.onrender.com/api/health || true)
+          echo "backend -> $body"
+          echo "$body" | grep -q '"status":"ok"' || { echo "::error::Backend API on Render is not responding (check Render billing/status)"; exit 1; }
