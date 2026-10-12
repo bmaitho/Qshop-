@@ -24,8 +24,8 @@ if (!process.env.RESEND_API_KEY) {
   console.error('Missing RESEND_API_KEY environment variable');
 }
 
-// Define email sender address - use unihive.store for sending emails
-const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+// Sender must be on a domain verified in Resend (unihive.shop)
+const SENDER_EMAIL = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 /**

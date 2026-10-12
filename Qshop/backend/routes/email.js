@@ -205,7 +205,7 @@ router.post('/resend-order-notification', async (req, res) => {
         
         // Send the email
         const { data, error } = await resend.emails.send({
-          from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>',
+          from: process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>',
           to: sellerProfile.email,
           subject: `🎉 New Order #${item.id.substring(0, 8)} - ${orderDetails.productName}`,
           html: sellerOrderNotificationTemplate(sellerProfile.full_name || 'Seller', orderDetails),
@@ -341,7 +341,7 @@ router.post('/message-notification', async (req, res) => {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { newMessageEmailTemplate, newMessageEmailText } = await import('../utils/emailTemplates.js');
 
-    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
 
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: fromAddress,
@@ -411,7 +411,7 @@ router.post('/pickup-mtaani-seller-dropoff', async (req, res) => {
 
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
     const APP_URL = process.env.APP_URL || 'https://unihive.shop';
 
     const orderUrl = orderItemIds?.[0]
@@ -568,7 +568,7 @@ router.post('/pickup-mtaani-buyer-confirmation', async (req, res) => {
 
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+    const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
     const APP_URL = process.env.APP_URL || 'https://unihive.shop';
 
     const orderUrl = `${APP_URL}/orders/${orderId}`;

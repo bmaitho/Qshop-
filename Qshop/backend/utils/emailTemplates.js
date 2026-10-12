@@ -605,7 +605,7 @@ export const sellerOrderNotificationTemplate = (sellerName, orderDetails) => {
     </div>
 
     <div class="footer">
-      <p>Questions? Contact us at support@unihive.store</p>
+      <p>Questions? DM us on Instagram <a href="https://www.instagram.com/unihive.entertainment/">@unihive.entertainment</a></p>
       <p>&copy; ${new Date().getFullYear()} UniHive. All rights reserved.</p>
     </div>
   </div>
@@ -654,7 +654,7 @@ View full order details: ${orderUrl}
 
 Order placed on ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
 
-Questions? Contact us at support@unihive.store
+Questions? DM us on Instagram @unihive.entertainment
 
 © ${new Date().getFullYear()} UniHive. All rights reserved.
   `;
