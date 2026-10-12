@@ -153,7 +153,7 @@ export default function MyServices({ userId }) {
     for (const file of imageFiles) {
       const compressed = await compressImage(file, { quality: 0.82, maxSizeKB: 800 });
       const path = `services/${userId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
-      const { error } = await supabase.storage.from('product-images').upload(path, compressed, { contentType: 'image/jpeg' });
+      const { error } = await supabase.storage.from('product-images').upload(path, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(path);
       uploaded.push(publicUrl);

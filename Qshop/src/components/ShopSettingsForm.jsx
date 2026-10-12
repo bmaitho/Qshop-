@@ -316,7 +316,7 @@ const ShopSettingsForm = ({ shopData, onUpdate, onCancel }) => {
 
       const { error: uploadError } = await supabase.storage
         .from('shop-banners')
-        .upload(filePath, compressed, { contentType: 'image/jpeg' });
+        .upload(filePath, compressed, { contentType: 'image/jpeg', cacheControl: '31536000' });
 
       if (uploadError) throw uploadError;
 

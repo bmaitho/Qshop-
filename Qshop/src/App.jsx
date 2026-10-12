@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { ToastContainer } from 'react-toastify';
@@ -8,44 +8,64 @@ import { WishlistProvider } from './context/WishlistContext';
 import { ThemeProvider } from './components/ThemeContext';
 import { TutorialProvider } from './components/RestartTutorialButton';
 import TutorialWrapper from './components/TutorialWrapper';
-import SellerProfile from './components/SellerProfile';
 
 // Components
 import AuthLayout from './components/auth/AuthLayout';
 import AuthCallback from './components/auth/AuthCallback';
-import StudentMarketplace from './components/StudentMarketplace';
-import ProductDetails from './components/ProductDetails';
-import Cart from './components/Cart';
-import Wishlist from './components/Wishlist';
-import Profile from './components/Profile';
-import CategoryPage from './components/CategoryPage';
 import NotFound from './components/NotFound';
 import Home from './components/Home';
-import MyShop from './components/MyShop';
-import Checkout from './components/Checkout';
-import OrderConfirmation from './components/OrderConfirmation';
-import OrderDetails from './components/OrderDetails';
-import WholesalerCodes from './components/admin/WholesalerCodes';
-import AdminServicesPanel from './components/AdminServicesPanel';
-import EventTicketImport from './components/admin/EventTicketImport';
-import ShopOwnerBroadcast from './components/admin/ShopOwnerBroadcast';
-import SubscriptionPage from './components/SubscriptionPage';
-import SellerOrderDetail from './components/SellerOrderDetail';
-import BuyerOrders from './components/BuyerOrders';
-import ServicePage from './components/ServicePage';
-import EventsPage from './components/EventsPage';
-import EventPage from './components/EventPage';
-import MyTickets from './components/MyTickets';
-import VerifyTicket from './components/VerifyTicket';
-import StaffScanner from './components/StaffScanner';
-import ClaimHiveTicket from './components/ClaimHiveTicket';
-import HiveEventPage from './components/hive/HiveEventPage';
-import HiveBooth from './components/hive/HiveBooth';
-import EuphoriaRecap from './components/hive/EuphoriaRecap';
-import PartnerDashboard from './components/hive/PartnerDashboard';
 import { HIVE_SLUG, isEuphoriaSlug } from './components/hive/hiveMedia';
-import HiveWallet from './components/HiveWallet';
-import VendorRedeem from './components/VendorRedeem';
+
+// Route pages load on demand so the first visit only downloads what it shows.
+// After a deploy, an open tab may ask for a chunk that no longer exists;
+// reload once to pick up the new build instead of showing a blank page.
+const lazyPage = (load) => lazy(() => load().catch((err) => {
+  const key = 'chunk-reload-at';
+  const last = Number(sessionStorage.getItem(key) || 0);
+  if (Date.now() - last > 10000) {
+    sessionStorage.setItem(key, String(Date.now()));
+    window.location.reload();
+    return new Promise(() => {});
+  }
+  throw err;
+}));
+const SellerProfile = lazyPage(() => import('./components/SellerProfile'));
+const StudentMarketplace = lazyPage(() => import('./components/StudentMarketplace'));
+const ProductDetails = lazyPage(() => import('./components/ProductDetails'));
+const Cart = lazyPage(() => import('./components/Cart'));
+const Wishlist = lazyPage(() => import('./components/Wishlist'));
+const Profile = lazyPage(() => import('./components/Profile'));
+const CategoryPage = lazyPage(() => import('./components/CategoryPage'));
+const MyShop = lazyPage(() => import('./components/MyShop'));
+const Checkout = lazyPage(() => import('./components/Checkout'));
+const OrderConfirmation = lazyPage(() => import('./components/OrderConfirmation'));
+const OrderDetails = lazyPage(() => import('./components/OrderDetails'));
+const WholesalerCodes = lazyPage(() => import('./components/admin/WholesalerCodes'));
+const AdminServicesPanel = lazyPage(() => import('./components/AdminServicesPanel'));
+const EventTicketImport = lazyPage(() => import('./components/admin/EventTicketImport'));
+const ShopOwnerBroadcast = lazyPage(() => import('./components/admin/ShopOwnerBroadcast'));
+const SubscriptionPage = lazyPage(() => import('./components/SubscriptionPage'));
+const SellerOrderDetail = lazyPage(() => import('./components/SellerOrderDetail'));
+const BuyerOrders = lazyPage(() => import('./components/BuyerOrders'));
+const ServicePage = lazyPage(() => import('./components/ServicePage'));
+const EventsPage = lazyPage(() => import('./components/EventsPage'));
+const EventPage = lazyPage(() => import('./components/EventPage'));
+const MyTickets = lazyPage(() => import('./components/MyTickets'));
+const VerifyTicket = lazyPage(() => import('./components/VerifyTicket'));
+const StaffScanner = lazyPage(() => import('./components/StaffScanner'));
+const ClaimHiveTicket = lazyPage(() => import('./components/ClaimHiveTicket'));
+const HiveEventPage = lazyPage(() => import('./components/hive/HiveEventPage'));
+const HiveBooth = lazyPage(() => import('./components/hive/HiveBooth'));
+const EuphoriaRecap = lazyPage(() => import('./components/hive/EuphoriaRecap'));
+const PartnerDashboard = lazyPage(() => import('./components/hive/PartnerDashboard'));
+const HiveWallet = lazyPage(() => import('./components/HiveWallet'));
+const VendorRedeem = lazyPage(() => import('./components/VendorRedeem'));
+
+const RouteFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent dark:border-primary" />
+  </div>
+);
 
 const EventRoute = ({ token }) => {
   const { slug } = useParams();
@@ -66,6 +86,7 @@ const AppRoutes = ({ token, setToken }) => {
   };
 
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       {/* Public routes — accessible without login (for users and Googlebot) */}
       <Route path="/" element={<Home token={token} />} />
@@ -112,6 +133,7 @@ const AppRoutes = ({ token, setToken }) => {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 };
 
