@@ -38,10 +38,15 @@ export default function HiveShare({ path, title, text, className = '', size = 's
   };
 
   const dim = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10';
+  const copyThenOpen = async (href) => {
+    try { await navigator.clipboard.writeText(url); } catch { /* clipboard blocked */ }
+    setCopied(true);
+    setTimeout(() => { setCopied(false); setOpen(false); }, 1400);
+    window.open(href, '_blank', 'noopener');
+  };
   const options = [
-    { name: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${message}\n${url}`)}` },
-    { name: 'X', href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}` },
-    { name: 'Telegram', href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(message)}` },
+    { name: 'Instagram', hint: 'link copied — paste in your story or DM', href: 'https://www.instagram.com/' },
+    { name: 'TikTok', hint: 'link copied — paste in bio, comment or DM', href: 'https://www.tiktok.com/' },
   ];
 
   return (
@@ -55,16 +60,17 @@ export default function HiveShare({ path, title, text, className = '', size = 's
         <Share2 className="w-3.5 h-3.5" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-48 rounded-2xl border border-white/10 bg-[#0e0809]/95 backdrop-blur-xl p-1.5 shadow-2xl hive-fade-in" onClick={(e) => e.stopPropagation()}>
-          {options.map((o) => (
-            <a key={o.name} href={o.href} target="_blank" rel="noreferrer" className="block px-3 py-2 rounded-xl text-sm text-white/85 hover:bg-white/5">
-              {o.name}
-            </a>
-          ))}
-          <button onClick={copy} className="w-full text-left px-3 py-2 rounded-xl text-sm text-white/85 hover:bg-white/5 flex items-center gap-2">
+        <div className="absolute right-0 top-full mt-2 z-50 w-60 rounded-2xl border border-white/10 bg-[#0e0809]/95 backdrop-blur-xl p-1.5 shadow-2xl hive-fade-in" onClick={(e) => e.stopPropagation()}>
+          <button onClick={copy} className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-white hover:bg-white/5 flex items-center gap-2">
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link2 className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy link · IG / TikTok'}
+            {copied ? 'Link copied' : 'Copy link'}
           </button>
+          {options.map((o) => (
+            <button key={o.name} onClick={() => copyThenOpen(o.href)} className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5">
+              <span className="block text-sm text-white/85">{o.name}</span>
+              <span className="block text-[11px] text-white/40">{o.hint}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>

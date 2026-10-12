@@ -75,10 +75,10 @@ export const PARTNERS = ['Little', 'Smirnoff', 'Red Bull', 'Charge24', "Harrison
 
 // Catalogue grouping — derived from product name so no schema change is needed.
 export const BRANDS = [
-  { key: 'smirnoff', label: 'Smirnoff', match: /smirnoff/i, cover: '/hive/products/smirnoff-ice-black.png', tint: 'from-[#5a0a10]' },
+  { key: 'smirnoff', label: 'Smirnoff', tag: 'Kuja tukate tukatiane.', match: /smirnoff/i, cover: '/hive/products/smirnoff-ice-black.png', tint: 'from-[#5a0a10]' },
   { key: 'redbull', label: 'Red Bull', match: /red bull/i, cover: '/hive/products/redbull.png', tint: 'from-[#0b1d4a]' },
   { key: 'harrisons', label: "Harrison's Pearl Gerar", match: /shawarma|hotdog|hot dog/i, cover: '/hive/products/shawarma.png', tint: 'from-[#4a2205]' },
-  { key: 'facepaint', label: 'Face & Body Paint', match: /paint/i, cover: '/hive/products/facepaint-luminous.webp', tint: 'from-[#0f3a12]' },
+  { key: 'facepaint', label: 'Face & Body Paint', by: 'Radiant By Tatty', tag: 'by Radiant By Tatty', match: /paint/i, cover: '/hive/products/facepaint-luminous.webp', tint: 'from-[#0f3a12]' },
   { key: 'merch', label: 'THE HIVE Merch', match: /hive cup|tee/i, cover: '/hive/products/hive-cup-fang.webp', tint: 'from-[#2a2a2a]' },
 ];
 

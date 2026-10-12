@@ -90,7 +90,7 @@ export default function PartnerDashboard() {
             <div className="flex items-center gap-4">
               {active.logo_url && <img src={active.logo_url} alt="" className="w-16 h-16 rounded-2xl object-cover bg-white/5" />}
               <div>
-                <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold">PARTNER · THE HIVE</p>
+                <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold">{active.role === 'admin' ? 'ADMIN VIEW · THE HIVE' : 'PARTNER · THE HIVE'}</p>
                 <h1 className="hive-display hive-gold-text text-3xl sm:text-4xl font-extrabold">{active.name}</h1>
               </div>
             </div>
