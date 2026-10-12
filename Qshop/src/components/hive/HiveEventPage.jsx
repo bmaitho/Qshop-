@@ -647,7 +647,11 @@ export default function HiveEventPage() {
             </section>
 
             <section>
-              <SectionTitle kicker="300 · 500 · 650 · by Radiant By Tatty" title="Face & Body Paint Lookbook" />
+              <SectionTitle kicker="300 · 500 · 650 · by Radiant By Tatty" title="Face & Body Paint Lookbook">
+                <a href="https://www.instagram.com/radiantby_tatty/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 mt-3 rounded-full border border-white/20 px-4 py-2 text-xs font-bold text-white/85 hover:border-white/50">
+                  @radiantby_tatty on Instagram ↗
+                </a>
+              </SectionTitle>
               <div className="px-3 sm:px-6 lg:px-10">
                 <Masonry
                   items={[

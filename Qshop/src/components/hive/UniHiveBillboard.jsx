@@ -11,7 +11,7 @@ const { b } = BOOTH;
 // Home billboard. At most three slides carry event media; the rest put
 // storefronts, products and partners first. Mosaic slides are filled with
 // live shop banners / product photos passed in by the page.
-const PARTNER_SHOTS = ['/hive/products/smirnoff-vodka.png', '/hive/products/redbull-webs.webp', '/hive/products/shawarma.png', '/hive/products/smirnoff-ice-black.png', '/hive/products/hive-cup-fang.webp', '/hive/products/smirnoff-ice-pineapple.png'];
+const PARTNER_SHOTS = ['/hive/products/smirnoff-vodka-webs.webp', '/hive/products/redbull-webs.webp', '/hive/products/shawarma.png', '/hive/products/smirnoff-ice-black.png', '/hive/products/hive-cup-fang.webp', '/hive/products/smirnoff-ice-pineapple.png'];
 
 export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
   const shopMosaic = banners.length >= 3 ? banners : products;

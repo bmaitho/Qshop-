@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { HIVE_SLUG, LITTLE } from './hiveMedia';
 
 const PARTNERS = [
-  { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
+  { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
   { name: 'Little', line: `Rides · code ${LITTLE.code}`, img: null, href: LITTLE.tickets },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
