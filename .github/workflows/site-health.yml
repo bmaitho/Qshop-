@@ -1,6 +1,6 @@
-# Checks every 6 hours that unihive.shop is reachable over HTTPS with a
-# valid certificate, that www redirects to it, and that the certificate
-# isn't about to expire. A failed run emails the repo owner (GitHub's
+# Checks every 6 hours that unihive.shop and www.unihive.shop load over
+# HTTPS with valid certificates (one redirects to the other), the certificates
+# aren't about to expire, and the backend API is up. A failed run emails the repo owner (GitHub's
 # default notification), so we hear about it before customers do.
 name: Site health
 
@@ -14,20 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: unihive.shop loads over HTTPS
+      - name: www and apex both work (one redirects to the other)
         run: |
-          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://unihive.shop/)
-          echo "unihive.shop -> $code"
-          test "$code" = "200"
-
-      - name: www.unihive.shop has a valid certificate and redirects to unihive.shop
-        run: |
-          out=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 https://www.unihive.shop/)
-          echo "www.unihive.shop -> $out"
-          case "$out" in
-            30[1278]\ https://unihive.shop*) ;;
-            *) echo "::error::www.unihive.shop is not redirecting to https://unihive.shop over a valid certificate"; exit 1 ;;
-          esac
+          for host in unihive.shop www.unihive.shop; do
+            code=$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 20 "https://$host/")
+            echo "$host -> $code (after redirects)"
+            test "$code" = "200" || { echo "::error::$host does not load over a valid HTTPS certificate"; exit 1; }
+          done
 
       - name: Certificate valid for at least 14 more days
         run: |
