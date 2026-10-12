@@ -108,21 +108,28 @@ function LittleCard() {
     setTimeout(() => setCopied(false), 1600);
   };
   return (
-    <div className="relative shrink-0 w-[72vw] sm:w-[320px] h-[190px] sm:h-[220px] rounded-[22px] overflow-hidden border border-[#f5b700]/25 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#141008,#07050a)]">
+    <a
+      href={LITTLE.tickets}
+      target="_blank"
+      rel="noreferrer"
+      onClick={copy}
+      className="group relative block shrink-0 w-[72vw] sm:w-[320px] h-[190px] sm:h-[220px] rounded-[22px] overflow-hidden border border-[#f5b700]/25 hover:border-[#f5b700]/60 transition-colors bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#141008,#07050a)]"
+    >
       <div className="relative h-full flex flex-col justify-between p-4">
         <div>
           <span className="text-[10px] uppercase tracking-[0.25em] text-[#f5b700]">Ride with Little</span>
           <p className="text-white/55 text-xs mt-1 leading-snug">KSh 200 off rides to and from the Hive</p>
         </div>
         <div>
-          <button onClick={copy} className="group/c inline-flex items-center gap-2 rounded-xl border border-dashed border-[#f5b700]/60 px-3 py-1.5">
+          <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#f5b700]/60 px-3 py-1.5">
             <span className="hive-display text-white text-xl font-bold tracking-[0.12em]">{LITTLE.code}</span>
             {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#f5b700]" />}
-          </button>
+          </span>
           <p className="hive-accent text-white/70 text-base mt-2 leading-tight">Usidrive ukiwa maji.</p>
+          <p className="text-[11px] text-[#f5b700]/80 mt-1 group-hover:text-[#f5b700]">{copied ? 'Code copied · opening Little ↗' : 'Tap to copy code & open Little ↗'}</p>
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
