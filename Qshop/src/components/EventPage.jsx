@@ -1368,10 +1368,12 @@ const EventPage = ({ token }) => {
             {view === 'shop' && (
               <button
                 onClick={handleShare}
-                className="w-full py-3 sm:py-3.5 rounded-xl font-medium text-sm border border-border
-                  text-foreground/70 hover:bg-muted/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                aria-label="Share"
+                title="Share"
+                className="mx-auto w-11 h-11 rounded-full border border-border text-foreground/70 hover:bg-muted/50
+                  active:scale-[0.95] transition-all flex items-center justify-center"
               >
-                <Share2 className="w-4 h-4" /> Share Event
+                <Share2 className="w-4 h-4" aria-hidden="true" />
               </button>
             )}
           </div>

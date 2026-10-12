@@ -71,9 +71,8 @@ function ProfileHeader({ profile, isSeller, hub, copied, onEdit, onCopyStore }) 
             <Settings className="w-4 h-4 mr-1.5" aria-hidden="true" /> Edit profile
           </Button>
           {isSeller && (
-            <Button variant="outline" onClick={onCopyStore} className="rounded-full" aria-live="polite">
-              {copied ? <Check className="w-4 h-4 mr-1.5" aria-hidden="true" /> : <Link2 className="w-4 h-4 mr-1.5" aria-hidden="true" />}
-              {copied ? 'Link copied' : 'Copy store link'}
+            <Button variant="outline" size="icon" onClick={onCopyStore} className="rounded-full" aria-label={copied ? 'Store link copied' : 'Copy store link'} title="Copy store link">
+              {copied ? <Check className="w-4 h-4" aria-hidden="true" /> : <Link2 className="w-4 h-4" aria-hidden="true" />}
             </Button>
           )}
         </div>
