@@ -69,7 +69,7 @@ function ProductPin({ product, onAdd, added, highlight }) {
       </div>
       <div className="px-1 pt-2">
         <p className="text-[13px] sm:text-sm font-semibold text-white/90 leading-snug">{product.name}</p>
-        {brand && <p className="text-[11px] text-white/40 mt-0.5">{brand.label}</p>}
+        {brand && <p className="text-[11px] text-white/40 mt-0.5">{brand.by || brand.label}</p>}
       </div>
     </div>
   );
@@ -95,7 +95,7 @@ function EditorialPin({ item }) {
 const EDITORIAL = [
   { at: 3, key: 'ed-master', type: 'image', src: POSTERS.master, caption: 'Everyone will be there', brand: 'all' },
   { at: 6, key: 'ed-countdown', type: 'video', ...VIDEOS.countdown, caption: 'The countdown is on', brand: 'all' },
-  { at: 10, key: 'ed-faceA', type: 'image', src: POSTERS.faceBoardA, caption: 'Face & body paint at the Dome', brand: 'facepaint' },
+  { at: 10, key: 'ed-faceA', type: 'image', src: POSTERS.faceBoardA, caption: 'Face & body paint by Radiant By Tatty', brand: 'facepaint' },
   { at: 15, key: 'ed-afterdark', type: 'image', src: POSTERS.afterDark, caption: 'After dark, everything changes', brand: 'all' },
   { at: 20, key: 'ed-faceB', type: 'image', src: POSTERS.faceBoardB, caption: 'Go luminous — UV designs', brand: 'facepaint' },
 ];
@@ -149,6 +149,7 @@ function BrandShelf({ products, active, onPick }) {
           <div className="relative h-full flex flex-col justify-end p-4">
             <span className="text-[10px] uppercase tracking-[0.25em] text-white/50">Shop</span>
             <span className="hive-display text-white text-lg sm:text-xl font-bold leading-tight">{b.label}</span>
+            {b.tag ? <span className="hive-accent text-white/75 text-sm mt-0.5">{b.tag}</span> : null}
             <span className="text-xs text-white/50 mt-1">{counts[b.key]} item{counts[b.key] === 1 ? '' : 's'}</span>
           </div>
         </button>
@@ -560,7 +561,7 @@ export default function HiveEventPage() {
             </section>
 
             <section>
-              <SectionTitle kicker="300 · 500 · 650 at the paint station" title="Face & Body Paint Lookbook" />
+              <SectionTitle kicker="300 · 500 · 650 · by Radiant By Tatty" title="Face & Body Paint Lookbook" />
               <div className="px-3 sm:px-6 lg:px-10">
                 <Masonry
                   items={[

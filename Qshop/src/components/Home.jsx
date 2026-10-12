@@ -97,7 +97,7 @@ const Home = () => {
       </UniHiveBillboard>
 
       {/* Featured Shops Section */}
-      <div className="max-w-7xl mx-auto px-4 py-16 border-b border-gray-200 dark:border-gray-800">
+      <div className="max-w-[1500px] mx-auto px-3 sm:px-6 lg:px-10 py-16 border-b border-gray-200 dark:border-gray-800">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-serif font-bold mb-4 text-[#113b1e] dark:text-white">
             Featured Shops

@@ -12,6 +12,7 @@ import pickupMtaaniRoutes from './routes/pickupMtaani.js';
 import eventTicketImportRoutes from './routes/eventTicketImport.js';
 import walletRoutes from './routes/wallet.js';
 import packagePurchaseRoutes from './routes/packagePurchase.js';
+import adminBroadcastRoutes from './routes/adminBroadcast.js';
 
 dotenv.config();
 
@@ -147,6 +148,7 @@ app.use('/api/pickup-mtaani', generalLimiter, pickupMtaaniRoutes);
 app.use('/api/admin/events', sensitiveLimiter, eventTicketImportRoutes);
 app.use('/api/wallet', sensitiveLimiter, walletRoutes);
 app.use('/api/packages', sensitiveLimiter, packagePurchaseRoutes);
+app.use('/api/admin/broadcast', sensitiveLimiter, adminBroadcastRoutes);
 
 // Preflight
 app.options('/api/mpesa/*', cors(corsOptions));

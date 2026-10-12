@@ -85,7 +85,7 @@ function HiveFooter() {
     <footer className="mt-10 border-t border-white/[0.06] px-4 sm:px-8 lg:px-12 py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 text-sm">
       <div>
         <p className="hive-display hive-gold-text font-bold">THE HIVE</p>
-        <p className="text-white/40 text-xs mt-1">Kuja tukate tukatiane.</p>
+        <p className="hive-accent text-white/55 text-sm mt-1">Who are you when the lights go red?</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-white/60">
         {Object.values(SOCIALS).map((s) => (

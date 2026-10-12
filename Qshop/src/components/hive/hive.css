@@ -165,3 +165,6 @@
 .hive-scanline { top: 10%; animation: hive-scan 2.4s ease-in-out infinite; box-shadow: 0 0 12px 2px rgba(255, 46, 59, 0.6); }
 @keyframes hive-scan { 0%, 100% { top: 10%; } 50% { top: 88%; } }
 @media (prefers-reduced-motion: reduce) { .hive-scanline { animation: none; } }
+
+/* Keep faces in frame when a video is cropped to fill its box. */
+video { object-position: 50% 26%; }
