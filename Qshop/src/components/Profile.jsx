@@ -459,13 +459,13 @@ const Profile = () => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="campus_location">Campus Location</Label>
+                <Label htmlFor="campus_location">{isSeller ? 'Shop location' : 'Location'}</Label>
                 <Input
                   id="campus_location"
                   name="campus_location"
                   value={editForm.campus_location}
                   onChange={handleInputChange}
-                  placeholder="e.g., Main Campus, East Campus"
+                  placeholder="e.g., Westlands, Nairobi"
                 />
               </div>
               

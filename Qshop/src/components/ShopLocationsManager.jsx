@@ -293,7 +293,7 @@ const ShopLocationsManager = () => {
               </div>
 
               <div>
-                <Label>Campus Location</Label>
+                <Label>Shop location</Label>
                 <select
                   value={formData.campus_id || ''}
                   onChange={(e) => setFormData(prev => ({

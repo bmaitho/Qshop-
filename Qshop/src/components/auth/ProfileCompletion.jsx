@@ -81,7 +81,7 @@ const ProfileCompletion = ({ token }) => {
     }
     
     if (!formData.campusLocation.trim()) {
-      newErrors.campusLocation = "Campus location is required";
+      newErrors.campusLocation = "Location is required";
     }
     
     setErrors(newErrors);
@@ -236,14 +236,14 @@ const ProfileCompletion = ({ token }) => {
 
               <div className="space-y-2">
                 <label htmlFor="campusLocation" className="block text-sm font-medium text-foreground/80 dark:text-foreground/80">
-                  Campus Location
+                  Location
                 </label>
                 <Input
                   id="campusLocation"
                   name="campusLocation"
                   value={formData.campusLocation}
                   onChange={handleChange}
-                  placeholder="Enter your campus location"
+                  placeholder="e.g., Westlands, Nairobi"
                   className="bg-background dark:bg-muted text-foreground dark:text-foreground border-input dark:border-input focus:border-ring dark:focus:border-ring"
                   aria-invalid={errors.campusLocation ? "true" : "false"}
                 />
