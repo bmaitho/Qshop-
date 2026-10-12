@@ -165,7 +165,7 @@ function BrandShelf({ products, active, onPick }) {
   );
 }
 
-function Hero({ onShop, onPacks }) {
+function Hero({ onShop }) {
   const c = useCountdown();
   return (
     <section className="relative h-[78svh] min-h-[540px] max-h-[900px] w-full overflow-hidden">
@@ -215,9 +215,6 @@ function Hero({ onShop, onPacks }) {
         <div className="flex flex-wrap gap-3 mt-7">
           <button onClick={onShop} className="hive-btn-blood rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
             Shop the night <ArrowRight className="w-4 h-4" />
-          </button>
-          <button onClick={onPacks} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur hover:bg-white/10">
-            Experience packs
           </button>
           <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
             Tickets on Little <ArrowRight className="w-4 h-4" />
@@ -314,13 +311,14 @@ function SectionTitle({ kicker, title, children }) {
 export default function HiveEventPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'shop';
+  const [packages, setPackages] = useState([]);
+  const tabs = useMemo(() => TABS.filter((t) => t.key !== 'packs' || packages.length > 0), [packages.length]);
+  const tab = tabs.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'shop';
   const contentRef = useRef(null);
   const firstRender = useRef(true);
 
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState(null);
-  const [packages, setPackages] = useState([]);
   const [products, setProducts] = useState([]);
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(null);
@@ -449,8 +447,8 @@ export default function HiveEventPage() {
     const dy = e.changedTouches[0].clientY - touch.current.y;
     touch.current = null;
     if (Math.abs(dx) < 80 || Math.abs(dy) > 50) return;
-    const i = TABS.findIndex((t) => t.key === tab);
-    const next = TABS[i + (dx < 0 ? 1 : -1)];
+    const i = tabs.findIndex((t) => t.key === tab);
+    const next = tabs[i + (dx < 0 ? 1 : -1)];
     if (next) setTab(next.key);
   };
 
@@ -471,12 +469,12 @@ export default function HiveEventPage() {
 
   return (
     <HiveShell>
-      <Hero onShop={() => setTab('shop')} onPacks={() => setTab('packs')} />
+      <Hero onShop={() => setTab('shop')} />
 
       <div ref={contentRef} className="scroll-mt-[108px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="flex justify-center px-3 pt-8 pb-6">
           <div className="inline-flex p-1 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur">
-            {TABS.map((t) => (
+            {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
