@@ -67,7 +67,7 @@ export const PERKS = [
   { title: 'Ride with Little', body: 'Code UNIHIVE26 — KSh 200 off Little Cab rides to and from the Dome.' },
   { title: 'VIP treatment', body: 'Complimentary drink and private seating for VIP.' },
   { title: 'Dress to impress', body: 'Come in costume — and disturb.' },
-  { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM till late.' },
+  { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM until 4AM.' },
   { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — let Little get you home.' },
 ];
 

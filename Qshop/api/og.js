@@ -118,7 +118,7 @@ async function resolve(db, path, query) {
           return {
             url,
             title: `${it.name} — ${ksh(it.price)} at THE HIVE`,
-            description: 'Pre-order on UniHive, skip the queue, redeem at the stand. Fri 30 Oct · Sarakasi Dome.',
+            description: 'Pre-order on UniHive, skip the queue, redeem at the stand. Fri 30 Oct, 6PM–4AM · Sarakasi Dome.',
             image: it.image_url ? framed(it.image_url, 'hive') : CARD('hive'),
           };
         }
@@ -129,7 +129,7 @@ async function resolve(db, path, query) {
           return {
             url,
             title: `${pk.name} — ${ksh(pk.base_price)} · THE HIVE: NO GOING HOME`,
-            description: `${pk.description || 'Entry, drinks and wallet credit in one pass.'} Fri 30 Oct · Sarakasi Dome · 18+`,
+            description: `${pk.description || 'A UniHive special, sold exclusively on Little Events.'} Fri 30 Oct, 6PM–4AM · Sarakasi Dome · 18+`,
             image: framed(packPoster(pk.name), 'hive'),
           };
         }
@@ -137,7 +137,7 @@ async function resolve(db, path, query) {
       return {
         url,
         title: 'THE HIVE: NO GOING HOME — Fri 30 Oct, Sarakasi Dome',
-        description: 'Halloween at the Dome. Ticket packs, drinks & bites, and the full lineup — all on UniHive. 18+.',
+        description: 'Halloween at the Dome · Fri 30 Oct, 6PM–4AM. Drinks, bites and the full lineup on UniHive. Tickets on Little Events. 18+.',
         image: CARD('hive'),
       };
     }
@@ -149,7 +149,7 @@ async function resolve(db, path, query) {
       return {
         url,
         title: `${ev.title}${ev.venue ? ` — ${ev.venue}` : ''}`,
-        description: (ev.description || 'Tickets on UniHive.').slice(0, 180),
+        description: (ev.description || 'Tickets on Little Events.').slice(0, 180),
         image: ev.image_url ? framed(ev.image_url) : CARD('buzz'),
       };
     }
