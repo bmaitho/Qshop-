@@ -4,6 +4,7 @@ import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft } from 'lucide-react'
 import { supabase } from './SupabaseClient';
 import Navbar from './Navbar';
 import MobileNavbar from './MobileNavbar';
+import { HIVE_SLUG } from './hive/hiveMedia';
 
 const EventsPage = ({ token }) => {
   const navigate = useNavigate();
@@ -134,7 +135,9 @@ const EventsPage = ({ token }) => {
                     </div>
 
                     <div className="flex items-center gap-3 mt-2">
-                      {event.price === 0 ? (
+                      {event.slug === HIVE_SLUG ? (
+                        <span className="text-xs font-semibold text-foreground/70">Tickets on Little</span>
+                      ) : event.price === 0 ? (
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           FREE
                         </span>
