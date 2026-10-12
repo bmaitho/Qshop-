@@ -47,6 +47,14 @@ export const initiateSTKPush = async (req, res) => {
       });
     }
 
+    // Paid event tickets are sold only on Little Events — never charge for one here.
+    if (orderId) {
+      const { data: ticketRow } = await supabase.from('event_tickets').select('id').eq('id', orderId).maybeSingle();
+      if (ticketRow) {
+        return res.status(410).json({ error: 'Tickets are sold exclusively on Little Events.' });
+      }
+    }
+
     // Generate new access token - Must be fresh for each request
     console.log('Generating fresh access token for STK Push...');
     const accessToken = await generateAccessToken();

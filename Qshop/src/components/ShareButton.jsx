@@ -1,6 +1,6 @@
 // src/components/ShareButton.jsx
 import React, { useState } from 'react';
-import { Share2, Copy, Check, MessageCircle, Send } from 'lucide-react';
+import { Share2, Copy, Check, Instagram } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,18 +34,10 @@ const ShareButton = ({ url, title, description, variant = "outline", size = "sm"
     }
   };
 
-  const handleWhatsApp = () => {
-    const text = `${shareTitle}${shareDesc ? '\n' + shareDesc : ''}\n${shareUrl}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  const handleTelegram = () => {
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`, '_blank');
-  };
-
-  const handleTwitter = () => {
-    const text = `${shareTitle} ${shareUrl}`;
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+  // We're on Instagram and TikTok only: copy the link, then open the app.
+  const copyThenOpen = async (href) => {
+    await handleCopyLink();
+    window.open(href, '_blank', 'noopener');
   };
 
   const handleNativeShare = async () => {
@@ -73,9 +65,10 @@ const ShareButton = ({ url, title, description, variant = "outline", size = "sm"
         size={size}
         className={className}
         onClick={handleNativeShare}
+        aria-label="Share"
+        title="Share"
       >
-        <Share2 className="w-4 h-4 mr-1" />
-        Share
+        <Share2 className="w-4 h-4" aria-hidden="true" />
       </Button>
     );
   }
@@ -84,26 +77,11 @@ const ShareButton = ({ url, title, description, variant = "outline", size = "sm"
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} className={className}>
-          <Share2 className="w-4 h-4 mr-1" />
-          Share
+        <Button variant={variant} size={size} className={className} aria-label="Share" title="Share">
+          <Share2 className="w-4 h-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onClick={handleWhatsApp} className="cursor-pointer">
-          <MessageCircle className="w-4 h-4 mr-2 text-green-600" />
-          WhatsApp
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleTelegram} className="cursor-pointer">
-          <Send className="w-4 h-4 mr-2 text-blue-500" />
-          Telegram
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleTwitter} className="cursor-pointer">
-          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-          </svg>
-          X (Twitter)
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
           {copied ? (
             <>
@@ -116,6 +94,16 @@ const ShareButton = ({ url, title, description, variant = "outline", size = "sm"
               Copy Link
             </>
           )}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => copyThenOpen('https://www.instagram.com/')} className="cursor-pointer">
+          <Instagram className="w-4 h-4 mr-2" />
+          Instagram
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => copyThenOpen('https://www.tiktok.com/')} className="cursor-pointer">
+          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.77.12V9.77a5.69 5.69 0 1 0 4.91 5.63V9.01a7.35 7.35 0 0 0 4.3 1.38V7.3a4.28 4.28 0 0 1-3.24-1.48z" />
+          </svg>
+          TikTok
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

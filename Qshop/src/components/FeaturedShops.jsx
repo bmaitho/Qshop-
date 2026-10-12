@@ -109,7 +109,7 @@ const FeaturedShops = () => {
   }
 
   return (
-    <Masonry maxCols={4} items={shops.map((s) => ({ ...s, key: s.id }))} render={(shop) => <ShopCard shop={shop} />} />
+    <Masonry phoneCols={1} maxCols={4} items={shops.map((s) => ({ ...s, key: s.id }))} render={(shop) => <ShopCard shop={shop} />} />
   );
 };
 
@@ -196,9 +196,6 @@ const ShopCard = ({ shop }) => {
                 className="w-full h-full object-cover"
                 onError={(e) => { e.target.onerror = null; e.target.src = '/api/placeholder/96/80'; }}
               />
-              <span className="absolute left-1.5 bottom-1.5 rounded-full bg-black/60 backdrop-blur px-2 py-0.5 text-[10px] font-semibold text-white">
-                KES {Number(item.price || 0).toLocaleString()}
-              </span>
             </div>
           ))}
         </div>

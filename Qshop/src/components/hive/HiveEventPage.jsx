@@ -133,6 +133,62 @@ function LittleCard() {
   );
 }
 
+const POLL = 'redbull-vodka';
+
+// Audience poll: there's no Red Bull vodka (yet). Signed-in votes, one each.
+function RedBullPollCard() {
+  const navigate = useNavigate();
+  const [counts, setCounts] = useState(null);
+  const [mine, setMine] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const load = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id || null;
+    setUserId(uid);
+    const [{ data: c }, mineRes] = await Promise.all([
+      supabase.rpc('hive_poll_counts', { p_poll: POLL }),
+      uid ? supabase.from('hive_poll_votes').select('choice').eq('poll', POLL).eq('user_id', uid).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const row = Array.isArray(c) ? c[0] : c;
+    setCounts({ yes: Number(row?.yes || 0), no: Number(row?.no || 0) });
+    setMine(mineRes.data?.choice || null);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const vote = async (choice) => {
+    if (!userId) { navigate('/auth'); return; }
+    setMine(choice);
+    await supabase.from('hive_poll_votes').upsert({ poll: POLL, user_id: userId, choice });
+    load();
+  };
+  const total = counts ? counts.yes + counts.no : 0;
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+  return (
+    <div className="relative shrink-0 w-[72vw] sm:w-[320px] h-[190px] sm:h-[220px] rounded-[22px] overflow-hidden border border-[#ff2e3b]/30 bg-black">
+      <img src="/hive/products/redbull-vodka-webs.webp" alt="" className="absolute right-0 top-0 h-full w-1/2 object-contain object-right opacity-70" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/85 to-transparent" />
+      <div className="relative h-full flex flex-col justify-between p-4">
+        <div>
+          <span className="text-[10px] uppercase tracking-[0.25em] text-[#ff2e3b]">Hive poll</span>
+          <p className="hive-display text-white text-lg leading-tight mt-1 max-w-[70%]">Y’all want Red Bull to release a vodka?</p>
+        </div>
+        <div className="space-y-1.5 max-w-[78%]">
+          {[['yes', 'Drop it'], ['no', 'Nah']].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => vote(k)}
+              aria-pressed={mine === k}
+              className={`relative w-full overflow-hidden rounded-full border px-3 py-1.5 text-left text-xs font-bold ${mine === k ? 'border-[#ff2e3b] text-white' : 'border-white/25 text-white/80 hover:border-white/50'}`}
+            >
+              {mine && <span className="absolute inset-y-0 left-0 bg-[#ff2e3b]/35" style={{ width: `${pct(counts?.[k] || 0)}%` }} aria-hidden="true" />}
+              <span className="relative flex justify-between">{label}{mine && <span>{pct(counts?.[k] || 0)}%</span>}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BrandShelf({ products, active, onPick }) {
   const counts = useMemo(() => {
     const c = {};
@@ -142,6 +198,7 @@ function BrandShelf({ products, active, onPick }) {
   return (
     <div data-noswipe className="hive-snap-x hive-noscroll flex gap-3 overflow-x-auto px-3 sm:px-6 lg:px-10 scroll-px-3 sm:scroll-px-6 lg:scroll-px-10 pb-1">
       <LittleCard />
+      <RedBullPollCard />
       {BRANDS.filter((b) => counts[b.key]).map((b) => (
         <button
           key={b.key}
