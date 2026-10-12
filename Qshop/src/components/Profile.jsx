@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { User, MapPin, MessageCircle, Package, Heart, ShoppingBag, Plus, Settings, History, Save, X } from 'lucide-react';
+import {
+  MapPin, MessageCircle, Package, Heart, ShoppingBag, ShoppingCart, Plus, Settings, Save, X, Store, Ticket, Wallet,
+  QrCode, ScanLine, BarChart3, ChevronRight, CalendarDays, Link2, Check, Shield, Mail, Truck,
+} from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,94 @@ import Navbar from './Navbar';
 import { Link } from 'react-router-dom';
 import OrderHistory from './OrderHistory';
 import MessageCenter from './MessageCenter';
+import { HIVE_SLUG } from './hive/hiveMedia';
+
+
+const TERMS_URL = 'https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs';
+const PRIVACY_URL = 'https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo';
+
+const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || 'U';
+
+function ProfileHeader({ profile, isSeller, hub, copied, onEdit, onCopyStore }) {
+  const roles = [
+    'Buyer',
+    isSeller && 'Seller',
+    hub.tickets > 0 && 'Attending',
+    hub.partners.length > 0 && 'Partner',
+    profile.is_staff && 'Staff',
+    profile.is_admin && 'Admin',
+  ].filter(Boolean);
+  return (
+    <section aria-label="Your profile" className="relative mb-8 overflow-hidden rounded-3xl border border-border bg-card">
+      <div className="h-24 sm:h-32 bg-[radial-gradient(120%_140%_at_0%_0%,rgba(231,198,95,0.35),transparent_55%),linear-gradient(120deg,#0D2B20,#113b1e_55%,#1a1205)]" aria-hidden="true" />
+      <div className="px-5 sm:px-8 pb-6 -mt-12 sm:-mt-14 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover ring-4 ring-card" />
+        ) : (
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-4 ring-card bg-[#E7C65F] text-[#0D2B20] flex items-center justify-center font-serif text-3xl font-bold" aria-hidden="true">
+            {initials(profile.full_name)}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold leading-tight truncate">{profile.full_name}</h1>
+          <ul className="flex flex-wrap gap-1.5 mt-2" aria-label="Account roles">
+            {roles.map((r) => (
+              <li key={r} className="rounded-full border border-[#E7C65F]/50 bg-[#E7C65F]/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-foreground/80">{r}</li>
+            ))}
+          </ul>
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-foreground/60">
+            {profile.campus_location && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" aria-hidden="true" />{profile.campus_location}</span>}
+            <span>Member since {new Date(profile.created_at).toLocaleDateString('en-KE', { month: 'short', year: 'numeric' })}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onEdit} className="rounded-full">
+            <Settings className="w-4 h-4 mr-1.5" aria-hidden="true" /> Edit profile
+          </Button>
+          {isSeller && (
+            <Button variant="outline" onClick={onCopyStore} className="rounded-full" aria-live="polite">
+              {copied ? <Check className="w-4 h-4 mr-1.5" aria-hidden="true" /> : <Link2 className="w-4 h-4 mr-1.5" aria-hidden="true" />}
+              {copied ? 'Link copied' : 'Copy store link'}
+            </Button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HubGroup({ title, icon: Icon, children }) {
+  return (
+    <div className="rounded-3xl border border-border bg-card p-4 sm:p-5">
+      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-foreground/60 mb-3">
+        <Icon className="w-4 h-4 text-[#a8841f] dark:text-[#E7C65F]" aria-hidden="true" /> {title}
+      </h3>
+      <div className="grid grid-cols-2 gap-2.5">{children}</div>
+    </div>
+  );
+}
+
+function HubTile({ to, icon: Icon, label, hint, count, countLabel, alert }) {
+  const showCount = typeof count === 'number';
+  return (
+    <Link
+      to={to}
+      aria-label={showCount ? `${label}: ${count}${countLabel ? ` ${countLabel}` : ''}` : label}
+      className={`group relative flex flex-col justify-between min-h-[96px] rounded-2xl border p-3.5 transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary ${alert ? 'border-orange-500/60' : 'border-border'}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <Icon className="w-5 h-5 text-[#a8841f] dark:text-[#E7C65F] shrink-0" aria-hidden="true" />
+        {showCount && (
+          <span className={`text-xl font-bold tabular-nums leading-none ${alert ? 'text-orange-500' : ''}`} aria-hidden="true">{count}</span>
+        )}
+      </div>
+      <div className="mt-3">
+        <p className="text-sm font-semibold leading-tight flex items-center gap-1">{label}<ChevronRight className="w-3.5 h-3.5 opacity-40 group-hover:opacity-80 transition-opacity" aria-hidden="true" /></p>
+        {hint && <p className="text-[11px] text-foreground/55 mt-0.5 leading-snug line-clamp-2">{hint}</p>}
+      </div>
+    </Link>
+  );
+}
 
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
@@ -36,6 +126,8 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hub, setHub] = useState({ orders: 0, toFulfil: 0, tickets: 0, drinks: 0, partners: [] });
+  const [copied, setCopied] = useState(false);
   const location = useLocation();
 
   // Edit form state
@@ -61,7 +153,7 @@ const Profile = () => {
     const queryParams = new URLSearchParams(location.search);
     const tabParam = queryParams.get('tab');
     
-    if (tabParam && ['messages', 'wishlist', 'orders', 'listings', 'history'].includes(tabParam)) {
+    if (tabParam && ['messages', 'wishlist', 'orders', 'listings'].includes(tabParam)) {
       setActiveTab(tabParam);
     } else if (profileData) {
       // Set default tab based on seller status
@@ -130,17 +222,24 @@ const Profile = () => {
         }
       }
 
-      // Get the counts regardless of whether the profile exists
-      const [listingsCount, wishlistCount] = await Promise.all([
-        supabase
-          .from('products')
-          .select('id', { count: 'exact' })
-          .eq('seller_id', user.id),
-        supabase
-          .from('wishlist')
-          .select('id', { count: 'exact' })
-          .eq('user_id', user.id)
+      // Counts for every part of the account: buying, selling, events, vending.
+      const head = { count: 'exact', head: true };
+      const [listingsCount, wishlistCount, ordersCount, fulfilCount, ticketsCount, drinksCount, memberships] = await Promise.all([
+        supabase.from('products').select('id', head).eq('seller_id', user.id),
+        supabase.from('wishlist').select('id', head).eq('user_id', user.id),
+        supabase.from('orders').select('id', head).eq('user_id', user.id).eq('payment_status', 'completed'),
+        supabase.from('order_items').select('id', head).eq('seller_id', user.id).in('status', ['pending', 'processing']),
+        supabase.from('event_tickets').select('id', head).or(`user_id.eq.${user.id},hive_claimed_by.eq.${user.id}`).eq('payment_status', 'completed'),
+        supabase.from('event_entitlements').select('id', head).eq('user_id', user.id).eq('status', 'unused'),
+        supabase.from('event_partner_members').select('event_partners(name)').eq('user_id', user.id),
       ]);
+      setHub({
+        orders: ordersCount.count || 0,
+        toFulfil: fulfilCount.count || 0,
+        tickets: ticketsCount.count || 0,
+        drinks: drinksCount.count || 0,
+        partners: (memberships.data || []).map((m) => m.event_partners?.name).filter(Boolean),
+      });
 
       setProfileData({
         ...profileInfo,
@@ -334,7 +433,7 @@ const Profile = () => {
   return (
     <>
       <Navbar />
-      <div className={`max-w-6xl mx-auto px-4 py-8 ${isMobile ? 'mt-12 mb-16' : ''}`}>
+      <main className={`max-w-6xl mx-auto px-4 pt-20 md:pt-24 pb-10 ${isMobile ? 'mb-16' : ''}`}>
         <ToastContainer />
         
         {/* Edit Profile Dialog */}
@@ -402,92 +501,75 @@ const Profile = () => {
           </DialogContent>
         </Dialog>
 
-        <Card className="mb-6">
-          <CardContent className={`p-4 md:p-6 ${isMobile ? 'flex flex-col items-center' : ''}`}>
-            <div className={`${isMobile ? 'flex flex-col items-center text-center' : 'flex items-start gap-6'}`}>
-              <div className={`${isMobile ? 'w-24 h-24 mb-4' : 'w-32 h-32'} rounded-full bg-gray-200 flex items-center justify-center`}>
-                <User className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} text-gray-400`} />
-              </div>
-              <div className={`${isMobile ? 'text-center' : 'flex-1'}`}>
-                <h1 className={`${isMobile ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{profileData.full_name}</h1>
-                <div className={`${isMobile ? 'justify-center' : ''} flex items-center gap-2 text-gray-600 mb-2`}>
-                  <MapPin className="w-4 h-4" />
-                  <span>{profileData.campus_location}</span>
+        <ProfileHeader
+          profile={profileData}
+          isSeller={isSeller}
+          hub={hub}
+          copied={copied}
+          onEdit={handleEditProfile}
+          onCopyStore={async () => {
+            try { await navigator.clipboard.writeText(`${window.location.origin}/seller/${profileData.id}`); } catch { /* blocked */ }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1600);
+          }}
+        />
+
+        <section aria-labelledby="hub-title" className="mb-10">
+          <h2 id="hub-title" className="sr-only">Your UniHive</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <HubGroup title="Buying" icon={ShoppingBag}>
+              <HubTile to="/my-orders" icon={Truck} label="My orders" hint="Track, confirm delivery" count={hub.orders} />
+              <HubTile to="/profile?tab=wishlist" icon={Heart} label="Wishlist" count={profileData.wishlist} />
+              <HubTile to="/cart" icon={ShoppingCart} label="Cart" hint="Checkout with M-Pesa" />
+              <HubTile to="/profile?tab=messages" icon={MessageCircle} label="Messages" hint="Chat with sellers" />
+            </HubGroup>
+
+            {isSeller ? (
+              <HubGroup title="Selling" icon={Store}>
+                <HubTile to="/myshop?tab=orders" icon={Package} label="Orders to fulfil" hint="Pending & processing" count={hub.toFulfil} alert={hub.toFulfil > 0} />
+                <HubTile to="/myshop" icon={Store} label="My shop" hint="Banner, products, earnings" />
+                <HubTile to="/myshop?new=1" icon={Plus} label="New listing" hint="Add a product" />
+                <HubTile to={`/seller/${profileData.id}`} icon={BarChart3} label="Public storefront" hint="See what buyers see" count={profileData.listings} />
+              </HubGroup>
+            ) : (
+              <HubGroup title="Selling" icon={Store}>
+                <div className="col-span-2 rounded-2xl border border-dashed border-border p-5">
+                  <p className="font-semibold">Open your shop</p>
+                  <p className="text-sm text-foreground/60 mt-1">Sell to the Hive in minutes. You’re paid once the buyer confirms delivery.</p>
+                  <Link to="/myshop" className="inline-flex items-center gap-1 mt-4 rounded-full bg-[#E7C65F] text-[#0D2B20] px-5 py-2.5 text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2">
+                    Start selling <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                  </Link>
                 </div>
-                
-                {profileData.phone && (
-                  <div className="text-sm text-gray-600 mb-4">
-                    📞 {profileData.phone}
-                  </div>
+              </HubGroup>
+            )}
+
+            <HubGroup title="Events" icon={CalendarDays}>
+              <HubTile to="/my-tickets" icon={Ticket} label="My tickets" hint="Entry QR codes" count={hub.tickets} />
+              <HubTile to={`/events/${HIVE_SLUG}/wallet`} icon={Wallet} label="HIVE wallet" hint="Credit, drinks & QR codes" count={hub.drinks} countLabel="to collect" />
+              <HubTile to={`/claim/${HIVE_SLUG}`} icon={QrCode} label="Claim a Little ticket" hint="Unlock wallet & perks" />
+              <HubTile to="/services" icon={CalendarDays} label="The Buzz" hint="Events & experiences" />
+            </HubGroup>
+
+            {(hub.partners.length > 0 || profileData.is_staff || profileData.is_admin) && (
+              <HubGroup title="Vending & staff" icon={ScanLine}>
+                {(hub.partners.length > 0 || profileData.is_admin) && (
+                  <HubTile to="/partner" icon={BarChart3} label="Partner dashboard" hint={profileData.is_admin ? 'All brands · live sales' : hub.partners.join(' · ')} />
                 )}
-                
-                {/* Different profile stats based on seller status */}
-                <div className={`${isMobile ? 'justify-center' : ''} flex gap-6 mb-4`}>
-                  {isSeller && (
-                    <div className="text-center">
-                      <div className="font-bold">{profileData.listings}</div>
-                      <div className="text-sm text-gray-600">Listings</div>
-                    </div>
-                  )}
-                  <div className="text-center">
-                    <div className="font-bold">{profileData.wishlist}</div>
-                    <div className="text-sm text-gray-600">Wishlist</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-bold text-orange-600">
-                      {isSeller ? "Seller" : "Buyer"}
-                    </div>
-                    <div className="text-sm text-gray-600">Account Type</div>
-                  </div>
-                </div>
-                
-                <div className="text-sm text-gray-600 mb-4">
-                  Member since {new Date(profileData.created_at).toLocaleDateString()}
-                </div>
-                
-                {/* Quick actions */}
-                <div className="mt-4 space-x-2">
-                  <Button
-                    variant="outline"
-                    size={isMobile ? "sm" : "default"}
-                    onClick={handleEditProfile}
-                  >
-                    <Settings className="w-4 h-4 mr-1" /> Edit Profile
-                  </Button>
+                <HubTile to="/staff/scanner" icon={ScanLine} label="Scanner" hint="Entry & redemptions" />
+                <HubTile to="/staff/redeem" icon={QrCode} label="Redeem" hint="Serve drinks & items" />
+              </HubGroup>
+            )}
 
-                  {!isSeller && (
-                    <Button variant="outline" size={isMobile ? "sm" : "default"}>
-                      Become a Seller
-                    </Button>
-                  )}
-                </div>
-
-                {/* Legal Documents Links */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex flex-wrap gap-3 justify-center text-sm">
-                    <a
-                      href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 hover:underline font-medium"
-                    >
-                      Terms & Conditions
-                    </a>
-                    <span className="text-gray-400">•</span>
-                    <a
-                      href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 hover:underline font-medium"
-                    >
-                      Privacy Policy
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {profileData.is_admin && (
+              <HubGroup title="Admin" icon={Shield}>
+                <HubTile to="/admin/broadcast" icon={Mail} label="Email shop owners" />
+                <HubTile to="/admin/events/import-tickets" icon={Ticket} label="Import Little tickets" />
+                <HubTile to="/admin/services" icon={Settings} label="Services" />
+                <HubTile to="/admin/codes" icon={Shield} label="Wholesaler codes" />
+              </HubGroup>
+            )}
+          </div>
+        </section>
 
         {/* Different tabs based on seller status */}
         <Tabs 
@@ -495,16 +577,11 @@ const Profile = () => {
           onValueChange={setActiveTab}
           className="mb-6"
         >
-          <TabsList className={`grid w-full max-w-md mx-auto ${isSeller ? 'grid-cols-4' : 'grid-cols-4'}`}>
-            {isSeller ? (
+          <TabsList className={`grid w-full max-w-md mx-auto ${isSeller ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            {isSeller && (
               <TabsTrigger value="listings">
-                <Package className="w-4 h-4 mr-2" />
+                <Package className="w-4 h-4 mr-2" aria-hidden="true" />
                 <span className={isMobile ? "text-xs" : ""}>Listings</span>
-              </TabsTrigger>
-            ) : (
-              <TabsTrigger value="history">
-                <History className="w-4 h-4 mr-2" />
-                <span className={isMobile ? "text-xs" : ""}>History</span>
               </TabsTrigger>
             )}
             <TabsTrigger value="wishlist">
@@ -526,7 +603,7 @@ const Profile = () => {
             <TabsContent value="listings" className="mt-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">My Listings</h2>
-                <Link to="/add-product">
+                <Link to="/myshop?new=1">
                   <Button size={isMobile ? "sm" : "default"}>
                     <Plus className="w-4 h-4 mr-2" />
                     New Listing
@@ -543,7 +620,7 @@ const Profile = () => {
                   <div className="col-span-full text-center py-8 text-gray-500">
                     <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                     <p className="mb-4">You haven't posted any listings yet</p>
-                    <Link to="/add-product">
+                    <Link to="/myshop?new=1">
                       <Button variant="outline" size={isMobile ? "sm" : "default"}>
                         <Plus className="w-4 h-4 mr-2" />
                         Create Your First Listing
@@ -591,19 +668,14 @@ const Profile = () => {
             <OrderHistory />
           </TabsContent>
           
-          {/* History Tab (Buyers only) */}
-          {!isSeller && (
-            <TabsContent value="history" className="mt-6">
-              <h2 className="text-xl font-semibold mb-4">Browsing History</h2>
-              
-              <div className="col-span-full text-center py-8 text-gray-500">
-                <History className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                <p>Your browsing history will appear here</p>
-              </div>
-            </TabsContent>
-          )}
         </Tabs>
-      </div>
+
+        <footer className="mt-12 pt-6 border-t border-border flex flex-wrap gap-3 justify-center text-sm">
+          <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-foreground/60 hover:text-foreground hover:underline">Terms & Conditions</a>
+          <span className="text-foreground/30" aria-hidden="true">•</span>
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-foreground/60 hover:text-foreground hover:underline">Privacy Policy</a>
+        </footer>
+      </main>
     </>
   );
 };
