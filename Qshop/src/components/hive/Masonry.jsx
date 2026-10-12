@@ -20,8 +20,9 @@ export function useColumnCount() {
   return n;
 }
 
-export default function Masonry({ items, render, maxCols = 6 }) {
-  const n = Math.min(useColumnCount(), maxCols);
+export default function Masonry({ items, render, maxCols = 6, phoneCols = 2 }) {
+  const count = useColumnCount();
+  const n = Math.min(count === 2 ? phoneCols : count, maxCols);
   const cols = useMemo(() => {
     const c = Array.from({ length: n }, () => []);
     items.forEach((it, i) => c[i % n].push(it));
