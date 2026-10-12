@@ -250,3 +250,16 @@
 .light [class*="bg-card"], :root:not(.dark) [class*="bg-card"] {
   box-shadow: 0 1px 3px rgba(13, 43, 32, 0.06), 0 1px 2px rgba(13, 43, 32, 0.04);
 }
+/* Glassy, see-through mobile nav pills (top bar + bottom bar). */
+.glass-pill {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+}
+.dark .glass-pill {
+  background: rgba(10, 14, 12, 0.32);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 28px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}

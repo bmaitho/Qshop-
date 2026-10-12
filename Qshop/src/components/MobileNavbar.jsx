@@ -54,7 +54,7 @@ const MobileNavbar = () => {
       {/* Top header - Logout moved to settings */}
       <div className="fixed top-1 left-0 w-full z-50 px-3 mobile-navbar-top">
         <div className="flex items-center justify-between">
-          <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full px-3 py-1 shadow-lg border border-border/50 dark:border-border/50">
+          <div className="glass-pill rounded-full px-3 py-1">
             <a href="/home" className="text-base font-bold unihive-logo" style={goldTextStyle}>
               UniHive
             </a>
@@ -63,7 +63,7 @@ const MobileNavbar = () => {
           <div className="flex space-x-2">
             <button 
               onClick={toggleTheme}
-              className="theme-toggle bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50"
+              className="theme-toggle glass-pill rounded-full p-1.5"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {theme === 'dark' ? (
@@ -73,7 +73,7 @@ const MobileNavbar = () => {
               )}
             </button>
             
-            <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
+            <div className="glass-pill rounded-full p-1.5">
               <a href="/cart" className="relative cart-icon" aria-label="Cart">
                 <ShoppingCart size={18} style={goldIconStyle} />
                 {cartItemCount > 0 && (
@@ -84,13 +84,13 @@ const MobileNavbar = () => {
               </a>
             </div>
             
-            <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
+            <div className="glass-pill rounded-full p-1.5">
               <a href="/services" className="relative tickets-icon" aria-label="The Buzz">
                 <Ticket size={18} style={goldIconStyle} />
               </a>
             </div>
 
-            <div className="bg-card/80 dark:bg-card/80 backdrop-blur-md rounded-full p-1.5 shadow-lg border border-border/50 dark:border-border/50">
+            <div className="glass-pill rounded-full p-1.5">
               <a href="/profile?tab=messages" className="relative message-icon" aria-label="Messages">
                 <MessageCircle size={18} style={goldIconStyle} />
                 {unreadMessages > 0 && (
@@ -106,7 +106,7 @@ const MobileNavbar = () => {
       
       {/* Bottom navigation */}
       <div className="fixed bottom-2 left-0 w-full z-[100] p-2 mobile-navbar">
-        <div className="mobile-navbar-content bg-card/95 dark:bg-card/95 backdrop-blur-md rounded-full shadow-lg border border-border/50 dark:border-border/50 flex justify-around items-center py-1.5">
+        <div className="mobile-navbar-content glass-pill rounded-full flex justify-around items-center py-1.5">
           <NavItem 
             href="/home"
             icon={Home}
