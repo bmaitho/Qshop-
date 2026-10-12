@@ -16,7 +16,7 @@ import {
 
 const TABS = [
   { key: 'shop', label: 'Bar & Bites' },
-  { key: 'packs', label: 'Experience Packs' },
+  { key: 'packs', label: 'UniHive Specials' },
   { key: 'night', label: 'The Night' },
 ];
 const POLL_MS = 5000;
@@ -217,7 +217,7 @@ function Hero({ onShop, onPacks }) {
             Shop the night <ArrowRight className="w-4 h-4" />
           </button>
           <button onClick={onPacks} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur hover:bg-white/10">
-            Experience packs
+            UniHive specials
           </button>
           <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
             Tickets on Little <ArrowRight className="w-4 h-4" />
@@ -238,20 +238,32 @@ function Hero({ onShop, onPacks }) {
   );
 }
 
+// Waves and urgency come from the package's sale window.
+const packBadge = (pkg) => {
+  const now = Date.now();
+  const start = pkg.sale_start ? new Date(pkg.sale_start).getTime() : null;
+  const end = pkg.sale_end ? new Date(pkg.sale_end).getTime() : null;
+  const wave = pkg.slug?.match(/wave-(\d+)/)?.[1];
+  const label = wave ? `WAVE ${wave}` : 'UNIHIVE SPECIAL';
+  if (start && start > now) return { badge: `${label} · COMING SOON`, soon: true };
+  if (end && end - now < 7 * 86400000) return { badge: `${label} · ENDING SOON`, soon: false };
+  return { badge: label, soon: false };
+};
+
 function PackCard({ pkg, highlight }) {
-  // Entry is sold only on Little, so packs show the partner-brand layer only.
-  const items = (pkg.event_package_items || []).filter((i) => i.item_type !== 'ticket_tier').map(describeItem).filter(Boolean);
+  const items = (pkg.event_package_items || []).map(describeItem).filter(Boolean);
+  const { badge, soon } = packBadge(pkg);
   return (
     <div id={`pack-${pkg.id}`} className={`group relative scroll-mt-40 rounded-[22px] transition-transform duration-500 hover:-translate-y-1 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
       <div className="relative aspect-[4/3] rounded-t-[22px] overflow-hidden bg-black">
         <img src={packagePoster(pkg)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-        <span className="absolute top-3 left-3 rounded-full border border-[#e7c65f]/60 bg-black/50 backdrop-blur text-[#e7c65f] text-[10px] font-extrabold tracking-widest px-2.5 py-1">EXPERIMENTAL</span>
+        <span className={`absolute top-3 left-3 rounded-full text-[10px] font-extrabold tracking-widest px-2.5 py-1 ${soon ? 'border border-white/40 bg-black/55 backdrop-blur text-white/85' : 'bg-[#e7c65f] text-[#1a0f05]'}`}>{badge}</span>
         <HiveShare
           className="absolute top-3 right-3"
           path={`/events/${HIVE_SLUG}?tab=packs&pack=${pkg.id}`}
-          title={`${pkg.name} · THE HIVE experience`}
-          text="An experimental HIVE experience with our partner brands."
+          title={`${pkg.name} — ${ksh(pkg.base_price)} · THE HIVE`}
+          text="UniHive special — get it on Little Events before it's gone."
         />
         <div className="absolute inset-x-0 bottom-0 p-5">
           <h3 className="hive-display text-white text-2xl font-bold leading-tight">{pkg.name}</h3>
@@ -274,8 +286,15 @@ function PackCard({ pkg, highlight }) {
           <p className="hive-accent text-white/70">Details dropping soon.</p>
         )}
         <div className="flex items-center justify-between gap-3 mt-5">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-white/55 leading-relaxed">Concept · 30 Oct<br />Entry on Little</p>
-          <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold whitespace-nowrap">Tickets on Little ↗</a>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/55">Only on Little · 30 Oct</p>
+            <p className="hive-display text-[#ffe9a8] text-2xl font-bold">{ksh(pkg.base_price)}</p>
+          </div>
+          {soon ? (
+            <span className="rounded-full border border-white/30 px-5 py-2.5 text-sm font-bold text-white/70 whitespace-nowrap">Coming soon</span>
+          ) : (
+            <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold whitespace-nowrap">Buy on Little ↗</a>
+          )}
         </div>
       </div>
     </div>
@@ -525,12 +544,12 @@ export default function HiveEventPage() {
 
         {tab === 'packs' && (
           <div className="hive-fade-in pb-16">
-            <SectionTitle kicker="Experimental · concepts with our partner brands, not for sale" title="Experience Packs" />
+            <SectionTitle kicker="Crazy packs · exclusively on Little Events" title="UniHive Specials" />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-8 px-3 sm:px-6 lg:px-10">
-              {packages.map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} />)}
+              {packages.filter((p) => !p.sale_end || new Date(p.sale_end) > new Date()).map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} />)}
             </div>
             <div className="text-center mt-10 px-6">
-              <p className="text-white/70 text-sm">Official tickets are sold exclusively on Little Events.</p>
+              <p className="text-white/70 text-sm">Every ticket and special is sold exclusively on Little Events.</p>
               <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex mt-4 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Get tickets on Little ↗</a>
               <p className="text-white/40 text-xs mt-4">
                 Already have your Little ticket?{' '}
