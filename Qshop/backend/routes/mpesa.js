@@ -268,7 +268,7 @@ router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
 
       // 2.10: Send email
       console.log('\n📧 Step 10: Sending email...');
-      const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+      const fromAddress = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
       const subject = `📦 Your Order #${orderItem.order_id.substring(0, 8)} Has Been Delivered!`;
 
       console.log(`   FROM: ${fromAddress}`);

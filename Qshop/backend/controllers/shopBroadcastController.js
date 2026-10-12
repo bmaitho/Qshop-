@@ -5,7 +5,7 @@ import { Resend } from 'resend';
 import { supabase } from '../supabaseClient.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const SENDER = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.store>';
+const SENDER = process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
 const SITE = 'https://unihive.shop';
 
 const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
