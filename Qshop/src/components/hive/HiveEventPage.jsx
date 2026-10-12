@@ -165,7 +165,7 @@ function BrandShelf({ products, active, onPick }) {
   );
 }
 
-function Hero({ onShop }) {
+function Hero({ onShop, onPacks }) {
   const c = useCountdown();
   return (
     <section className="relative h-[78svh] min-h-[540px] max-h-[900px] w-full overflow-hidden">
@@ -216,6 +216,9 @@ function Hero({ onShop }) {
           <button onClick={onShop} className="hive-btn-blood rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
             Shop the night <ArrowRight className="w-4 h-4" />
           </button>
+          <button onClick={onPacks} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur hover:bg-white/10">
+            Experience packs
+          </button>
           <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
             Tickets on Little <ArrowRight className="w-4 h-4" />
           </a>
@@ -235,21 +238,20 @@ function Hero({ onShop }) {
   );
 }
 
-function PackCard({ pkg, onPick, highlight }) {
-  const items = (pkg.event_package_items || []).map(describeItem).filter(Boolean);
+function PackCard({ pkg, highlight }) {
+  // Entry is sold only on Little, so packs show the partner-brand layer only.
+  const items = (pkg.event_package_items || []).filter((i) => i.item_type !== 'ticket_tier').map(describeItem).filter(Boolean);
   return (
     <div id={`pack-${pkg.id}`} className={`group relative scroll-mt-40 rounded-[22px] transition-transform duration-500 hover:-translate-y-1 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
       <div className="relative aspect-[4/3] rounded-t-[22px] overflow-hidden bg-black">
         <img src={packagePoster(pkg)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-        {pkg.featured && (
-          <span className="absolute top-3 left-3 rounded-full bg-[#e7c65f] text-[#1a0f05] text-[10px] font-extrabold tracking-widest px-2.5 py-1">FEATURED</span>
-        )}
+        <span className="absolute top-3 left-3 rounded-full border border-[#e7c65f]/60 bg-black/50 backdrop-blur text-[#e7c65f] text-[10px] font-extrabold tracking-widest px-2.5 py-1">EXPERIMENTAL</span>
         <HiveShare
           className="absolute top-3 right-3"
           path={`/events/${HIVE_SLUG}?tab=packs&pack=${pkg.id}`}
-          title={`${pkg.name} — ${ksh(pkg.base_price)} · THE HIVE`}
-          text="Let's go together? Entry, drinks & credit in one pass."
+          title={`${pkg.name} · THE HIVE experience`}
+          text="An experimental HIVE experience with our partner brands."
         />
         <div className="absolute inset-x-0 bottom-0 p-5">
           <h3 className="hive-display text-white text-2xl font-bold leading-tight">{pkg.name}</h3>
@@ -272,11 +274,8 @@ function PackCard({ pkg, onPick, highlight }) {
           <p className="hive-accent text-white/70">Details dropping soon.</p>
         )}
         <div className="flex items-center justify-between gap-3 mt-5">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/55">Admit · 30 Oct</p>
-            <p className="hive-display text-[#ffe9a8] text-2xl font-bold">{ksh(pkg.base_price)}</p>
-          </div>
-          <button onClick={() => onPick(pkg)} className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold">Get this pack</button>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-white/55 leading-relaxed">Concept · 30 Oct<br />Entry on Little</p>
+          <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold whitespace-nowrap">Tickets on Little ↗</a>
         </div>
       </div>
     </div>
@@ -469,7 +468,7 @@ export default function HiveEventPage() {
 
   return (
     <HiveShell>
-      <Hero onShop={() => setTab('shop')} />
+      <Hero onShop={() => setTab('shop')} onPacks={() => setTab('packs')} />
 
       <div ref={contentRef} className="scroll-mt-[108px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="flex justify-center px-3 pt-8 pb-6">
@@ -526,9 +525,9 @@ export default function HiveEventPage() {
 
         {tab === 'packs' && (
           <div className="hive-fade-in pb-16">
-            <SectionTitle kicker="Partner-brand experiences · drinks, perks & wallet credit" title="Experience Packs" />
+            <SectionTitle kicker="Experimental · concepts with our partner brands, not for sale" title="Experience Packs" />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-8 px-3 sm:px-6 lg:px-10">
-              {packages.map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} onPick={(x) => { setPkg(x); setPkgStep('idle'); setPkgError(''); }} />)}
+              {packages.map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} />)}
             </div>
             <div className="text-center mt-10 px-6">
               <p className="text-white/70 text-sm">Official tickets are sold exclusively on Little Events.</p>
