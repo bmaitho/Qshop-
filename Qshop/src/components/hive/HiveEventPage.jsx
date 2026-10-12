@@ -16,7 +16,7 @@ import {
 
 const TABS = [
   { key: 'shop', label: 'Bar & Bites' },
-  { key: 'packs', label: 'Ticket Packs' },
+  { key: 'packs', label: 'Experience Packs' },
   { key: 'night', label: 'The Night' },
 ];
 const POLL_MS = 5000;
@@ -210,8 +210,11 @@ function Hero({ onShop, onPacks }) {
             Shop the night <ArrowRight className="w-4 h-4" />
           </button>
           <button onClick={onPacks} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur hover:bg-white/10">
-            Ticket packs
+            Experience packs
           </button>
+          <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
+            Tickets on Little <ArrowRight className="w-4 h-4" />
+          </a>
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -518,16 +521,19 @@ export default function HiveEventPage() {
 
         {tab === 'packs' && (
           <div className="hive-fade-in pb-16">
-            <SectionTitle kicker="Entry + drinks + wallet credit, one payment" title="Ticket Packs" />
+            <SectionTitle kicker="Partner-brand experiences · drinks, perks & wallet credit" title="Experience Packs" />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-8 px-3 sm:px-6 lg:px-10">
               {packages.map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} onPick={(x) => { setPkg(x); setPkgStep('idle'); setPkgError(''); }} />)}
             </div>
-            <p className="text-center text-white/40 text-xs mt-8 px-6">
-              Bought a ticket on Little Events?{' '}
-              <button onClick={() => navigate(`/claim/${HIVE_SLUG}`)} className="text-[#e7c65f] underline underline-offset-4">Claim it here</button>{' '}
-              to unlock your wallet and perks. Prefer Little?{' '}
-              <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="text-[#e7c65f] underline underline-offset-4">Buy on Little Events ↗</a>
-            </p>
+            <div className="text-center mt-10 px-6">
+              <p className="text-white/70 text-sm">Official tickets are sold exclusively on Little Events.</p>
+              <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex mt-4 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Get tickets on Little ↗</a>
+              <p className="text-white/40 text-xs mt-4">
+                Already have your Little ticket?{' '}
+                <button onClick={() => navigate(`/claim/${HIVE_SLUG}`)} className="text-[#e7c65f] underline underline-offset-4">Claim it here</button>{' '}
+                to unlock your wallet and perks.
+              </p>
+            </div>
           </div>
         )}
 

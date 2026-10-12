@@ -33,7 +33,7 @@ export function useCountdown(target = HIVE_STARTS_AT) {
 
 const LINKS = [
   { label: 'Bar & Bites', to: `/events/${HIVE_SLUG}?tab=shop`, match: (p, q) => p === `/events/${HIVE_SLUG}` && (!q || q === 'shop') },
-  { label: 'Ticket Packs', to: `/events/${HIVE_SLUG}?tab=packs`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'packs' },
+  { label: 'Experience Packs', to: `/events/${HIVE_SLUG}?tab=packs`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'packs' },
   { label: 'The Night', to: `/events/${HIVE_SLUG}?tab=night`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'night' },
   { label: 'Photo Booth', to: '/hive/booth', match: (p) => p === '/hive/booth' },
   { label: 'Wallet', to: `/events/${HIVE_SLUG}/wallet`, match: (p) => p.endsWith('/wallet') },
