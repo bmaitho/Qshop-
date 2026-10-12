@@ -1,0 +1,40 @@
+# Checks every 6 hours that unihive.shop is reachable over HTTPS with a
+# valid certificate, that www redirects to it, and that the certificate
+# isn't about to expire. A failed run emails the repo owner (GitHub's
+# default notification), so we hear about it before customers do.
+name: Site health
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: unihive.shop loads over HTTPS
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 https://unihive.shop/)
+          echo "unihive.shop -> $code"
+          test "$code" = "200"
+
+      - name: www.unihive.shop has a valid certificate and redirects to unihive.shop
+        run: |
+          out=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 https://www.unihive.shop/)
+          echo "www.unihive.shop -> $out"
+          case "$out" in
+            30[1278]\ https://unihive.shop*) ;;
+            *) echo "::error::www.unihive.shop is not redirecting to https://unihive.shop over a valid certificate"; exit 1 ;;
+          esac
+
+      - name: Certificate valid for at least 14 more days
+        run: |
+          for host in unihive.shop www.unihive.shop; do
+            end=$(echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+            days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+            echo "$host certificate expires $end ($days days)"
+            if [ "$days" -lt 14 ]; then echo "::error::$host certificate expires in $days days"; exit 1; fi
+          done
+
