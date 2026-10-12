@@ -253,7 +253,7 @@ function Hero({ onShop, onPacks }) {
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-5 text-sm text-white/75">
           <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-[#e7c65f]" /> Fri 30 Oct</span>
-          <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-[#e7c65f]" /> 6PM till late</span>
+          <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-[#e7c65f]" /> 6PM – 4AM</span>
           <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-[#e7c65f]" /> Sarakasi Dome, Nairobi</span>
           <span className="rounded-full border border-[#ff2e3b]/60 text-[#ff2e3b] px-2.5 py-0.5 text-xs font-bold">18+</span>
         </div>
