@@ -64,9 +64,12 @@ const MyShop = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [productsLoading, setProductsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [activeTab, setActiveTab] = useState('listings');
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return ['listings', 'services', 'orders'].includes(t) ? t : 'listings';
+  });
   const [productToEdit, setProductToEdit] = useState(null);
-  const [showAddProduct, setShowAddProduct] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(() => new URLSearchParams(window.location.search).get('new') === '1');
   const [showShopSettings, setShowShopSettings] = useState(false);
   const [showEditProduct, setShowEditProduct] = useState(false);
   const [categoriesMap, setCategoriesMap] = useState({});
