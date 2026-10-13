@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CalendarDays, Clock, MapPin, ShieldCheck, Ticket, ArrowRight, Loader2, CheckCircle2,
-  Mountain, Waves, Sailboat, Trees, Target, Wind, Footprints, Sparkles,
+  Mountain, Waves, Sailboat, Trees, Target, Wind, Footprints, Sparkles, Mic,
 } from 'lucide-react';
 import HiveShell, { useCountdown } from '../hive/HiveShell';
 import HiveShare from '../hive/HiveShare';
@@ -141,10 +141,12 @@ export default function ExperiencePage({ x }) {
           {x.activities.map((a, i) => {
             const Icon = ICONS[a.icon] || Sparkles;
             return (
-              <div key={a.key} className={`relative overflow-hidden rounded-[22px] border border-white/10 p-5 min-h-[150px] sm:min-h-[180px] flex flex-col justify-end ${i % 3 === 0 ? 'bg-[linear-gradient(160deg,#163a26,#07120c)]' : i % 3 === 1 ? 'bg-[linear-gradient(160deg,#1e4a4c,#06100f)]' : 'bg-[linear-gradient(160deg,#3a1408,#0b0503)]'}`}>
-                <Icon className="absolute top-4 right-4 w-8 h-8 text-[#e7c65f]/80" aria-hidden="true" />
-                <h3 className="hive-display text-white text-lg sm:text-xl font-bold">{a.title}</h3>
-                <p className="text-white/60 text-sm">{a.line}</p>
+              <div key={a.key} className={`group relative overflow-hidden rounded-[22px] border border-white/10 p-5 min-h-[170px] sm:min-h-[220px] flex flex-col justify-end ${i % 3 === 0 ? 'bg-[linear-gradient(160deg,#163a26,#07120c)]' : i % 3 === 1 ? 'bg-[linear-gradient(160deg,#1e4a4c,#06100f)]' : 'bg-[linear-gradient(160deg,#3a1408,#0b0503)]'}`}>
+                {a.img && <img src={a.img} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+                <Icon className="absolute top-4 right-4 w-7 h-7 text-[#e7c65f] drop-shadow" aria-hidden="true" />
+                <h3 className="relative hive-display text-white text-lg sm:text-xl font-bold">{a.title}</h3>
+                <p className="relative text-white/75 text-sm">{a.line}</p>
               </div>
             );
           })}
@@ -164,12 +166,13 @@ export default function ExperiencePage({ x }) {
             </a>
           </div>
           {x.media.venue.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mt-6 lg:mt-0">
+            <div className={`grid gap-2 mt-6 lg:mt-0 ${x.media.venue.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {x.media.venue.slice(0, 4).map((m) => (
                 m.video
-                  ? <video key={m.video} src={m.video} poster={m.src} muted loop autoPlay playsInline className="rounded-2xl w-full aspect-[4/5] object-cover" />
-                  : <img key={m.src} src={m.src} alt="Paradise Lost" loading="lazy" className="rounded-2xl w-full aspect-[4/5] object-cover" />
+                  ? <video key={m.video} src={m.video} poster={m.src} muted loop autoPlay playsInline preload="metadata" className={`rounded-2xl w-full object-cover ${x.media.venue.length > 1 ? 'aspect-[4/5]' : 'aspect-video'}`} />
+                  : <img key={m.src} src={m.src} alt="Paradise Lost" loading="lazy" className={`rounded-2xl w-full object-cover ${x.media.venue.length > 1 ? 'aspect-[4/5]' : 'aspect-video'}`} />
               ))}
+              {x.media.credit && <p className="text-white/40 text-[11px]">{x.media.credit}</p>}
             </div>
           )}
         </div>
@@ -183,7 +186,13 @@ export default function ExperiencePage({ x }) {
           <div className="flex gap-3 overflow-x-auto hive-noscroll mt-5 -mx-4 px-4 sm:mx-0 sm:px-0">
             {people.map((p) => (
               <div key={p.name} className="relative shrink-0 w-[62vw] sm:w-[260px] aspect-[4/5] rounded-[22px] overflow-hidden bg-[linear-gradient(160deg,#1a1205,#07050a)]">
-                {p.img && <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />}
+                {p.img ? (
+                  <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(90%_70%_at_50%_30%,rgba(231,198,95,0.25),transparent_70%)]" aria-hidden="true">
+                    <Mic className="w-16 h-16 text-[#e7c65f]/80" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                 <div className="absolute bottom-0 p-4">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-[#e7c65f]">{p.role}</p>
@@ -241,6 +250,12 @@ export default function ExperiencePage({ x }) {
             <p className="text-white/45 text-sm mt-1">{x.next.note}</p>
             <span className="inline-flex items-center gap-2 mt-5 text-sm font-bold text-[#e7c65f]">Enter THE HIVE <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
           </Link>
+          {x.next.offer && x.next.ticketsUrl && (
+            <a href={x.next.ticketsUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between gap-4 rounded-[22px] border border-[#f5b700]/30 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.18),transparent_60%),#0b0805] px-5 py-4">
+              <span className="text-white/85 text-sm sm:text-base">{x.next.offer}</span>
+              <span className="shrink-0 rounded-full bg-[#f5b700] text-[#1a0f05] px-4 py-2 text-xs sm:text-sm font-extrabold">Tickets on Little ↗</span>
+            </a>
+          )}
         </section>
       )}
 

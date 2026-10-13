@@ -24,7 +24,7 @@ export const EXPERIENCES = {
     startsAt: '2026-10-16T12:00:00+03:00',
     endsAt: '2026-10-16T20:00:00+03:00',
     venue: 'Paradise Lost, Kiambu',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Paradise+Lost+Kiambu+Kenya',
+    mapUrl: 'https://maps.app.goo.gl/xtjWCf4zFcdqQ1k97',
     age: '18+',
     admission: 'Free entry · RSVP on UniHive',
     tagline: 'Good vibes. New connections. Big energy.',
@@ -40,32 +40,34 @@ export const EXPERIENCES = {
     // placeholder art so nothing is presented as real event footage.
     media: {
       poster: { src: `${PP}/poster.webp`, temporary: true },
-      hero: { src: `${PP}/poster.webp`, video: null, temporary: true },
+      // Real Paradise Lost footage (credit: @paradiselost_ke).
+      hero: { src: `${PP}/hero.webp`, video: `${PP}/hero.mp4` },
       // Landscape art for cards and the Home billboard.
-      wide: { src: '/og/pre-party.jpg', temporary: true },
+      wide: { src: `${PP}/wide.webp`, video: `${PP}/wide.mp4` },
       // Text-free backdrop for places that put their own words on top.
-      backdrop: { src: `${PP}/scene-wide.webp`, temporary: true },
-      venue: [],
+      backdrop: { src: `${PP}/wide.webp`, video: `${PP}/wide.mp4` },
+      venue: [{ src: `${PP}/wide.webp`, video: `${PP}/wide.mp4` }],
+      credit: 'Footage: @paradiselost_ke',
       og: '/og/pre-party.jpg',
     },
 
     // Shown as "things to explore". Inclusions/fees are confirmed by the team.
     activitiesNote: 'Some activities may carry a venue fee — we’ll confirm what’s included before the day.',
     activities: [
-      { key: 'caves', title: 'Caves', line: 'Step into the caves', icon: 'Mountain' },
-      { key: 'waterfall', title: 'Waterfall', line: 'Find the falls', icon: 'Waves' },
-      { key: 'lake', title: 'The lake', line: 'Slow down by the water', icon: 'Sailboat' },
-      { key: 'trails', title: 'Nature trails', line: 'Get lost (on purpose)', icon: 'Trees' },
-      { key: 'archery', title: 'Archery', line: 'Find your aim', icon: 'Target' },
-      { key: 'zipline', title: 'Ziplining', line: 'Fly over the valley', icon: 'Wind' },
+      { key: 'caves', img: `${PP}/act-caves.webp`, title: 'Caves', line: 'Step into the caves', icon: 'Mountain' },
+      { key: 'waterfall', img: `${PP}/act-waterfall.webp`, title: 'Waterfall', line: 'Find the falls', icon: 'Waves' },
+      { key: 'lake', img: `${PP}/act-lake.webp`, title: 'The lake', line: 'Slow down by the water', icon: 'Sailboat' },
+      { key: 'trails', img: `${PP}/act-trails.webp`, title: 'Nature trails', line: 'Get lost (on purpose)', icon: 'Trees' },
+      { key: 'archery', img: `${PP}/act-archery.webp`, title: 'Archery', line: 'Find your aim', icon: 'Target' },
+      { key: 'zipline', img: `${PP}/act-zipline.webp`, title: 'Ziplining', line: 'Fly over the valley', icon: 'Wind' },
     ],
 
-    // Only `confirmed: true` people are named on the page.
+    // Only `confirmed: true` people are named on the page (all confirmed 13 Oct).
     people: [
-      { name: 'Siwaka Podcast', role: 'Creators', img: null, confirmed: false },
-      { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp', confirmed: false },
-      { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp', confirmed: false },
-      { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: false },
+      { name: 'Siwaka Podcast', role: 'Creators', img: null, confirmed: true },
+      { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp', confirmed: true },
+      { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp', confirmed: true },
+      { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: true },
     ],
 
     // Brands on the published poster. Little is a UniHive partner but is not
@@ -91,6 +93,8 @@ export const EXPERIENCES = {
       title: 'THE HIVE: NO GOING HOME',
       line: 'Fri 30 Oct · 6PM – 4AM · Sarakasi Dome, Nairobi · 18+',
       note: 'Paid tickets on Little Events.',
+      offer: 'Get your ticket on Little — ticket holders get complimentary Red Bull & Smirnoff.',
+      ticketsUrl: 'https://apps.little.africa/events/the-hive-no-going-home-',
     },
 
     // Where it shows up across UniHive.
