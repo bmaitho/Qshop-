@@ -141,6 +141,16 @@ async function resolve(db, path, query) {
         image: CARD('hive'),
       };
     }
+    // Experiences (activations) with their own key art. Keep in sync with
+    // src/components/experience/experiences.js.
+    const EXPERIENCE_PREVIEWS = {
+      'the-hive-pre-party': {
+        title: 'THE HIVE PRE-PARTY — Fri 16 Oct · Paradise Lost, Kiambu',
+        description: 'Nairobi, tunaenda road trip! Free entry — RSVP on UniHive. 12PM–8PM · 18+. Good vibes. New connections. Big energy.',
+        image: CARD('pre-party'),
+      },
+    };
+    if (EXPERIENCE_PREVIEWS[slug]) return { url, ...EXPERIENCE_PREVIEWS[slug] };
     if (EUPHORIA_SLUGS.has(slug)) {
       return { url, title: 'THE HIVE: EUPHORIA — it happened', description: 'Relive the night the Hive went loud. Photos, reels and what’s next.', image: CARD('euphoria') };
     }

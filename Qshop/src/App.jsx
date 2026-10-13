@@ -15,6 +15,7 @@ import AuthCallback from './components/auth/AuthCallback';
 import NotFound from './components/NotFound';
 import Home from './components/Home';
 import { HIVE_SLUG, isEuphoriaSlug } from './components/hive/hiveMedia';
+import { getExperience } from './components/experience/experiences';
 
 // Route pages load on demand so the first visit only downloads what it shows.
 // After a deploy, an open tab may ask for a chunk that no longer exists;
@@ -63,6 +64,7 @@ const VendorRedeem = lazyPage(() => import('./components/VendorRedeem'));
 const TermsPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.PrivacyPage })));
 const ConsentGate = lazyPage(() => import('./components/legal/ConsentGate'));
+const ExperiencePage = lazyPage(() => import('./components/experience/ExperiencePage'));
 
 const RouteFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
@@ -74,6 +76,8 @@ const EventRoute = ({ token }) => {
   const { slug } = useParams();
   if (slug === HIVE_SLUG) return <HiveEventPage />;
   if (isEuphoriaSlug(slug)) return <EuphoriaRecap />;
+  const experience = getExperience(slug);
+  if (experience) return <ExperiencePage x={experience} />;
   return <EventPage token={token} />;
 };
 

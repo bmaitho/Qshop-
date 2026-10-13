@@ -278,7 +278,7 @@ const EventPage = ({ token }) => {
         navigate('/auth');
         return;
       }
-      await claimFreeTicket(user);
+      await claimFreeTicket();
       return;
     }
 
@@ -286,49 +286,23 @@ const EventPage = ({ token }) => {
     setStep('details');
   };
 
-  const claimFreeTicket = async (user) => {
+  const claimFreeTicket = async () => {
     setProcessing(true);
     try {
-      const { data: existing } = await supabase
-        .from('event_tickets')
-        .select('id')
-        .eq('event_id', event.id)
-        .eq('user_id', user.id)
-        .eq('payment_status', 'completed')
-        .maybeSingle();
-
-      if (existing) {
-        toast.info('You already have a ticket!');
-        fetchEvent();
-        return;
-      }
-
-      const { data: ticket, error } = await supabase
-        .from('event_tickets')
-        .insert({
-          event_id: event.id,
-          user_id: user.id,
-          amount_paid: 0,
-          payment_status: 'completed',
-          tier: selectedTier.name,
-        })
-        .select()
-        .single();
-
+      // Server-side RSVP: one pass per person, respects any capacity cap.
+      const { data: ticket, error } = await supabase.rpc('rsvp_event', { p_event_id: event.id });
       if (error) throw error;
-
-      await supabase.rpc('increment_tickets_sold', { event_id_input: event.id });
-
-      setEvent(prev => ({ ...prev, tickets_sold: (prev.tickets_sold || 0) + 1 }));
       setExistingTicket(ticket);
-      toast.success('Ticket claimed! 🎉');
+      toast.success('You’re in! Your pass is in My Tickets 🎉');
+      fetchEvent();
     } catch (err) {
       console.error('Error claiming ticket:', err);
-      toast.error('Failed to claim ticket');
+      toast.error(err.message || 'Failed to RSVP');
     } finally {
       setProcessing(false);
     }
   };
+
 
   const validateDetails = () => {
     if (!buyerName || buyerName.trim().length < 2) {

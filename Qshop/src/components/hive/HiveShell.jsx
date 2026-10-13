@@ -4,6 +4,7 @@ import Navbar from '../Navbar';
 import MobileNavbar from '../MobileNavbar';
 import HiveTheme from './HiveTheme';
 import { HIVE_SLUG, HIVE_STARTS_AT, SOCIALS, LITTLE } from './hiveMedia';
+import { liveExperiences } from '../experience/experiences';
 
 export function useIsMobile(bp = 768) {
   const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth < bp);
@@ -32,6 +33,7 @@ export function useCountdown(target = HIVE_STARTS_AT) {
 }
 
 const LINKS = [
+  ...liveExperiences().map((x) => ({ label: x.navLabel || x.name, to: `/events/${x.slug}`, match: (p) => p === `/events/${x.slug}`, hot: true })),
   { label: 'Bar & Bites', to: `/events/${HIVE_SLUG}?tab=shop`, match: (p, q) => p === `/events/${HIVE_SLUG}` && (!q || q === 'shop') },
   { label: 'The Night', to: `/events/${HIVE_SLUG}?tab=night`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'night' },
   { label: 'Photo Booth', to: '/hive/booth', match: (p) => p === '/hive/booth' },
@@ -60,7 +62,7 @@ function HiveNav() {
                   key={l.label}
                   to={l.to}
                   className={`px-3 py-1.5 rounded-full text-xs sm:text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                    active ? 'bg-[#c3121f] text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+                    active ? 'bg-[#c3121f] text-white' : l.hot ? 'text-[#e7c65f] border border-[#e7c65f]/40 hover:bg-[#e7c65f]/10' : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   {l.label}

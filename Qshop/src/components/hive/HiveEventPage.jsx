@@ -8,6 +8,7 @@ import { CornerWeb } from './HiveTheme';
 import Masonry from './Masonry';
 import Portal from './Portal';
 import HiveShare from './HiveShare';
+import ExperiencePromo from '../experience/ExperiencePromo';
 import useHiveCart, { cartTotal } from './useHiveCart';
 import CartDrawer from './HiveCart';
 import {
@@ -545,6 +546,7 @@ export default function HiveEventPage() {
   return (
     <HiveShell>
       <Hero onShop={() => setTab('shop')} onPacks={() => setTab('packs')} />
+      <ExperiencePromo />
 
       <div ref={contentRef} className="scroll-mt-[108px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="flex justify-center px-3 pt-8 pb-6">
