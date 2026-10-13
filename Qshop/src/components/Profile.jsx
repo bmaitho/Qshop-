@@ -29,8 +29,6 @@ import MessageCenter from './MessageCenter';
 import { HIVE_SLUG } from './hive/hiveMedia';
 
 
-const TERMS_URL = 'https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(1).pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgVEVSTVMgQU5EIENPTkRJVElPTlMgKDEpLnBkZiIsImlhdCI6MTc2ODMwNDk3MSwiZXhwIjoxNzk5ODQwOTcxfQ.itYP2m0Id1CV1ocIekqaU64ZKIvSgLD9lAgl-d-HpBs';
-const PRIVACY_URL = 'https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/sign/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9mZTliZDU2My04MTA5LTRkYzktYmI2OC0wZjQxYjVmZWJhNGEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwcml2YWN5L1VOSUhJVkUgUFJJVkFDWSBQT0xJQ1kgXyBOT1RJQ0UucGRmIiwiaWF0IjoxNzY4MzA0ODgxLCJleHAiOjE4MzEzNzY4ODF9.dg8t12ewAx4lUAAxAmPygKiAmkTa7m8rFWTQPq6QnKo';
 
 const initials = (name = '') => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || 'U';
 
@@ -670,9 +668,9 @@ const Profile = () => {
         </Tabs>
 
         <footer className="mt-12 pt-6 border-t border-border flex flex-wrap gap-3 justify-center text-sm">
-          <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="text-foreground/60 hover:text-foreground hover:underline">Terms & Conditions</a>
+          <Link to="/terms" className="text-foreground/60 hover:text-foreground hover:underline">Terms & Conditions</Link>
           <span className="text-foreground/30" aria-hidden="true">•</span>
-          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="text-foreground/60 hover:text-foreground hover:underline">Privacy Policy</a>
+          <Link to="/privacy" className="text-foreground/60 hover:text-foreground hover:underline">Privacy Policy</Link>
         </footer>
       </main>
     </>

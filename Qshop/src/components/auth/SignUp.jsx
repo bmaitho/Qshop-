@@ -27,6 +27,7 @@ import { emailApiService } from '../../Services/emailApiService';
 
 // Campus location selector component
 import CampusLocationSelector from '../CampusLocationSelector';
+import { LEGAL_VERSION } from '../legal/legalVersion';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -222,10 +223,8 @@ const SignUp = () => {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('verification-documents')
-        .getPublicUrl(filePath);
+      // The bucket is private: store the object path, view via signed URL.
+      const publicUrl = filePath;
 
       // Insert into verification_documents table
       const { error: documentError } = await supabase
@@ -405,9 +404,8 @@ const SignUp = () => {
               email: formData.email,
               campus_location: null,
               is_seller: false,
-              is_google_user: false,
-              onboarding_completed: true,
-              profile_completed_at: new Date().toISOString(),
+              terms_version: LEGAL_VERSION,
+              terms_accepted_at: new Date().toISOString(),
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             }]);
@@ -855,7 +853,7 @@ const SignUp = () => {
                 <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a   
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20TERMS%20AND%20CONDITIONS%20(3).pdf"
+                    href="/terms"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
@@ -879,7 +877,7 @@ const SignUp = () => {
                 <label htmlFor="acceptPrivacy" className="text-sm text-gray-700 dark:text-gray-300">
                   I agree to the{' '}
                   <a
-                    href="https://vycftqpspmxdohfbkqjb.supabase.co/storage/v1/object/public/privacy/UNIHIVE%20PRIVACY%20POLICY%20_%20NOTICE.pdf"
+                    href="/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#e7c65f] hover:underline font-medium"
