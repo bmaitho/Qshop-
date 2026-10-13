@@ -60,6 +60,9 @@ const EuphoriaRecap = lazyPage(() => import('./components/hive/EuphoriaRecap'));
 const PartnerDashboard = lazyPage(() => import('./components/hive/PartnerDashboard'));
 const HiveWallet = lazyPage(() => import('./components/HiveWallet'));
 const VendorRedeem = lazyPage(() => import('./components/VendorRedeem'));
+const TermsPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.TermsPage })));
+const PrivacyPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.PrivacyPage })));
+const ConsentGate = lazyPage(() => import('./components/legal/ConsentGate'));
 
 const RouteFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
@@ -105,6 +108,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/staff/scanner" element={<StaffScanner />} />
       <Route path="/staff/redeem" element={<VendorRedeem />} />
       <Route path="/claim/:eventId" element={<ClaimHiveTicket />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
@@ -133,6 +138,7 @@ const AppRoutes = ({ token, setToken }) => {
 
       <Route path="*" element={<NotFound />} />
     </Routes>
+    {token && <ConsentGate />}
     </Suspense>
   );
 };

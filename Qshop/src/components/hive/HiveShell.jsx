@@ -86,12 +86,15 @@ function HiveFooter() {
       <div>
         <p className="hive-display hive-gold-text font-bold">THE HIVE</p>
         <p className="hive-accent text-white/55 text-sm mt-1">Who are you when the lights go red?</p>
+        <p className="text-white/35 text-xs mt-3 max-w-md">18+. THE HIVE is photographed and filmed. Prefer not to appear? Tell our team on the night or DM us and we&rsquo;ll take it down.</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-white/60">
         {Object.values(SOCIALS).map((s) => (
           <a key={s.label} href={s.url} target="_blank" rel="noreferrer" className="hover:text-white">{s.label} {s.handle}</a>
         ))}
         <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hover:text-white">Tickets on Little Events ↗</a>
+        <Link to="/terms" className="hover:text-white">Terms</Link>
+        <Link to="/privacy" className="hover:text-white">Privacy</Link>
         <Link to="/partner" className="hover:text-white">Partner login</Link>
       </div>
     </footer>
