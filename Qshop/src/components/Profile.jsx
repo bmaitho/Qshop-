@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   MapPin, MessageCircle, Package, Heart, ShoppingBag, ShoppingCart, Plus, Settings, Save, X, Store, Ticket, Wallet,
-  QrCode, ScanLine, BarChart3, ChevronRight, CalendarDays, Link2, Check, Shield, Mail, Truck,
+  QrCode, ScanLine, BarChart3, ChevronRight, CalendarDays, Link2, Check, Shield, Mail, Truck, Sparkles,
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
@@ -131,7 +131,8 @@ const Profile = () => {
   const [editForm, setEditForm] = useState({
     full_name: '',
     campus_location: '',
-    phone: ''
+    phone: '',
+    buzz: true
   });
 
   useEffect(() => {
@@ -249,7 +250,8 @@ const Profile = () => {
       setEditForm({
         full_name: profileInfo.full_name || '',
         campus_location: profileInfo.campus_location || '',
-        phone: profileInfo.phone || ''
+        phone: profileInfo.phone || '',
+        buzz: !profileInfo.marketing_opt_out
       });
     } catch (error) {
       console.error('Error in profile data flow:', error);
@@ -361,6 +363,8 @@ const Profile = () => {
           full_name: editForm.full_name.trim(),
           campus_location: editForm.campus_location.trim(),
           phone: editForm.phone.trim(),
+          // Only once the column exists (migration 20261022).
+          ...(profileData && 'marketing_opt_out' in profileData ? { marketing_opt_out: !editForm.buzz } : {}),
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -476,6 +480,13 @@ const Profile = () => {
                   placeholder="e.g., +254 700 000000"
                 />
               </div>
+
+              {'marketing_opt_out' in profileData && (
+                <label className="flex items-start gap-3 rounded-xl border border-border p-3 text-sm cursor-pointer">
+                  <input type="checkbox" checked={editForm.buzz} onChange={(e) => setEditForm((f) => ({ ...f, buzz: e.target.checked }))} className="mt-0.5 h-4 w-4" />
+                  <span><strong>The Buzz</strong> — the occasional UniHive email: events, new shops and what’s worth knowing. Order and account emails always come through.</span>
+                </label>
+              )}
             </div>
             
             <DialogFooter>
@@ -559,6 +570,7 @@ const Profile = () => {
 
             {profileData.is_admin && (
               <HubGroup title="Admin" icon={Shield}>
+                <HubTile to="/admin/buzz" icon={Sparkles} label="The Buzz emails" hint="Agent drafts · you approve" />
                 <HubTile to="/admin/broadcast" icon={Mail} label="Email shop owners" />
                 <HubTile to="/admin/events/import-tickets" icon={Ticket} label="Import Little tickets" />
                 <HubTile to="/admin/services" icon={Settings} label="Services" />

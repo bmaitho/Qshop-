@@ -1,0 +1,35 @@
+# The Buzz: the marketing agent drafts a new issue every Monday morning
+# (Nairobi time) for an admin to approve at unihive.shop/admin/buzz, and
+# sends approved issues in daily batches (within the email plan's cap).
+# Needs repo secret BUZZ_SECRET (same value as BUZZ_SECRET on Render).
+name: The Buzz
+
+on:
+  schedule:
+    - cron: '13 6 * * 1'   # Mon 09:13 EAT — write this week's issue
+    - cron: '43 7 * * *'   # daily 10:43 EAT — send the next batch
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'draft or send'
+        required: true
+        default: 'send'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Call the backend
+        env:
+          BUZZ_SECRET: ${{ secrets.BUZZ_SECRET }}
+          EVENT: ${{ github.event.schedule }}
+          INPUT: ${{ github.event.inputs.action }}
+        run: |
+          if [ -z "$BUZZ_SECRET" ]; then echo "BUZZ_SECRET not set — skipping"; exit 0; fi
+          action="send"
+          if [ "$EVENT" = "13 6 * * 1" ] || [ "$INPUT" = "draft" ]; then action="draft"; fi
+          echo "Buzz: $action"
+          curl -sS --fail-with-body --max-time 300 -X POST \
+            -H "x-buzz-secret: $BUZZ_SECRET" \
+            "https://unihive-wba0.onrender.com/api/buzz/$action" | head -c 600

@@ -13,6 +13,7 @@ import eventTicketImportRoutes from './routes/eventTicketImport.js';
 import walletRoutes from './routes/wallet.js';
 import packagePurchaseRoutes from './routes/packagePurchase.js';
 import adminBroadcastRoutes from './routes/adminBroadcast.js';
+import buzzRoutes from './routes/buzz.js';
 
 dotenv.config();
 
@@ -69,7 +70,7 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-buzz-secret'],
   credentials: false,
   maxAge: 86400,
 };
@@ -149,6 +150,7 @@ app.use('/api/admin/events', sensitiveLimiter, eventTicketImportRoutes);
 app.use('/api/wallet', sensitiveLimiter, walletRoutes);
 app.use('/api/packages', sensitiveLimiter, packagePurchaseRoutes);
 app.use('/api/admin/broadcast', sensitiveLimiter, adminBroadcastRoutes);
+app.use('/api/buzz', sensitiveLimiter, buzzRoutes);
 
 // Preflight
 app.options('/api/mpesa/*', cors(corsOptions));
