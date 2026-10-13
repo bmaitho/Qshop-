@@ -186,8 +186,13 @@ export default function ExperiencePage({ x }) {
           <div className="flex gap-3 overflow-x-auto hive-noscroll mt-5 -mx-4 px-4 sm:mx-0 sm:px-0">
             {people.map((p) => (
               <div key={p.name} className="relative shrink-0 w-[62vw] sm:w-[260px] aspect-[4/5] rounded-[22px] overflow-hidden bg-[linear-gradient(160deg,#1a1205,#07050a)]">
-                {p.img ? (
+                {p.img && !p.logo ? (
                   <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                ) : p.logo ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(90%_70%_at_50%_30%,rgba(231,198,95,0.25),transparent_70%)]">
+                    <Mic className="w-16 h-16 text-[#e7c65f]/80" aria-hidden="true" />
+                    <img src={p.img} alt={p.name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="absolute inset-0 w-full h-full object-contain p-8 bg-black" />
+                  </div>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(90%_70%_at_50%_30%,rgba(231,198,95,0.25),transparent_70%)]" aria-hidden="true">
                     <Mic className="w-16 h-16 text-[#e7c65f]/80" />
