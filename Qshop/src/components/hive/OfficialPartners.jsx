@@ -1,11 +1,14 @@
 // Official partners strip for Home — minimal brand cards.
 import { Link } from 'react-router-dom';
+import { Mic } from 'lucide-react';
 import { HIVE_SLUG, LITTLE } from './hiveMedia';
 
 const PARTNERS = [
   { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
   { name: 'Little', line: `Rides · code ${LITTLE.code}`, img: null, href: LITTLE.tickets },
+  // Logo goes in public/partners/siwaka-podcast.png; a mic tile shows until then.
+  { name: 'Siwaka Podcast', line: 'Official media partner', img: '/partners/siwaka-podcast.png', fallback: 'mic', to: '/events/the-hive-pre-party' },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
 ];
 
@@ -16,11 +19,16 @@ export default function OfficialPartners() {
         <p className="text-[11px] tracking-[0.35em] uppercase text-[#b8963a]">Official partners</p>
         <h2 className="text-3xl font-serif font-bold mt-2 text-[#113b1e] dark:text-white">Brands growing with the Hive</h2>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {PARTNERS.map((p) => {
           const inner = (
             <>
-              {p.img ? (
+              {p.fallback === 'mic' ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(90%_70%_at_50%_30%,rgba(231,198,95,0.28),transparent_70%),linear-gradient(160deg,#141008,#060504)]">
+                  <Mic className="w-14 h-14 text-[#e7c65f]/80" aria-hidden="true" />
+                  <img src={p.img} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="absolute inset-0 w-full h-full object-contain p-6 bg-black transition-transform duration-700 group-hover:scale-105" />
+                </div>
+              ) : p.img ? (
                 <img src={p.img} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               ) : (
                 <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_100%_0%,rgba(245,183,0,0.35),transparent_60%),linear-gradient(160deg,#1a1408,#060504)] flex items-center justify-center">

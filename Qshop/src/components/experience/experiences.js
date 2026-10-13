@@ -64,7 +64,7 @@ export const EXPERIENCES = {
 
     // Only `confirmed: true` people are named on the page (all confirmed 13 Oct).
     people: [
-      { name: 'Siwaka Podcast', role: 'Creators', img: null, confirmed: true },
+      { name: 'Siwaka Podcast', role: 'Official media partner', img: '/partners/siwaka-podcast.png', logo: true, confirmed: true },
       { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp', confirmed: true },
       { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp', confirmed: true },
       { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: true },
