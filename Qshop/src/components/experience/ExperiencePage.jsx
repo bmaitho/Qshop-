@@ -47,6 +47,11 @@ function RsvpAction({ x, r, compact = false }) {
       </button>
       {r.state === 'error' && <p className="text-[#ff8a8a] text-sm mt-2">{r.error}</p>}
       {!compact && !r.user && <p className="text-white/45 text-xs mt-2">Sign in or create a free UniHive account to get your pass.</p>}
+      {r.spotsLeft != null && (
+        <p className={`text-xs mt-2 font-semibold ${r.spotsLeft <= 15 ? 'text-[#ff8a8a]' : 'text-[#e7c65f]'}`}>
+          {r.spotsLeft <= 15 ? `Only ${r.spotsLeft} spot${r.spotsLeft === 1 ? '' : 's'} left` : `Limited to ${r.event.max_capacity} people · ${r.spotsLeft} spots left`}
+        </p>
+      )}
       {!compact && x.age && <p className="text-white/45 text-xs mt-1">{x.age} only.</p>}
     </div>
   );

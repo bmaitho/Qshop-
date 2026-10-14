@@ -28,7 +28,9 @@ export default function useEventRsvp(slug) {
     }
     setPass(mine);
     const ended = ev && new Date(`${ev.event_date}T23:59:59+03:00`) < new Date();
-    setState(mine ? 'done' : ev?.rsvp_enabled && !ended ? 'open' : 'closed');
+    const full = ev?.max_capacity != null && (ev.tickets_sold || 0) >= ev.max_capacity;
+    if (!mine && full) setError('RSVPs are full — follow @unihive.entertainment for drops and THE HIVE on 30 Oct.');
+    setState(mine ? 'done' : ev?.rsvp_enabled && !ended && !full ? 'open' : 'closed');
     return { ev, u, mine };
   }, [slug]);
 
@@ -66,5 +68,7 @@ export default function useEventRsvp(slug) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
-  return { event, pass, user, state, error, rsvp: () => rsvp() };
+  // Optional cap (events.max_capacity); the server enforces it too.
+  const spotsLeft = event?.max_capacity != null ? Math.max(0, event.max_capacity - (event.tickets_sold || 0)) : null;
+  return { event, pass, user, state, error, spotsLeft, rsvp: () => rsvp() };
 }
