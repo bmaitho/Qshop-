@@ -1,0 +1,65 @@
+# UniHive live check: every 15 minutes a headless phone browser walks the
+# real site (home, marketplace, a product, THE HIVE tabs, pre-party RSVP,
+# booth, Siwaka, sign-in), checks the backend, database and link previews.
+# On failure it opens (or updates) a GitHub issue — GitHub emails you —
+# and closes it automatically once everything passes again.
+name: Live check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            monitor
+            Qshop/api/og.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser
+        run: |
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.55.0 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Walk the site
+        id: walk
+        run: node monitor/journey.mjs https://unihive.shop
+      - name: Raise or update alert
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.existsSync('monitor-report.md') ? fs.readFileSync('monitor-report.md', 'utf8') : 'The live check failed before it could write a report.';
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: 'live-check' });
+            if (open.length) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: open[0].number, body: `Still failing — ${run}\n\n${body}` });
+            } else {
+              await github.rest.issues.create({ ...context.repo, title: '🚨 unihive.shop live check failing', labels: ['live-check'], body: `${body}\n\nRun: ${run}` });
+            }
+      - name: Close alert when healthy
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: 'live-check' });
+            for (const i of open) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: i.number, body: '✅ Recovered — all checks passing again.' });
+              await github.rest.issues.update({ ...context.repo, issue_number: i.number, state: 'closed' });
+            }
