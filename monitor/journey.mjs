@@ -163,5 +163,12 @@ const md = [
 ].join('\n');
 console.log(md);
 if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
+// Annotations show up on the run page and through the API.
+if (process.env.GITHUB_ACTIONS) {
+  const esc = (x) => String(x).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A');
+  console.log(`::notice title=Live check::${esc(rows.map((r) => `${r[0]}: ${r[1]}${r[2] ? ` (${r[2]})` : ''}`).join('\n'))}`);
+  warns.forEach((w) => console.log(`::warning title=Heads-up::${esc(w)}`));
+  fails.forEach((f) => console.log(`::error title=Problem::${esc(f.replace(/\*\*/g, ''))}`));
+}
 fs.writeFileSync('monitor-report.md', md);
 process.exit(fails.length ? 1 : 0);
