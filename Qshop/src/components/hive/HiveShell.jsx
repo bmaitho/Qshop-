@@ -37,6 +37,7 @@ const LINKS = [
   { label: 'Bar & Bites', to: `/events/${HIVE_SLUG}?tab=shop`, match: (p, q) => p === `/events/${HIVE_SLUG}` && (!q || q === 'shop') },
   { label: 'The Night', to: `/events/${HIVE_SLUG}?tab=night`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'night' },
   { label: 'Photo Booth', to: '/hive/booth', match: (p) => p === '/hive/booth' },
+  { label: 'Siwaka Podcast', to: '/hive/siwaka', match: (p) => p === '/hive/siwaka' },
   { label: 'Wallet', to: `/events/${HIVE_SLUG}/wallet`, match: (p) => p.endsWith('/wallet') },
   { label: 'UniHive Specials', to: `/events/${HIVE_SLUG}?tab=packs`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'packs' },
   { label: 'Claim a Little ticket', to: `/claim/${HIVE_SLUG}`, match: (p) => p.startsWith('/claim') },

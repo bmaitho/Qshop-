@@ -189,8 +189,8 @@ export default function ExperiencePage({ x }) {
         <h2 className="hive-display text-white text-2xl sm:text-3xl font-bold mt-1">Who you’ll meet</h2>
         {people.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto hive-noscroll mt-5 -mx-4 px-4 sm:mx-0 sm:px-0">
-            {people.map((p) => (
-              <div key={p.name} className="relative shrink-0 w-[62vw] sm:w-[260px] aspect-[4/5] rounded-[22px] overflow-hidden bg-[linear-gradient(160deg,#1a1205,#07050a)]">
+            {people.map((p) => { const Card = p.to ? Link : 'div'; return (
+              <Card key={p.name} {...(p.to ? { to: p.to } : {})} className="relative block shrink-0 w-[62vw] sm:w-[260px] aspect-[4/5] rounded-[22px] overflow-hidden bg-[linear-gradient(160deg,#1a1205,#07050a)]">
                 {p.img && !p.logo ? (
                   <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 ) : p.logo ? (
@@ -206,10 +206,10 @@ export default function ExperiencePage({ x }) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
                 <div className="absolute bottom-0 p-4">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-[#e7c65f]">{p.role}</p>
-                  <p className="hive-display text-white text-xl font-bold">{p.name}</p>
+                  <p className="hive-display text-white text-xl font-bold">{p.name}{p.to ? ' →' : ''}</p>
                 </div>
-              </div>
-            ))}
+              </Card>
+            ); })}
           </div>
         ) : (
           <p className="text-white/60 mt-3">Creators, artists and DJs — names dropping soon. Watch <a href="https://www.instagram.com/unihive.entertainment/" target="_blank" rel="noreferrer" className="underline">@unihive.entertainment</a>.</p>
