@@ -7,8 +7,7 @@ const PARTNERS = [
   { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
   { name: 'Little', line: `Rides · code ${LITTLE.code}`, img: null, href: LITTLE.tickets },
-  // Logo goes in public/partners/siwaka-podcast.png; a mic tile shows until then.
-  { name: 'Siwaka Podcast', line: 'Official media partner', img: '/partners/siwaka-podcast.png', fallback: 'mic', to: '/events/the-hive-pre-party' },
+  { name: 'Siwaka Podcast', line: 'Official media outlet · TikTok', img: '/media/siwaka/still-1.webp', to: '/hive/siwaka' },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
 ];
 

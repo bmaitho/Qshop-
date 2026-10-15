@@ -46,6 +46,7 @@ const AdminServicesPanel = lazyPage(() => import('./components/AdminServicesPane
 const EventTicketImport = lazyPage(() => import('./components/admin/EventTicketImport'));
 const ShopOwnerBroadcast = lazyPage(() => import('./components/admin/ShopOwnerBroadcast'));
 const BuzzAdmin = lazyPage(() => import('./components/admin/BuzzAdmin'));
+const SiwakaPage = lazyPage(() => import('./components/media/SiwakaPage'));
 const SubscriptionPage = lazyPage(() => import('./components/SubscriptionPage'));
 const SellerOrderDetail = lazyPage(() => import('./components/SellerOrderDetail'));
 const BuyerOrders = lazyPage(() => import('./components/BuyerOrders'));
@@ -107,6 +108,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/events" element={<EventsPage token={token} />} />
       <Route path="/events/:slug" element={<EventRoute token={token} />} />
       <Route path="/hive/booth" element={<HiveBooth />} />
+      <Route path="/hive/siwaka" element={<SiwakaPage />} />
       <Route path="/partner" element={<PartnerDashboard />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />
