@@ -8,7 +8,7 @@ const PARTNERS = [
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
   { name: 'Little', line: `Rides · code ${LITTLE.code}`, img: null, href: LITTLE.tickets },
   { name: 'Siwaka Podcast', line: 'Official media outlet · TikTok', img: '/media/siwaka/still-1.webp', to: '/hive/siwaka' },
-  { name: 'Charge24', line: 'Official power-bank charging station', img: '/partners/charge24.png', logo: true, to: '/events/the-hive-pre-party' },
+  { name: 'Charge24', line: 'Official power-bank charging station', img: '/partners/charge24.png', logo: true, to: '/events/the-hive-no-going-home?tab=night' },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
 ];
 
