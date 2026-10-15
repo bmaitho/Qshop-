@@ -86,6 +86,10 @@ export const BRANDS = [
 export const brandOf = (product) => BRANDS.find((b) => b.match.test(product?.name || ''))?.key || 'other';
 
 // Drinks that get the seasonal spider-web wrap (MAIN INSPO direction).
+// Listed but not on sale yet (shown as "Coming soon").
+export const COMING_SOON = ['After Dark Tee'];
+export const isComingSoon = (product) => COMING_SOON.includes(product?.name);
+
 export const isWebbedCan = (product) => /red bull|guarana/i.test(product?.name || '');
 
 // Package → poster backdrop for the Ticket Packs cards.
