@@ -64,7 +64,7 @@ export const EXPERIENCES = {
 
     // Only `confirmed: true` people are named on the page (all confirmed 13 Oct).
     people: [
-      { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/still-3.webp', to: '/hive/siwaka', confirmed: true },
+      { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/still-3.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka', confirmed: true },
       { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp', confirmed: true },
       { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp', confirmed: true },
       { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: true },
@@ -76,13 +76,14 @@ export const EXPERIENCES = {
       { name: 'UniHive', img: null, confirmed: true },
       { name: 'Smirnoff', img: '/hive/products/smirnoff-vodka-webs.webp', confirmed: true },
       { name: 'Red Bull', img: '/hive/products/redbull-webs.webp', confirmed: true },
-      { name: 'Charge 24', img: null, confirmed: true },
+      { name: 'Charge24', img: '/partners/charge24.png', logo: true, line: 'Official power-bank charging station', confirmed: true },
     ],
 
     practical: [
       ['When', 'Friday 16 October · 12PM – 8PM EAT'],
       ['Where', 'Paradise Lost, Kiambu'],
       ['Entry', 'Free with RSVP. Show your pass (My Tickets) at the gate.'],
+      ['Power', 'Phone low? Charge24 power-bank stations on site.'],
       ['Age', '18+ — bring ID'],
       ['Wear', 'No dress code. Comfortable sports or dance shoes — you’ll be on the move.'],
     ],

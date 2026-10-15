@@ -204,6 +204,7 @@ export default function ExperiencePage({ x }) {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 to-transparent" />
+                {p.badge && <img src={p.badge} alt="" className="absolute top-3 left-3 w-14 h-14 rounded-full shadow-lg" />}
                 <div className="absolute bottom-0 p-4">
                   <p className="text-[10px] tracking-[0.25em] uppercase text-[#e7c65f]">{p.role}</p>
                   <p className="hive-display text-white text-xl font-bold">{p.name}{p.to ? ' →' : ''}</p>
@@ -227,7 +228,7 @@ export default function ExperiencePage({ x }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
             {brands.map((b) => (
               <div key={b.name} className="relative aspect-[4/3] rounded-[20px] overflow-hidden border border-white/10 bg-[linear-gradient(160deg,#151008,#07050a)]">
-                {b.img && <img src={b.img} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+                {b.img && <img src={b.img} alt="" loading="lazy" className={b.logo ? "absolute inset-x-0 top-2 mx-auto w-[50%] h-auto object-contain" : "absolute inset-0 w-full h-full object-cover opacity-80"} />}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                 <p className="absolute bottom-3 left-4 hive-display text-white font-bold">{b.name}</p>
               </div>
