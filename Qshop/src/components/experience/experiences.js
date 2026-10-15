@@ -83,7 +83,6 @@ export const EXPERIENCES = {
       ['When', 'Friday 16 October · 12PM – 8PM EAT'],
       ['Where', 'Paradise Lost, Kiambu'],
       ['Entry', 'Free with RSVP. Show your pass (My Tickets) at the gate.'],
-      ['Power', 'Phone low? Charge24 power-bank stations on site.'],
       ['Age', '18+ — bring ID'],
       ['Wear', 'No dress code. Comfortable sports or dance shoes — you’ll be on the move.'],
     ],

@@ -68,6 +68,7 @@ export const PERKS = [
   { title: 'VIP treatment', body: 'Complimentary drink and private seating for VIP.' },
   { title: 'Dress to impress', body: 'Come in costume — and disturb.' },
   { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM until 4AM.' },
+  { title: 'Stay charged', body: 'Charge24 power-bank stations on site — keep your phone alive till 4AM.' },
   { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — let Little get you home.' },
 ];
 
