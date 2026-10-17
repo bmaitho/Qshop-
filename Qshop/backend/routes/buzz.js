@@ -1,8 +1,9 @@
 import express from 'express';
-import { draftBuzz, listBuzz, setBuzzStatus, testBuzz, sendBuzz, unsubscribeBuzz } from '../controllers/buzzController.js';
+import { draftBuzz, draftFollowup, listBuzz, setBuzzStatus, testBuzz, sendBuzz, unsubscribeBuzz } from '../controllers/buzzController.js';
 
 const router = express.Router();
 router.post('/draft', draftBuzz);
+router.post('/followup', draftFollowup);
 router.get('/campaigns', listBuzz);
 router.post('/campaigns/:id/status', setBuzzStatus);
 router.post('/campaigns/:id/test', testBuzz);
