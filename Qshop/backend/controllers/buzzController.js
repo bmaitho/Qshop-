@@ -7,6 +7,7 @@ import { supabase } from '../supabaseClient.js';
 import { gatherBuzzData } from '../buzz/data.js';
 import { writeIssue } from '../buzz/writer.js';
 import { renderBuzz, textBuzz, unsubToken, unsubUrl } from '../buzz/email.js';
+import { FOLLOWUPS, audienceUserIds } from '../buzz/followups.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SENDER = process.env.BUZZ_FROM || process.env.EMAIL_FROM || 'UniHive <noreply@unihive.shop>';
@@ -51,15 +52,31 @@ export const draftBuzz = async (req, res) => {
   }
 };
 
+// A ready-written follow-up (e.g. thanking an event's RSVPs) as a draft.
+export const draftFollowup = async (req, res) => {
+  if (!(await guard(req, res))) return;
+  const f = FOLLOWUPS[req.body?.kind];
+  if (!f) return res.status(400).json({ success: false, error: 'Unknown follow-up' });
+  const { data: row, error } = await supabase.from('buzz_campaigns').insert({
+    subject: f.issue.subject, preheader: f.issue.preheader, content: f.issue, written_by: 'team', status: 'draft', audience: f.audience,
+  }).select('id').single();
+  if (error) return res.status(500).json({ success: false, error: error.message });
+  res.json({ success: true, campaign: row });
+};
+
 export const listBuzz = async (req, res) => {
   if (!(await guard(req, res))) return;
   const { data, error } = await supabase.from('buzz_campaigns')
-    .select('id, created_at, status, subject, preheader, content, written_by, sent_count, approved_at, finished_at')
+    .select('id, created_at, status, subject, preheader, content, written_by, sent_count, approved_at, finished_at, audience')
     .order('created_at', { ascending: false }).limit(10);
   if (error) return res.status(500).json({ success: false, error: error.message });
   const { count: audience } = await supabase.from('profiles').select('id', { count: 'exact', head: true })
     .eq('marketing_opt_out', false).not('email', 'is', null);
-  res.json({ success: true, campaigns: (data || []).map((c) => ({ ...c, preview: preview(c.content) })), audience: audience || 0, dailyCap: DAILY_CAP });
+  const campaigns = await Promise.all((data || []).map(async (c) => {
+    const only = await audienceUserIds(supabase, c.audience);
+    return { ...c, preview: preview(c.content), audienceLabel: c.audience?.label || 'Everyone subscribed', audienceSize: only ? only.length : audience || 0 };
+  }));
+  res.json({ success: true, campaigns, audience: audience || 0, dailyCap: DAILY_CAP });
 };
 
 export const setBuzzStatus = async (req, res) => {
@@ -98,8 +115,11 @@ export const sendBuzz = async (req, res) => {
 
     const { data: done } = await supabase.from('buzz_sends').select('user_id').eq('campaign_id', c.id);
     const skip = new Set((done || []).map((d) => d.user_id));
-    const { data: people } = await supabase.from('profiles').select('id, email, full_name')
+    const only = await audienceUserIds(supabase, c.audience);
+    let q = supabase.from('profiles').select('id, email, full_name')
       .eq('marketing_opt_out', false).not('email', 'is', null).order('created_at', { ascending: true }).limit(5000);
+    if (only) q = q.in('id', only.length ? only : ['00000000-0000-0000-0000-000000000000']);
+    const { data: people } = await q;
     const queue = (people || []).filter((p) => /@/.test(p.email) && !skip.has(p.id)).slice(0, budget);
 
     if (!queue.length) {

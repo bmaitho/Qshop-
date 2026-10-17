@@ -61,6 +61,9 @@ export default function BuzzAdmin() {
           <button onClick={run('draft', async () => { await call('/draft', 'POST'); return 'New draft ready.'; })} disabled={!!busy} className={`${btn} bg-[#E7C65F] text-[#0D2B20]`}>
             {busy === 'draft' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Write a new issue
           </button>
+          <button onClick={run('followup', async () => { await call('/followup', 'POST', { kind: 'pre-party-thanks' }); return 'Thank-you draft ready for the pre-party RSVPs — preview it, send yourself a test, then approve.'; })} disabled={!!busy} className={`${btn} border border-[#E7C65F]/50 text-[#E7C65F]`}>
+            {busy === 'followup' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Thank pre-party RSVPs
+          </button>
           <button onClick={run('send', async () => { const j = await call('/send', 'POST'); return j.note || `Sent ${j.sent}.`; })} disabled={!!busy} className={`${btn} border border-white/20`}>
             {busy === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send today’s batch now
           </button>
@@ -72,7 +75,8 @@ export default function BuzzAdmin() {
             {state.campaigns.map((c) => (
               <li key={c.id}>
                 <button onClick={() => setActive(c)} className={`w-full text-left rounded-2xl border p-4 ${active?.id === c.id ? 'border-[#E7C65F]/60 bg-white/[0.04]' : 'border-white/10 hover:border-white/25'}`}>
-                  <p className="text-[10px] tracking-[0.25em] uppercase text-[#E7C65F]">{STATUS[c.status]} · {c.written_by === 'claude' ? 'Agent' : 'Template'}</p>
+                  <p className="text-[10px] tracking-[0.25em] uppercase text-[#E7C65F]">{STATUS[c.status]} · {c.written_by === 'claude' ? 'Agent' : c.written_by === 'team' ? 'Team' : 'Template'}</p>
+                  <p className="text-white/50 text-[11px] mt-0.5">To: {c.audienceLabel} ({c.audienceSize})</p>
                   <p className="font-semibold mt-1 leading-snug">{c.subject}</p>
                   <p className="text-white/45 text-xs mt-1">{new Date(c.created_at).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' })}{c.sent_count ? ` · sent ${c.sent_count}` : ''}</p>
                 </button>
@@ -87,7 +91,7 @@ export default function BuzzAdmin() {
                   <button onClick={run('test', async () => { const j = await call(`/campaigns/${active.id}/test`, 'POST'); return `Test sent to ${j.to}.`; })} disabled={!!busy} className={`${btn} border border-white/20`}><FlaskConical className="w-4 h-4" /> Send me a test</button>
                   {active.status === 'draft' && (
                     <>
-                      <button onClick={run('approve', async () => { if (!window.confirm(`Approve “${active.subject}” for ${state.audience} subscribers?`)) return ''; await call(`/campaigns/${active.id}/status`, 'POST', { status: 'approved' }); return 'Approved — it goes out in the next daily batch.'; })} disabled={!!busy} className={`${btn} bg-emerald-500/20 text-emerald-200 border border-emerald-400/40`}><Check className="w-4 h-4" /> Approve</button>
+                      <button onClick={run('approve', async () => { if (!window.confirm(`Approve “${active.subject}” for ${active.audienceSize} people (${active.audienceLabel})?`)) return ''; await call(`/campaigns/${active.id}/status`, 'POST', { status: 'approved' }); return 'Approved — it goes out in the next daily batch.'; })} disabled={!!busy} className={`${btn} bg-emerald-500/20 text-emerald-200 border border-emerald-400/40`}><Check className="w-4 h-4" /> Approve</button>
                       <button onClick={run('discard', async () => { await call(`/campaigns/${active.id}/status`, 'POST', { status: 'discarded' }); return 'Discarded.'; })} disabled={!!busy} className={`${btn} border border-white/15 text-white/70`}><X className="w-4 h-4" /> Discard</button>
                     </>
                   )}
