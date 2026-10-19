@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { getDisplayInfo } from '../utils/communicationUtils';
 import { sendMessageEmail } from '../utils/sendMessageEmail';
+import { img } from '../utils/ImageUtils';
 
 const SellerOrderDetail = () => {
   const { id } = useParams();
@@ -354,7 +355,7 @@ const SellerOrderDetail = () => {
           <div className="flex gap-4">
             {orderItem.products?.images?.[0] && (
               <img
-                src={orderItem.products.images[0]}
+                src={img(orderItem.products.images[0], 96)}
                 alt={orderItem.products.name}
                 className="w-24 h-24 object-cover rounded-lg"
               />

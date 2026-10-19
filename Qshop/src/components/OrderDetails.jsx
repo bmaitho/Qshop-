@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Navbar from './Navbar';
 import { sendMessageEmail } from '../utils/sendMessageEmail';
+import { img } from '../utils/ImageUtils';
 
 const API = import.meta.env.VITE_API_URL;
 const fmt = (n) =>
@@ -780,7 +781,7 @@ const OrderDetails = () => {
                       <div className="flex gap-3 items-start">
                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                           {oi.products?.image_url ? (
-                            <img src={oi.products.image_url} alt={oi.products.name} className="w-full h-full object-cover" />
+                            <img src={img(oi.products.image_url, 96)} alt={oi.products.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Package className="h-6 w-6 text-gray-400" />

@@ -94,43 +94,47 @@ export const compressImages = async (files, options = {}) => {
   return Promise.all(files.map((f) => compressImage(f, options)));
 };
 
+// Widths Vercel is allowed to resize to (must match "images.sizes" in vercel.json).
+const SIZES = [64, 128, 256, 384, 640, 828, 1080, 1200, 1920];
+const SUPABASE_PUBLIC = /^https:\/\/vycftqpspmxdohfbkqjb\.supabase\.co\/storage\/v1\/object\/public\//;
+
 /**
- * Get an optimised Supabase storage URL using image transformations.
- * Works only for images stored in Supabase Storage.
+ * Serve a Supabase Storage image through Vercel's image CDN: resized to the
+ * width it is shown at, converted to WebP and cached at the edge. Supabase then
+ * serves each image once instead of to every visitor, which keeps us inside
+ * Supabase's bandwidth quota. Anything that isn't a Supabase public URL is
+ * returned untouched. If the CDN ever fails, main.jsx falls back to the
+ * original URL (see restoreOriginalImage).
  *
  * @param {string} url - The raw Supabase public URL
- * @param {object} opts
+ * @param {object|number} opts - { width, quality } or just a width
  */
 export const getOptimisedUrl = (url, opts = {}) => {
-  if (!url) return url;
+  if (!url || typeof url !== 'string' || !SUPABASE_PUBLIC.test(url)) return url;
+  if (!import.meta.env.PROD) return url;
+  const { width = 640, quality = 75 } = typeof opts === 'number' ? { width: opts } : opts;
+  const w = SIZES.find((s) => s >= width * 2) || SIZES[SIZES.length - 1];
+  return `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=${quality}`;
+};
 
-  // Only transform Supabase storage URLs
-  if (!url.includes('/storage/v1/object/public/')) return url;
+/** Short alias for render sites: img(url, displayWidthInCssPx). */
+export const img = (url, width = 320) => getOptimisedUrl(url, { width });
 
-  // Convert to render endpoint for transformations
-  const transformUrl = url.replace(
-    '/storage/v1/object/public/',
-    '/storage/v1/render/image/public/'
-  );
-
-  const params = new URLSearchParams();
-  if (opts.width) params.set('width', opts.width);
-  if (opts.height) params.set('height', opts.height);
-  params.set('quality', opts.quality ?? 75);
-  params.set('resize', opts.resize ?? 'cover');
-
-  return `${transformUrl}?${params.toString()}`;
+/** The original URL behind an optimised one (used for the error fallback). */
+export const originalImageUrl = (src) => {
+  if (!src || !src.includes('/_vercel/image?')) return null;
+  try {
+    return new URL(src, window.location.origin).searchParams.get('url');
+  } catch {
+    return null;
+  }
 };
 
 // Preset helpers for common use cases
-export const getProductCardUrl = (url) =>
-  getOptimisedUrl(url, { width: 400, quality: 75 });
+export const getProductCardUrl = (url) => getOptimisedUrl(url, { width: 320 });
 
-export const getProductDetailUrl = (url) =>
-  getOptimisedUrl(url, { width: 900, quality: 85 });
+export const getProductDetailUrl = (url) => getOptimisedUrl(url, { width: 600, quality: 80 });
 
-export const getBannerUrl = (url) =>
-  getOptimisedUrl(url, { width: 1200, height: 400, quality: 80 });
+export const getBannerUrl = (url) => getOptimisedUrl(url, { width: 640, quality: 80 });
 
-export const getThumbnailUrl = (url) =>
-  getOptimisedUrl(url, { width: 120, height: 120, quality: 70 });
+export const getThumbnailUrl = (url) => getOptimisedUrl(url, { width: 64 });

@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { supabase } from '../components/SupabaseClient';
-import { getProductDetailUrl } from '../utils/ImageUtils';
+import { getProductDetailUrl, img } from '../utils/ImageUtils';
 import { toast } from 'react-toastify';
 import Navbar from './Navbar';
 import MessageDialog from './MessageDialog';
@@ -339,7 +339,7 @@ const ProductDetails = () => {
           <div className="space-y-4">
             <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
               <img
-                src={productImages[currentImageIndex]?.image_url || product.image_url || "/api/placeholder/600/600"}
+                src={getProductDetailUrl(productImages[currentImageIndex]?.image_url || product.image_url) || "/api/placeholder/600/600"}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}
@@ -391,7 +391,7 @@ const ProductDetails = () => {
                     }`}
                   >
                     <img
-                      src={image.image_url}
+                      src={img(image.image_url, 64)}
                       alt={`${product.name} ${index + 1}`}
                       className="w-full h-full object-cover"
                     />

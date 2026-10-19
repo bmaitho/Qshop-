@@ -10,6 +10,7 @@ import HiveShare from './HiveShare';
 import useStaffGate from './useStaffGate';
 import { Gate, lookupItem, redeemItem } from '../VendorRedeem';
 import { HIVE_SLUG } from './hiveMedia';
+import { img } from '../../utils/ImageUtils';
 
 const ksh = (n) => `KSh ${Number(n || 0).toLocaleString('en-KE')}`;
 const ago = (ts) => {
@@ -162,7 +163,7 @@ export default function PartnerDashboard() {
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 hive-fade-in">
               {products.map((p) => (
                 <div key={p.id} className={`rounded-[22px] border border-white/10 bg-white/[0.02] overflow-hidden ${p.active ? '' : 'opacity-60'}`}>
-                  <div className="aspect-[4/3] bg-black">{p.image_url && <img src={p.image_url} alt="" className="w-full h-full object-cover" />}</div>
+                  <div className="aspect-[4/3] bg-black">{p.image_url && <img src={img(p.image_url, 320)} alt="" className="w-full h-full object-cover" />}</div>
                   <div className="p-4">
                     <div className="flex justify-between gap-3">
                       <p className="text-white font-semibold">{p.name}</p>

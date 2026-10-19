@@ -13,6 +13,7 @@ import {
 import { supabase } from '../components/SupabaseClient';
 import Navbar from './Navbar';
 import { toast } from 'react-toastify';
+import { img } from '../utils/ImageUtils';
 
 const OrderConfirmation = () => {
   const { orderId } = useParams();
@@ -216,7 +217,7 @@ const OrderConfirmation = () => {
                 <div key={item.id} className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
                     {item.products?.image_url && (
-                      <img src={item.products.image_url} alt={item.products.name} className="w-full h-full object-cover rounded" />
+                      <img src={img(item.products.image_url, 96)} alt={item.products.name} className="w-full h-full object-cover rounded" />
                     )}
                   </div>
                   <div className="flex-1">

@@ -14,6 +14,7 @@ import CartDrawer from './HiveCart';
 import {
   HIVE_SLUG, POSTERS, VIDEOS, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, isComingSoon, packagePoster,
 } from './hiveMedia';
+import { img } from '../../utils/ImageUtils';
 
 const TABS = [
   { key: 'shop', label: 'Bar & Bites' },
@@ -39,7 +40,7 @@ function ProductPin({ product, onAdd, added, highlight }) {
     <div id={`item-${product.id}`} className={`group scroll-mt-40 rounded-[24px] transition-shadow duration-700 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
       <div className="hive-card">
         {product.image_url ? (
-          <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" className="hive-card-img" />
+          <img src={img(product.image_url, 320)} alt={product.name} loading="lazy" decoding="async" className="hive-card-img" />
         ) : (
           <div className="aspect-[3/4] flex flex-col items-center justify-center text-center p-5 bg-[radial-gradient(circle_at_50%_30%,#3a0a10,#07050a_70%)]">
             <span className="hive-accent text-white/50 text-sm">THE HIVE</span>

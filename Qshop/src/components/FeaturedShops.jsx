@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Star, Store, AlertCircle } from 'lucide-react';
 import Masonry from './hive/Masonry';
 import HiveShare from './hive/HiveShare';
-import { getBannerUrl, getThumbnailUrl } from '../utils/ImageUtils';
+import { getBannerUrl, getThumbnailUrl, img } from '../utils/ImageUtils';
 
 const FeaturedShops = () => {
   const [shops, setShops] = useState([]);
@@ -156,7 +156,7 @@ const ShopCard = ({ shop }) => {
       <div className="relative overflow-hidden rounded-[22px] bg-[#0b1a10] shadow-sm transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_22px_50px_-24px_rgba(17,59,30,0.6)]">
         {showImageBanner ? (
           <img
-            src={shop.banner_url}
+            src={getBannerUrl(shop.banner_url)}
             alt={shop.shop_name}
             loading="lazy"
             decoding="async"
@@ -190,7 +190,7 @@ const ShopCard = ({ shop }) => {
           {shop.items.map((item) => (
             <div key={item.id} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800">
               <img
-                src={item.image_url || '/api/placeholder/96/80'}
+                src={img(item.image_url, 96) || '/api/placeholder/96/80'}
                 alt={item.name}
                 loading="lazy"
                 className="w-full h-full object-cover"

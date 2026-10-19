@@ -24,6 +24,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { wishlistToasts, productToasts } from '../utils/toastConfig';
 import { supabase } from '../components/SupabaseClient';
 import ShareButton from './ShareButton';
+import { img } from '../utils/ImageUtils';
 
 // Helper function to determine if a string is a UUID
 const isUUID = (str) => {
@@ -260,7 +261,7 @@ const ProductCard = ({
       <div className="relative flex-shrink-0">
         <div className="aspect-[4/3] w-full overflow-hidden bg-gray-100 dark:bg-gray-700">
           <img 
-            src={product.image_url || "/api/placeholder/400/300"} 
+            src={img(product.image_url, 320) || "/api/placeholder/400/300"} 
             alt={product.name}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 product-image"
             loading="lazy"

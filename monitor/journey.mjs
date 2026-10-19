@@ -88,7 +88,7 @@ async function visit(ctx, name, path, check) {
     const ms = Date.now() - s;
     // broken images that are on screen
     await page.waitForTimeout(1500);
-    const broken = await page.$$eval('img', (imgs) => imgs.filter((i) => i.complete && i.naturalWidth === 0 && i.getBoundingClientRect().width > 40 && getComputedStyle(i).display !== 'none').map((i) => i.currentSrc || i.src));
+    const broken = await page.$$eval('img', (imgs) => imgs.filter((i) => !/supabase\.co\/storage\//.test(i.currentSrc || i.src) && i.complete && i.naturalWidth === 0 && i.getBoundingClientRect().width > 40 && getComputedStyle(i).display !== 'none').map((i) => i.currentSrc || i.src));
     if (broken.length) fail(name, `broken images: ${broken.slice(0, 3).join(', ')}`);
     if (errors.length) fail(name, `errors: ${errors.slice(0, 3).join(' | ')}`);
     if (ms > FAIL_MS) fail(name, `took ${ms}ms to show content`);
@@ -109,6 +109,10 @@ async function journey() {
   const local = process.env.MONITOR_LOCAL === '1';
   const browser = await chromium.launch(local ? { executablePath: process.env.PW_EXEC, proxy: process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY } : undefined } : {});
   const ctx = await browser.newContext({ ignoreHTTPSErrors: local, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 UniHiveMonitor' });
+  // Don't pull photos straight from Supabase Storage: every run would eat into
+  // Supabase's bandwidth quota. Photos served through Vercel's image CDN are
+  // still loaded (and checked), since those come from Vercel's cache.
+  await ctx.route(/supabase\.co\/storage\/v1\/(object|render)\//, (route) => route.abort());
   let productId = null;
   try { productId = (await supa('products?select=id&status=eq.active&order=created_at.desc&limit=1'))[0]?.id; } catch { /* reported above */ }
 
