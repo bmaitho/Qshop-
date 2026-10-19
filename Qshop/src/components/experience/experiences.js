@@ -76,7 +76,7 @@ export const EXPERIENCES = {
       { name: 'UniHive', img: null, confirmed: true },
       { name: 'Smirnoff', img: '/hive/products/smirnoff-vodka-webs.webp', confirmed: true },
       { name: 'Red Bull', img: '/hive/products/redbull-webs.webp', confirmed: true },
-      { name: 'Charge24', img: '/partners/charge24.png', logo: true, line: 'Official power-bank charging station', confirmed: true },
+      { name: 'Charge24', img: '/partners/charge24.png', logo: true, line: 'Official power-bank charging station', confirmed: false }, // 30 Oct only — not confirmed for 16 Oct,
     ],
 
     practical: [
