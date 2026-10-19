@@ -63,6 +63,21 @@ export const LITTLE = {
   offer: 'KSh 200 off Little Cab rides to and from Hive events',
 };
 
+// Ticket waves, as listed on Little Events (the only place tickets are sold).
+// Update `onSale`/`soldOut` and the tiers when Little moves to the next wave.
+export const WAVES = {
+  soldOut: 'Wave 1',
+  onSale: 'Wave 2',
+  tiers: [
+    { name: 'Single Hive Regular', price: 1500 },
+    { name: 'Hive Duo Regular', price: 2500 },
+    { name: 'Hive of 4 Regular', price: 4800 },
+    { name: 'VIP Hive Single', price: 2500, perk: 'Complimentary Red Bull' },
+    { name: 'VIP Hive Duo', price: 4500, perk: 'Complimentary Red Bull + Smirnoff cans', limited: true },
+    { name: 'Hive of 6 VIP', price: 8000, perk: 'Complimentary Smirnoff & Red Bull cans for the whole crew', limited: true },
+  ],
+};
+
 export const PERKS = [
   { title: 'Ride with Little', body: 'Code UNIHIVE26 — KSh 200 off Little Cab rides to and from the Dome.' },
   { title: 'VIP treatment', body: 'Complimentary drink and private seating for VIP.' },

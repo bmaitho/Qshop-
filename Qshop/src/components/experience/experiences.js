@@ -97,6 +97,23 @@ export const EXPERIENCES = {
       ticketsUrl: 'https://apps.little.africa/events/the-hive-no-going-home-',
     },
 
+    // Shown once the day is over: the page flips from "RSVP" to "you missed it,
+    // catch the next one". Drop picks from the pre-party Drive into
+    // public/experiences/the-hive-pre-party/recap/ and list them in `gallery`
+    // ({ src } for photos, { src, video } for clips; poster frame in src).
+    recap: {
+      kicker: 'It happened · Fri 16 Oct',
+      headline: 'Paradise Lost got found.',
+      turnout: '~60 pulled up',
+      lines: [
+        'Around 60 of us made the road trip. Caves explored, the waterfall found, the lake vibed with, and a lot of new numbers saved.',
+        'If you missed it: we noticed. We laughed. Lovingly. Mostly.',
+      ],
+      next: 'Good news: you get one more chance this year. 30 October. Sarakasi Dome. 6PM till 4AM. No going home.',
+      gallery: [],
+      driveUrl: null,
+    },
+
     // Where it shows up across UniHive.
     promoteOnHive: true,
     homeSlide: { kicker: 'Fri 16 Oct · Paradise Lost', title: 'Nairobi, tunaenda road trip!', body: 'THE HIVE PRE-PARTY — free entry, RSVP on UniHive. Caves, a waterfall, a lake and big energy. 18+.' },

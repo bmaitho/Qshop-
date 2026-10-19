@@ -1,5 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { supabase } from './components/SupabaseClient';
+import { rememberPath, peekAuthDestination, markHasAccount } from './components/auth/authRedirect';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { ToastContainer } from 'react-toastify';
@@ -90,6 +92,9 @@ const PackagesRedirect = () => {
 };
 
 const AppRoutes = ({ token, setToken }) => {
+  const location = useLocation();
+  useEffect(() => { rememberPath(location.pathname + location.search); }, [location.pathname, location.search]);
+
   const handleLogout = () => {
     setToken(null);
     sessionStorage.removeItem('token');
@@ -120,7 +125,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/privacy" element={<PrivacyPage />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
-      <Route path="/auth/*" element={token ? <Navigate to="/home" replace /> : <AuthLayout setToken={setToken} />} />
+      <Route path="/auth/*" element={token ? <Navigate to={peekAuthDestination()} replace /> : <AuthLayout setToken={setToken} />} />
       <Route path="/auth/callback" element={<AuthCallback setToken={setToken} />} />
       <Route path="/complete-profile" element={<Navigate to="/home" replace />} />
 
@@ -160,17 +165,34 @@ const App = () => {
   useEffect(() => {
     // Check for token in session storage
     const storedToken = sessionStorage.getItem('token');
+    let restored = false;
     if (storedToken) {
       try {
         const parsedToken = JSON.parse(storedToken);
         setToken(parsedToken);
+        restored = true;
       } catch (error) {
         // If token is invalid, remove it
         console.error("Error parsing token:", error);
         sessionStorage.removeItem('token');
       }
     }
-    setLoading(false);
+    if (restored) {
+      setLoading(false);
+    } else {
+      // A new tab (e.g. a link opened from Instagram) has no sessionStorage, but
+      // Supabase keeps the session in localStorage. Restore it so people who
+      // already have an account aren't asked to log in again.
+      supabase.auth.getSession()
+        .then(({ data }) => {
+          if (data?.session) {
+            setToken({ session: data.session, user: data.session.user });
+            markHasAccount();
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
 
     // Set up responsive design listener
     const handleResize = () => {

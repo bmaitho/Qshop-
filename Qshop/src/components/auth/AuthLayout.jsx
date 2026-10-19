@@ -1,6 +1,7 @@
 // src/components/auth/AuthLayout.jsx
 import React, { useState, useEffect, memo } from 'react';
-import { useNavigate, Routes, Route, useLocation } from 'react-router-dom';
+import { useNavigate, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { deviceHasAccount, peekAuthDestination } from './authRedirect';
 import Login from './Login';
 import SignUp from './SignUp';
 
@@ -63,6 +64,17 @@ const Slideshow = memo(({ slides, interval = 10000 }) => {
   );
 });
 
+// /auth/login and /auth/signup are explicit. Plain /auth (where every
+// "log in to continue" sends people) opens sign-up for first-time visitors and
+// log-in for devices that have signed in before.
+const AuthRoutes = ({ setToken }) => (
+  <Routes>
+    <Route path="signup" element={<SignUp setToken={setToken} />} />
+    <Route path="login" element={<Login setToken={setToken} />} />
+    <Route path="*" element={deviceHasAccount() ? <Login setToken={setToken} /> : <Navigate to="/auth/signup" replace />} />
+  </Routes>
+);
+
 const AuthLayout = ({ setToken }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const navigate = useNavigate();
@@ -72,7 +84,7 @@ const AuthLayout = ({ setToken }) => {
   useEffect(() => {
     const token = sessionStorage.getItem('token');
     if (token) {
-      navigate('/home');
+      navigate(peekAuthDestination(), { replace: true });
     }
   }, [navigate]);
   
@@ -109,10 +121,7 @@ const AuthLayout = ({ setToken }) => {
             </div>
             
             {/* Routes for Login and SignUp components */}
-            <Routes>
-              <Route path="signup" element={<SignUp />} />
-              <Route path="*" element={<Login setToken={setToken} />} />
-            </Routes>
+            <AuthRoutes setToken={setToken} />
           </div>
         </div>
         
@@ -147,10 +156,7 @@ const AuthLayout = ({ setToken }) => {
             </div>
             
             {/* Routes for Login and SignUp components */}
-            <Routes>
-              <Route path="signup" element={<SignUp />} />
-              <Route path="*" element={<Login setToken={setToken} />} />
-            </Routes>
+            <AuthRoutes setToken={setToken} />
           </div>
         </div>
       </div>
@@ -167,10 +173,7 @@ const AuthLayout = ({ setToken }) => {
           </div>
           
           {/* Routes for Login and SignUp components */}
-          <Routes>
-            <Route path="signup" element={<SignUp />} />
-            <Route path="*" element={<Login setToken={setToken} />} />
-          </Routes>
+          <AuthRoutes setToken={setToken} />
           
           {/* Bottom padding for better mobile experience */}
           <div className="pb-8"></div>

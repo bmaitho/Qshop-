@@ -28,8 +28,9 @@ import { emailApiService } from '../../Services/emailApiService';
 // Campus location selector component
 import CampusLocationSelector from '../CampusLocationSelector';
 import { LEGAL_VERSION } from '../legal/legalVersion';
+import { markHasAccount, takeAuthDestination } from './authRedirect';
 
-const SignUp = () => {
+const SignUp = ({ setToken }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [campusLocations, setCampusLocations] = useState([]);
@@ -417,11 +418,17 @@ const SignUp = () => {
           localStorage.setItem('hasLoggedInBefore', 'true');
           localStorage.removeItem('unihive_tutorial_completed');
 
-          toast.success("Welcome to UniHive!", {
+          markHasAccount();
+          toast.success("You're in. Welcome to UniHive!", {
             position: "top-right",
-            autoClose: 2000,
+            autoClose: 2500,
           });
-          window.location.href = '/home';
+          if (setToken) {
+            setToken(data);
+            navigate(takeAuthDestination(), { replace: true });
+          } else {
+            window.location.replace(takeAuthDestination());
+          }
           return;
         }
 
@@ -481,7 +488,7 @@ const SignUp = () => {
             </Button>
             
             <Link
-              to="/auth"
+              to="/auth/login"
               className="inline-block text-primary hover:underline"
             >
               Back to Login
@@ -550,7 +557,7 @@ const SignUp = () => {
             Create Account
           </h1>
           <p className="text-muted-foreground dark:text-muted-foreground">
-            Join the UniHive marketplace
+            Takes 30 seconds. We’ll bring you right back here.
           </p>
         </div>
 
@@ -904,7 +911,7 @@ const SignUp = () => {
         <div className="text-center mt-6">
           <p className="text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link to="/auth" className="text-primary hover:underline">
+            <Link to="/auth/login" className="text-primary hover:underline">
               Sign in
             </Link>
           </p>

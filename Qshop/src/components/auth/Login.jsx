@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from 'react-toastify';
 import { Eye, EyeOff, AlertTriangle, AlertCircle } from 'lucide-react';
 import { emailApiService } from '../../Services/emailApiService';
+import { markHasAccount, takeAuthDestination } from './authRedirect';
 
 const Login = ({ setToken }) => {
   const navigate = useNavigate();
@@ -118,13 +119,8 @@ const Login = ({ setToken }) => {
           autoClose: 2000,
         });
 
-        const redirect = sessionStorage.getItem('postLoginRedirect');
-        if (redirect) {
-          sessionStorage.removeItem('postLoginRedirect');
-          navigate(redirect);
-        } else {
-          navigate('/home');
-        }
+        markHasAccount();
+        navigate(takeAuthDestination(), { replace: true });
         return; // Exit early if successful
       } catch (standardError) {
         // Check if this is an email confirmation error before trying other methods
@@ -204,13 +200,8 @@ const Login = ({ setToken }) => {
         autoClose: 2000,
       });
 
-      const redirect = sessionStorage.getItem('postLoginRedirect');
-      if (redirect) {
-        sessionStorage.removeItem('postLoginRedirect');
-        navigate(redirect);
-      } else {
-        navigate('/home');
-      }
+      markHasAccount();
+      navigate(takeAuthDestination(), { replace: true });
     } catch (error) {
       console.error('Login error:', error);
       

@@ -20,9 +20,9 @@ export const FOLLOWUPS = {
           images: [`${SITE}/og/hive.jpg`],
         },
         {
-          kicker: 'For ticket holders',
-          title: 'Complimentary Red Bull & Smirnoff',
-          body: 'Get your ticket on Little Events and you get a complimentary Red Bull and Smirnoff.',
+          kicker: 'Wave 1 sold out',
+          title: 'Wave 2 is live on Little',
+          body: 'Singles from KSh 1,500, Duos from KSh 2,500, Hive of 4 KSh 4,800. VIP tiers come with complimentary Red Bull & Smirnoff cans — Hive of 6 VIP covers the whole crew. Don’t sleep on this one too.',
           cta_label: 'Tickets on Little',
           cta_url: LITTLE_TICKETS,
           images: [],

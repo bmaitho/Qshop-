@@ -15,6 +15,7 @@ import {
   HIVE_SLUG, POSTERS, VIDEOS, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, isComingSoon, packagePoster,
 } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
+import WaveTwo, { WaveStrip } from './WaveTwo';
 
 const TABS = [
   { key: 'shop', label: 'Bar & Bites' },
@@ -274,6 +275,8 @@ function Hero({ onShop, onPacks }) {
             ))}
           </div>
         )}
+
+        <WaveStrip className="mt-6" />
 
         <div className="flex flex-wrap gap-3 mt-7">
           <button onClick={onShop} className="hive-btn-blood rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
@@ -552,6 +555,7 @@ export default function HiveEventPage() {
     <HiveShell>
       <Hero onShop={() => setTab('shop')} onPacks={() => setTab('packs')} />
       <ExperiencePromo />
+      <div className="px-3 sm:px-6 lg:px-10 pt-8"><WaveTwo /></div>
 
       <div ref={contentRef} className="scroll-mt-[108px]" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="flex justify-center px-3 pt-8 pb-6">
