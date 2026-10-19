@@ -145,8 +145,8 @@ async function resolve(db, path, query) {
     // src/components/experience/experiences.js.
     const EXPERIENCE_PREVIEWS = {
       'the-hive-pre-party': {
-        title: 'THE HIVE PRE-PARTY — Fri 16 Oct · Paradise Lost, Kiambu',
-        description: 'Nairobi, tunaenda road trip! Free entry — RSVP on UniHive. 12PM–8PM · 18+. Good vibes. New connections. Big energy.',
+        title: 'THE HIVE PRE-PARTY — it happened. You missed it?',
+        description: 'Paradise Lost, 16 Oct: done deal. Catch the next one: THE HIVE: NO GOING HOME, Fri 30 Oct, Sarakasi Dome. Wave 2 tickets on Little now.',
         image: CARD('pre-party'),
       },
     };

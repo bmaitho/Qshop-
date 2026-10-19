@@ -5,6 +5,7 @@ import { supabase, getSupabaseKeys } from '../SupabaseClient';
 import { toast } from 'react-toastify';
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from 'lucide-react';
+import { markHasAccount, takeAuthDestination } from './authRedirect';
 
 const AuthCallback = ({ setToken }) => {
   const navigate = useNavigate();
@@ -72,7 +73,8 @@ const AuthCallback = ({ setToken }) => {
           localStorage.removeItem('unihive_tutorial_completed');
 
           toast.success('Welcome to UniHive!', { position: "top-right", autoClose: 2000 });
-          navigate('/home');
+          markHasAccount();
+          navigate(takeAuthDestination(), { replace: true });
           return;
         }
 
@@ -97,7 +99,8 @@ const AuthCallback = ({ setToken }) => {
         });
         
         // Redirect to home page
-        navigate('/home');
+        markHasAccount();
+          navigate(takeAuthDestination(), { replace: true });
         return;
       } catch (standardError) {
         // If standard method failed and it's a CORS/network error, try direct API method
@@ -178,7 +181,8 @@ const AuthCallback = ({ setToken }) => {
           localStorage.removeItem('unihive_tutorial_completed');
 
           toast.success('Welcome to UniHive!', { position: "top-right", autoClose: 2000 });
-          navigate('/home');
+          markHasAccount();
+          navigate(takeAuthDestination(), { replace: true });
           return;
         }
         
@@ -197,7 +201,8 @@ const AuthCallback = ({ setToken }) => {
           autoClose: 2000,
         });
         
-        navigate('/home');
+        markHasAccount();
+          navigate(takeAuthDestination(), { replace: true });
       } catch (directMethodError) {
         console.error("Direct method also failed:", directMethodError);
         throw directMethodError;
