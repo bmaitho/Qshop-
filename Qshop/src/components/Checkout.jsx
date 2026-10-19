@@ -14,6 +14,7 @@ import { toast } from 'react-toastify';
 import { useCart } from '../context/CartContext';
 import DeliveryOptionsSelector from './DeliveryOptionsSelector';
 import { createPickupMtaaniParcel } from '../utils/pickupMtaaniHelper';
+import { img } from '../utils/ImageUtils';
 
 const Checkout = () => {
   const { orderId } = useParams();
@@ -404,7 +405,7 @@ const Checkout = () => {
                     <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded flex-shrink-0">
                       {item.products?.image_url && (
                         <img 
-                          src={item.products.image_url} 
+                          src={img(item.products.image_url, 96)} 
                           alt={item.products.name}
                           className="w-full h-full object-cover rounded"
                         />

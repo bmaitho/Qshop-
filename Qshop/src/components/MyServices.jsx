@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, Image, X
 import { supabase } from './SupabaseClient';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-toastify';
-import { compressImage } from '../utils/ImageUtils';
+import { compressImage, img } from '../utils/ImageUtils';
 
 const fmt = (n) => `KES ${Number(n).toLocaleString()}`;
 
@@ -292,7 +292,7 @@ export default function MyServices({ userId }) {
                   <div key={svc.id} className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
                     {/* Image */}
                     {Array.isArray(svc.images) && svc.images[0] && (
-                      <img src={svc.images[0]} alt={svc.title} className="w-full h-36 object-cover rounded-lg" />
+                      <img src={img(svc.images[0], 320)} alt={svc.title} className="w-full h-36 object-cover rounded-lg" />
                     )}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">

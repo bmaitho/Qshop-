@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { img } from '../utils/ImageUtils';
 
 const BuyerOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -321,7 +322,7 @@ const BuyerOrders = () => {
                 <div className="flex gap-4 mb-4">
                   {order.products?.images?.[0] && (
                     <img
-                      src={order.products.images[0]}
+                      src={img(order.products.images[0], 96)}
                       alt={order.products.name}
                       className="w-20 h-20 object-cover rounded-lg"
                     />

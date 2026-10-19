@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { img } from '../utils/ImageUtils';
 
 const Wishlist = () => {
   const { addToCart } = useCart();
@@ -278,7 +279,7 @@ const Wishlist = () => {
                   {/* Consistent image container with aspect ratio */}
                   <div className={`${isMobile ? 'w-20 h-20 mr-3' : 'w-24 h-24'} overflow-hidden rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0`}>
                     <img 
-                      src={imageErrors[productId] ? "/api/placeholder/200/200" : (item.products.image_url || "/api/placeholder/200/200")}
+                      src={imageErrors[productId] ? "/api/placeholder/200/200" : (img(item.products.image_url, 200) || "/api/placeholder/200/200")}
                       alt={item.products.name}
                       className="w-full h-full object-cover"
                       loading="lazy"

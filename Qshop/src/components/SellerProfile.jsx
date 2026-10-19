@@ -5,7 +5,7 @@ import { User, MapPin, Star, ArrowLeft, Package, Phone, Mail } from 'lucide-reac
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from '../components/SupabaseClient';
-import { getBannerUrl } from '../utils/ImageUtils';
+import { getBannerUrl, img } from '../utils/ImageUtils';
 import ProductCard from './ProductCard';
 import ShareButton from './ShareButton';
 import Navbar from './Navbar';
@@ -152,7 +152,7 @@ const SellerProfile = () => {
         {shop?.banner_url && (
           <div className="w-full h-40 md:h-56 lg:h-64 rounded-lg overflow-hidden mb-6">
             <img 
-              src={shop.banner_url} 
+              src={img(shop.banner_url, 1200)} 
               alt={`${shop.shop_name || seller?.full_name} banner`}
               className="w-full h-full object-cover"
               onError={(e) => {

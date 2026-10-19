@@ -5,6 +5,7 @@ import { Package, Truck, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from '../components/SupabaseClient';
+import { img } from '../utils/ImageUtils';
 
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -135,7 +136,7 @@ const OrderHistory = () => {
                     {firstItem?.products?.images?.[0] && (
                       <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                         <img
-                          src={firstItem.products.images[0]}
+                          src={img(firstItem.products.images[0], 96)}
                           alt={firstItem.products.name}
                           className="w-full h-full object-cover"
                         />

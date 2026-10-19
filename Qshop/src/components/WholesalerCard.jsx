@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
+import { img } from '../utils/ImageUtils';
 
 const WholesalerCard = ({ shop }) => {
   return (
@@ -16,7 +17,7 @@ const WholesalerCard = ({ shop }) => {
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-full bg-white/90 flex items-center justify-center overflow-hidden">
               <img 
-                src={shop.logo_url || "/api/placeholder/48/48"} 
+                src={img(shop.logo_url, 48) || "/api/placeholder/48/48"} 
                 alt={`${shop.name} logo`} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -40,7 +41,7 @@ const WholesalerCard = ({ shop }) => {
           {shop.products && shop.products.map((product, index) => (
             <div key={index} className="flex-none w-32 md:w-40 bg-black/60 backdrop-blur-sm p-2 rounded text-center">
               <img 
-                src={product.image_url || "/api/placeholder/120/120"} 
+                src={img(product.image_url, 120) || "/api/placeholder/120/120"} 
                 alt={product.name} 
                 className="w-full h-24 md:h-32 object-cover rounded"
                 onError={(e) => {

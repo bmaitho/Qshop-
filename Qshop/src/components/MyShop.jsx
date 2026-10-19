@@ -26,7 +26,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import { supabase } from '../components/SupabaseClient';
-import { getBannerUrl } from '../utils/ImageUtils';
+import { getBannerUrl, img } from '../utils/ImageUtils';
 import { shopToasts } from '../utils/toastConfig';
 import ProductCard from './ProductCard';
 import Navbar from './Navbar';
@@ -617,7 +617,7 @@ const MyShop = () => {
         {shopData?.banner_url && (
           <div className="w-full h-32 md:h-48 lg:h-64 rounded-lg overflow-hidden mb-6">
             <img 
-              src={shopData.banner_url} 
+              src={img(shopData.banner_url, 1200)} 
               alt={`${getShopName} banner`}
               className="w-full h-full object-cover"
               loading="lazy"

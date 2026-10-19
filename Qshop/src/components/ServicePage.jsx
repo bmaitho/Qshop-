@@ -5,6 +5,7 @@ import GoodsServicesToggle from "./GoodsServicesToggle";
 import ServiceCheckout from "./ServiceCheckout";
 import UserServiceBookingModal from "./UserServiceBookingModal";
 import Billboard from "./Billboard";
+import { img } from '../utils/ImageUtils';
 
 const PINNED_EVENT_SLUG = 'the-hive-no-going-home';
 const PINNED_EVENT_POSTER = '/hive/media/blood-moon.webp';
@@ -878,7 +879,7 @@ export default function ServicesPage() {
                     {(evt.image_url || isPinned) && (
                       <div style={{ height: '240px', overflow: 'hidden' }}>
                         <img
-                          src={evt.image_url || PINNED_EVENT_POSTER}
+                          src={img(evt.image_url, 400) || PINNED_EVENT_POSTER}
                           alt={evt.title}
                           loading="lazy"
                           style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: isPinned ? 'center 30%' : 'center' }}
@@ -1020,7 +1021,7 @@ export default function ServicesPage() {
                 <div className="provider-card" key={svc.id}>
                   <div className="card-banner" style={{ overflow: 'hidden', padding: 0 }}>
                     {Array.isArray(svc.images) && svc.images[0] ? (
-                      <img src={svc.images[0]} alt={svc.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={img(svc.images[0], 320)} alt={svc.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <span className="card-banner-emoji">🛠️</span>
                     )}

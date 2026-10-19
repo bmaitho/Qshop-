@@ -5,6 +5,7 @@ import { Minus, Plus, X, Loader2, ShoppingBag, CheckCircle2 } from 'lucide-react
 import QRCode from '../QRCode';
 import { cartTotal } from './useHiveCart';
 import { HIVE_SLUG } from './hiveMedia';
+import { img } from '../../utils/ImageUtils';
 
 const ksh = (n) => `KSh ${Number(n || 0).toLocaleString('en-KE')}`;
 
@@ -65,7 +66,7 @@ export function CartPanel({ cartApi, products, balance, user, onLogin, onDone, o
         {lines.map(({ product: p, q }) => (
           <div key={p.id} className="flex items-center gap-3">
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0">
-              {p.image_url && <img src={p.image_url} alt="" className="w-full h-full object-cover" />}
+              {p.image_url && <img src={img(p.image_url, 96)} alt="" className="w-full h-full object-cover" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white font-semibold truncate">{p.name}</p>

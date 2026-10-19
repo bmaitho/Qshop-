@@ -8,6 +8,7 @@ import { initGuestTicket } from '../Services/eventTicketService';
 import Navbar from './Navbar';
 import MobileNavbar from './MobileNavbar';
 import QRCode from './QRCode';
+import { img } from '../utils/ImageUtils';
 
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_ATTEMPTS = 40; // ~2 minutes
@@ -613,7 +614,7 @@ const EventPage = ({ token }) => {
           {/* Image */}
           {event.image_url && (
             <div className="w-full h-44 sm:h-72 rounded-2xl sm:rounded-none overflow-hidden mb-4 sm:mb-0">
-              <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+              <img src={img(event.image_url, 900)} alt={event.title} className="w-full h-full object-cover" />
             </div>
           )}
 
@@ -798,7 +799,7 @@ const EventPage = ({ token }) => {
                         >
                           {product.image_url ? (
                             <div className={`${i % 3 === 0 ? 'aspect-[4/5]' : i % 3 === 1 ? 'aspect-square' : 'aspect-[4/3]'} bg-muted overflow-hidden`}>
-                              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                              <img src={img(product.image_url, 200)} alt={product.name} className="w-full h-full object-cover" />
                             </div>
                           ) : (
                             <div className="aspect-square bg-muted" />

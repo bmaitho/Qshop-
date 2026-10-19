@@ -27,6 +27,7 @@ import { Link } from 'react-router-dom';
 import OrderHistory from './OrderHistory';
 import MessageCenter from './MessageCenter';
 import { HIVE_SLUG } from './hive/hiveMedia';
+import { img } from '../utils/ImageUtils';
 
 
 
@@ -46,7 +47,7 @@ function ProfileHeader({ profile, isSeller, hub, copied, onEdit, onCopyStore }) 
       <div className="h-24 sm:h-32 bg-[radial-gradient(120%_140%_at_0%_0%,rgba(231,198,95,0.35),transparent_55%),linear-gradient(120deg,#0D2B20,#113b1e_55%,#1a1205)]" aria-hidden="true" />
       <div className="px-5 sm:px-8 pb-6 -mt-12 sm:-mt-14 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
         {profile.avatar_url ? (
-          <img src={profile.avatar_url} alt="" className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover ring-4 ring-card" />
+          <img src={img(profile.avatar_url, 112)} alt="" className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover ring-4 ring-card" />
         ) : (
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full ring-4 ring-card bg-[#E7C65F] text-[#0D2B20] flex items-center justify-center font-serif text-3xl font-bold" aria-hidden="true">
             {initials(profile.full_name)}

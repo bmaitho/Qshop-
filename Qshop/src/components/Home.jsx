@@ -16,6 +16,7 @@ import TextbooksImage from '../assets/categories/textbooks.jpg';
 import ElectronicsImage from '../assets/categories/electronics.jpg';
 import StationeryImage from '../assets/categories/stationery.jpg';
 import StudyMaterialsImage from '../assets/categories/study-materials.jpg';
+import { img } from '../utils/ImageUtils';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -28,8 +29,8 @@ const Home = () => {
         supabase.from('products').select('image_url').eq('status', 'active').not('image_url', 'is', null).order('created_at', { ascending: false }).limit(12),
       ]);
       setMedia({
-        banners: (shops || []).map((x) => x.banner_url).filter(Boolean),
-        products: (prods || []).map((x) => x.image_url).filter(Boolean),
+        banners: (shops || []).map((x) => img(x.banner_url, 1200)).filter(Boolean),
+        products: (prods || []).map((x) => img(x.image_url, 640)).filter(Boolean),
       });
     })();
   }, []);
