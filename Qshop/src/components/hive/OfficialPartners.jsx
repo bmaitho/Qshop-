@@ -6,8 +6,8 @@ import { HIVE_SLUG, LITTLE } from './hiveMedia';
 const PARTNERS = [
   { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
-  { name: 'Little', line: `Rides · code ${LITTLE.code}`, img: null, href: LITTLE.tickets },
-  { name: 'Siwaka Podcast', line: 'Official media outlet · TikTok', img: '/media/siwaka/still-1.webp', to: '/hive/siwaka' },
+  { name: 'Little', line: 'Tickets & rides', img: null, href: LITTLE.tickets },
+  { name: 'Siwaka Podcast', line: 'Official media outlet · TikTok', img: '/media/siwaka/still-1.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka' },
   { name: 'Charge24', line: 'Official power-bank charging station', img: '/partners/charge24.png', logo: true, to: '/events/the-hive-no-going-home?tab=night' },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
 ];
@@ -35,11 +35,14 @@ export default function OfficialPartners() {
               ) : p.img ? (
                 <img src={p.img} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
               ) : (
-                <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_100%_0%,rgba(245,183,0,0.35),transparent_60%),linear-gradient(160deg,#1a1408,#060504)] flex items-center justify-center">
-                  <span className="font-serif text-[#f5b700] text-2xl sm:text-3xl font-bold tracking-[0.18em] border border-dashed border-[#f5b700]/60 rounded-xl px-4 py-2">{LITTLE.code}</span>
+                // Little's official logo (white wordmark, made for dark backgrounds).
+                <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#16120a,#060504)] flex flex-col items-center justify-center gap-4 pb-14 px-5">
+                  <img src="/partners/little.png" alt="Little" loading="lazy" className="w-[72%] max-w-[180px] h-auto object-contain transition-transform duration-700 group-hover:scale-105" />
+                  <span className="text-[#f5b700] text-xs sm:text-sm font-bold tracking-[0.2em] border border-dashed border-[#f5b700]/60 rounded-lg px-3 py-1">{LITTLE.code}</span>
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              {p.badge && <img src={p.badge} alt={`${p.name} logo`} loading="lazy" className="absolute top-3 left-3 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg ring-1 ring-white/20" />}
               <div className="absolute inset-x-0 bottom-0 p-4">
                 <p className="text-white font-serif font-bold text-lg leading-tight">{p.name}</p>
                 <p className="text-white/65 text-xs mt-0.5">{p.line}</p>
