@@ -12,7 +12,7 @@ import ExperiencePromo from '../experience/ExperiencePromo';
 import useHiveCart, { cartTotal } from './useHiveCart';
 import CartDrawer from './HiveCart';
 import {
-  HIVE_SLUG, POSTERS, VIDEOS, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, isComingSoon, packagePoster,
+  HIVE_SLUG, POSTERS, VIDEOS, FACEPAINT, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, isComingSoon, packagePoster,
 } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
 import WaveTwo, { WaveStrip } from './WaveTwo';
@@ -102,9 +102,9 @@ function EditorialPin({ item }) {
 const EDITORIAL = [
   { at: 3, key: 'ed-master', type: 'image', src: POSTERS.master, caption: 'Everyone will be there', brand: 'all' },
   { at: 6, key: 'ed-countdown', type: 'video', ...VIDEOS.countdown, caption: 'The countdown is on', brand: 'all' },
-  { at: 10, key: 'ed-faceA', type: 'image', src: POSTERS.faceBoardA, caption: 'Face & body paint by Radiant By Tatty', brand: 'facepaint' },
+  { at: 10, key: 'ed-faceA', type: 'video', ...FACEPAINT.clown, caption: 'Face & body paint by Radiant By Tatty', brand: 'facepaint' },
   { at: 15, key: 'ed-afterdark', type: 'image', src: POSTERS.afterDark, caption: 'After dark, everything changes', brand: 'all' },
-  { at: 20, key: 'ed-faceB', type: 'image', src: POSTERS.faceBoardB, caption: 'Go luminous — UV designs', brand: 'facepaint' },
+  { at: 20, key: 'ed-faceB', type: 'video', ...FACEPAINT.uv, caption: 'Go luminous — UV designs', brand: 'facepaint' },
 ];
 
 function LittleCard() {
@@ -666,9 +666,19 @@ export default function HiveEventPage() {
               <div className="px-3 sm:px-6 lg:px-10">
                 <Masonry
                   // Our own Halloween face-paint shoot (pre-party, Oct 2026).
-                  items={['fp-01', 'fp-02', 'fp-03', 'fp-04', 'fp-05'].map((k) => ({ key: k, src: `/hive/facepaint/${k}.webp` }))}
+                  items={[
+                    { key: 'v-clown', ...FACEPAINT.clown, video: true },
+                    { key: 'red', src: FACEPAINT.red },
+                    { key: 'v-uv', ...FACEPAINT.uv, video: true },
+                    { key: 'flower', src: FACEPAINT.flower },
+                    ...['fp-01', 'fp-02', 'fp-03', 'fp-04', 'fp-05'].map((k) => ({ key: k, src: `/hive/facepaint/${k}.webp` })),
+                  ]}
                   render={(it) => (
-                    <div className="hive-card"><img src={it.src} alt="Face paint look" loading="lazy" className="hive-card-img" /></div>
+                    <div className="hive-card">
+                      {it.video
+                        ? <video src={it.src} poster={it.poster} muted loop autoPlay playsInline preload="metadata" className="hive-card-img" />
+                        : <img src={it.src} alt="Face paint look" loading="lazy" className="hive-card-img" />}
+                    </div>
                   )}
                 />
               </div>

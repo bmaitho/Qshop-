@@ -4,7 +4,7 @@
 // should feel endless.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react';
-import { POSTERS, VIDEOS, BOOTH } from './hiveMedia';
+import { POSTERS, VIDEOS, BOOTH, FACEPAINT } from './hiveMedia';
 import './hive.css';
 
 const { b } = BOOTH;
@@ -18,6 +18,7 @@ export const HIVE_SCENES = [
   { layout: 'poster', media: [img(POSTERS.master)], caption: 'THE HIVE · No Going Home · Sarakasi Dome' },
   { layout: 'split', media: [img(b('euph025')), vid(VIDEOS.euphoriaReel)], caption: 'Euphoria went loud' },
   { layout: 'poster', media: [img(m('vip-experience'))], caption: 'VIP — a Red Bull or Smirnoff on arrival' },
+  { layout: 'split', media: [vid(FACEPAINT.uv), vid(FACEPAINT.clown)], caption: 'Face & body paint by Radiant By Tatty — real UniHive faces' },
   { layout: 'split', media: [img(m('dj-fringe')), vid(VIDEOS.fringe)], caption: 'On the decks: DJ Fringe' },
   { layout: 'full', media: [vid(VIDEOS.euphoriaWide)], caption: 'From the floor' },
   { layout: 'split', media: [img(b('smirnoff-story')), img(b('ngh202'))], caption: 'The story that landed us Smirnoff' },
@@ -29,18 +30,31 @@ export const HIVE_SCENES = [
   { layout: 'split', media: [img(b('ngh023')), img(POSTERS.bloodMoon)], caption: 'One night. Endless memories.' },
 ];
 
+// Each scene stays at least DURATION; scenes with video stay until every
+// clip in them has played through once (capped so a stuck video can't freeze it).
 const DURATION = 8000;
+const MAX_DWELL = 45000;
 
-function Media({ item, active, muted, fit = 'cover', drift = true }) {
+function Media({ item, active, muted, fit = 'cover', drift = true, onDone }) {
   const ref = useRef(null);
+  const reported = useRef(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (active) { el.currentTime = 0; el.play().catch(() => {}); } else el.pause();
+    reported.current = false;
+    if (active) { el.currentTime = 0; el.play().catch(() => onDone?.()); } else el.pause();
   }, [active]);
+  // Looping videos never fire "ended", so watch for the last frame instead.
+  const onTime = (e) => {
+    const el = e.currentTarget;
+    if (active && !reported.current && el.duration && el.currentTime >= el.duration - 0.3) {
+      reported.current = true;
+      onDone?.();
+    }
+  };
   useEffect(() => { if (ref.current) ref.current.muted = muted; }, [muted]);
   if (item.type === 'video') {
-    return <video ref={ref} src={item.src} poster={item.poster} muted={muted} loop playsInline preload={active ? 'auto' : 'metadata'} className="absolute inset-0 w-full h-full" style={{ objectFit: fit }} />;
+    return <video ref={ref} src={item.src} poster={item.poster} muted={muted} loop playsInline preload={active ? 'auto' : 'metadata'} onTimeUpdate={onTime} onError={() => onDone?.()} className="absolute inset-0 w-full h-full" style={{ objectFit: fit }} />;
   }
   return (
     <img
@@ -53,13 +67,21 @@ function Media({ item, active, muted, fit = 'cover', drift = true }) {
   );
 }
 
-function Scene({ scene, active, muted }) {
+function Scene({ scene, active, muted, onDone }) {
   const [a, c] = scene.media;
+  // Report done once every video in the scene has played through.
+  const videos = scene.media.filter((x) => x.type === 'video').length;
+  const finished = useRef(new Set());
+  useEffect(() => { finished.current = new Set(); }, [active]);
+  const done = (k) => () => {
+    finished.current.add(k);
+    if (finished.current.size >= videos) onDone?.();
+  };
   if (scene.layout === 'split') {
     return (
       <div className="absolute inset-0 grid grid-cols-2 gap-1 sm:gap-1.5 bg-black">
-        <div className="relative overflow-hidden"><Media item={a} active={active} muted={muted} /></div>
-        <div className="relative overflow-hidden"><Media item={c} active={active} muted={muted} /></div>
+        <div className="relative overflow-hidden"><Media item={a} active={active} muted={muted} onDone={done(0)} /></div>
+        <div className="relative overflow-hidden"><Media item={c} active={active} muted={muted} onDone={done(1)} /></div>
       </div>
     );
   }
@@ -70,13 +92,13 @@ function Scene({ scene, active, muted }) {
         <img src={bg} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-125 blur-3xl opacity-50" />
         <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-8">
           <div className="relative h-full aspect-[4/5] max-w-full rounded-xl overflow-hidden shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]">
-            <Media item={a} active={active} muted={muted} drift={false} />
+            <Media item={a} active={active} muted={muted} drift={false} onDone={done(0)} />
           </div>
         </div>
       </div>
     );
   }
-  return <div className="absolute inset-0 overflow-hidden bg-black"><Media item={a} active={active} muted={muted} /></div>;
+  return <div className="absolute inset-0 overflow-hidden bg-black"><Media item={a} active={active} muted={muted} onDone={done(0)} /></div>;
 }
 
 export default function CinemaBillboard({ scenes = HIVE_SCENES, className = '', height = 'h-[62svh] min-h-[420px] max-h-[720px]', linkTo }) {
@@ -88,10 +110,20 @@ export default function CinemaBillboard({ scenes = HIVE_SCENES, className = '', 
   const go = useCallback((d) => setI((x) => (x + d + n) % n), [n]);
   const nudge = (d) => { pausedUntil.current = Date.now() + 14000; go(d); };
 
+  // Advance when the scene has had its minimum time AND its videos have
+  // finished; re-check every second so pauses (swipes, hidden tab) hold it.
+  const [videoDone, setVideoDone] = useState(false);
+  const shownAt = useRef(Date.now());
+  useEffect(() => { shownAt.current = Date.now(); setVideoDone(false); }, [i]);
   useEffect(() => {
-    const t = setInterval(() => { if (Date.now() > pausedUntil.current && !document.hidden) go(1); }, DURATION);
+    const needsVideo = scenes[i].media.some((x) => x.type === 'video');
+    const t = setInterval(() => {
+      if (Date.now() < pausedUntil.current || document.hidden) return;
+      const age = Date.now() - shownAt.current;
+      if (age >= MAX_DWELL || (age >= DURATION && (!needsVideo || videoDone))) go(1);
+    }, 1000);
     return () => clearInterval(t);
-  }, [go]);
+  }, [go, i, videoDone, scenes]);
 
   const near = (k) => k === i || k === (i + 1) % n || k === (i - 1 + n) % n;
   const hasVideo = scenes[i].media.some((x) => x.type === 'video');
@@ -116,7 +148,7 @@ export default function CinemaBillboard({ scenes = HIVE_SCENES, className = '', 
     >
       {scenes.map((s, k) => (
         <div key={k} className={`absolute inset-0 transition-opacity duration-[1400ms] ease-in-out ${k === i ? 'opacity-100 z-[1]' : 'opacity-0 z-0'}`} aria-hidden={k !== i}>
-          {near(k) && <Scene scene={s} active={k === i} muted={muted} />}
+          {near(k) && <Scene scene={s} active={k === i} muted={muted} onDone={k === i ? () => setVideoDone(true) : undefined} />}
         </div>
       ))}
       <div className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-t from-black/75 via-transparent to-black/10" />
