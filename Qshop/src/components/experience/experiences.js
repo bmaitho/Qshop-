@@ -110,8 +110,22 @@ export const EXPERIENCES = {
         'If you missed it: we noticed. We laughed. Lovingly. Mostly.',
       ],
       next: 'Good news: you get one more chance this year. 30 October. Sarakasi Dome. 6PM till 4AM. No going home.',
-      gallery: [],
+      // Recap hero: UniHive x Siwaka Podcast x Natalia Gathoni x Paradise Lost collab post.
+      hero: { src: `${PP}/recap/collab.webp` },
+      gallery: [
+        { src: `${PP}/recap/collab.webp`, caption: 'UniHive × Siwaka Podcast × Natalia Gathoni × Paradise Lost' },
+      ],
       driveUrl: null,
+      // Who actually pulled up (confirmed by the team, 20 Oct).
+      people: [
+        { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/still-3.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka' },
+        { name: 'Siwaka', role: 'Artist' },
+        { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp' },
+        { name: 'Denzz', role: 'Artist', img: '/hive/media/denzz.webp' },
+        { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp' },
+        { name: 'DJ Fringe', role: 'On the decks', img: '/hive/media/dj-fringe.webp' },
+      ],
+      alsoThere: ['Millie & Ria (dancers)', 'Ohan', 'Toni', 'Amy Vlogs'],
     },
 
     // Where it shows up across UniHive.
