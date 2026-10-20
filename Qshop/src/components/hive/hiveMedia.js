@@ -36,6 +36,9 @@ export const VIDEOS = {
   neonNight: v('neon-night'),
   supeeSmirnoff: v('supee-smirnoff'),
   siwakaUnihive: v('siwaka-unihive'),
+  crewCheer1: v('crew-cheer-1'),
+  crewCheer2: v('crew-cheer-2'),
+  lakeSelfie: v('lake-selfie'),
 };
 
 // Our own Halloween face-paint shoot (real UniHive faces), used for the

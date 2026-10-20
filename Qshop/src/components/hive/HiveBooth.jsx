@@ -18,6 +18,8 @@ const FILTERS = [
 ];
 
 const REELS = [
+  { key: 'reel-crew', kind: 'video', event: 'pre-party', ...VIDEOS.crewCheer2, w: 960, h: 540 },
+  { key: 'reel-lake', kind: 'video', event: 'pre-party', ...VIDEOS.lakeSelfie, w: 540, h: 960 },
   { key: 'reel-bts', kind: 'video', event: 'no-going-home', ...VIDEOS.btsReel, w: 720, h: 1280 },
   { key: 'reel-euph', kind: 'video', event: 'euphoria', ...VIDEOS.euphoriaReel, w: 720, h: 1280 },
   { key: 'reel-euph-wide', kind: 'video', event: 'euphoria', ...VIDEOS.euphoriaWide, w: 1280, h: 720 },
