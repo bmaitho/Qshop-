@@ -89,7 +89,12 @@ function Recap({ x }) {
           {rc.gallery.map((m) => (
             m.video
               ? <video key={m.video} src={m.video} poster={m.src} muted loop autoPlay playsInline preload="metadata" className="w-full rounded-2xl break-inside-avoid" />
-              : <img key={m.src} src={m.src} alt="" loading="lazy" decoding="async" className="w-full rounded-2xl break-inside-avoid" />
+              : (
+                <figure key={m.src} className="break-inside-avoid">
+                  <img src={m.src} alt={m.caption || ''} loading="lazy" decoding="async" className="w-full rounded-2xl" />
+                  {m.caption && <figcaption className="text-white/45 text-xs mt-1.5">{m.caption}</figcaption>}
+                </figure>
+              )
           ))}
         </div>
       ) : (
@@ -127,7 +132,8 @@ export default function ExperiencePage({ x }) {
   const c = useCountdown(x.startsAt);
   const people = x.people.filter((p) => p.confirmed);
   const brands = x.brands.filter((b) => b.confirmed);
-  const hero = x.media.hero;
+  const hero = ended && x.recap.hero ? x.recap.hero : x.media.hero;
+  const shownPeople = ended && x.recap.people ? x.recap.people : people;
   const title = x.name.replace(/-/g, '\u2011'); // keep "PRE-PARTY" on one line
   // Sticky mobile RSVP appears only once the hero button scrolls away.
   const ctaRef = useRef(null);
@@ -237,9 +243,9 @@ export default function ExperiencePage({ x }) {
       <section className="px-4 sm:px-8 lg:px-12 pb-12">
         <p className="text-[11px] tracking-[0.35em] text-[#ff7a1a] font-semibold uppercase">Creators · artists · DJs</p>
         <h2 className="hive-display text-white text-2xl sm:text-3xl font-bold mt-1">{ended ? 'Who you missed' : 'Who you’ll meet'}</h2>
-        {people.length > 0 ? (
+        {shownPeople.length > 0 ? (
           <div className="flex gap-3 overflow-x-auto hive-noscroll mt-5 -mx-4 px-4 sm:mx-0 sm:px-0">
-            {people.map((p) => { const Card = p.to ? Link : 'div'; return (
+            {shownPeople.map((p) => { const Card = p.to ? Link : 'div'; return (
               <Card key={p.name} {...(p.to ? { to: p.to } : {})} className="relative block shrink-0 w-[62vw] sm:w-[260px] aspect-[4/5] rounded-[22px] overflow-hidden bg-[linear-gradient(160deg,#1a1205,#07050a)]">
                 {p.img && !p.logo ? (
                   <img src={p.img} alt={p.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
@@ -265,10 +271,13 @@ export default function ExperiencePage({ x }) {
         ) : (
           <p className="text-white/60 mt-3">Creators, artists and DJs — names dropping soon. Watch <a href="https://www.instagram.com/unihive.entertainment/" target="_blank" rel="noreferrer" className="underline">@unihive.entertainment</a>.</p>
         )}
-        <div className="grid grid-cols-3 gap-2 mt-6">
+        {ended && x.recap.alsoThere?.length > 0 && (
+          <p className="text-white/70 text-sm sm:text-base mt-5"><span className="text-[#e7c65f] font-semibold">Also in the building:</span> {x.recap.alsoThere.join(' · ')} — to mention a few.</p>
+        )}
+        {!ended && <div className="grid grid-cols-3 gap-2 mt-6">
           {PEOPLE_SHOTS.map((src) => <img key={src} src={src} alt="" loading="lazy" className="rounded-2xl w-full aspect-square object-cover" />)}
-        </div>
-        <p className="text-white/40 text-xs mt-2">From past Hive nights. New connections start here.</p>
+        </div>}
+        {!ended && <p className="text-white/40 text-xs mt-2">From past Hive nights. New connections start here.</p>}
       </section>
 
       {/* Brands */}
