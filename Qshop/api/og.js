@@ -172,7 +172,7 @@ async function resolve(db, path, query) {
 
   return {
     url,
-    title: 'UniHive — Goods & The Buzz',
+    title: 'UniHive — The Goods & The Buzz',
     description: 'Built by us, for us. Shop the marketplace, open your shop, and catch what’s happening next.',
     image: CARD('unihive'),
   };
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
     meta = await resolve(db, path, req.query);
   } catch (error) {
     console.error('OG handler error:', error);
-    meta = { url: `${SITE_URL}/${path}`, title: 'UniHive — Goods & The Buzz', description: 'Built by us, for us.', image: CARD('unihive') };
+    meta = { url: `${SITE_URL}/${path}`, title: 'UniHive — The Goods & The Buzz', description: 'Built by us, for us.', image: CARD('unihive') };
   }
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=1200');

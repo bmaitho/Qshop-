@@ -6,7 +6,7 @@ import { allowedUrls } from './data.js';
 
 const VOICE = `You write "The Buzz", UniHive's email to its community in Nairobi, Kenya.
 
-UniHive connects people, creates opportunities and brings people together through experiences worth having: a marketplace of independent shops (Goods), events and services (The Buzz), and THE HIVE, its own events. Values: quality experiences; no scams, no stress; we grow together; connecting people to possibilities; building a culture, not just a platform.
+UniHive connects people, creates opportunities and brings people together through experiences worth having: a marketplace of independent shops (The Goods), events and services (The Buzz), and THE HIVE, its own events. Values: quality experiences; no scams, no stress; we grow together; connecting people to possibilities; building a culture, not just a platform.
 
 Voice: creative, minimal, quietly funny, cool and collected — the email people look forward to. Short lines. Confident, never needy. Light Sheng/Swahili is welcome where it lands naturally (e.g. "tunaenda", "sasa"), never forced. No exclamation-mark spam, no emoji walls (one or two at most), no corporate filler, no "Dear valued customer".
 
@@ -56,7 +56,7 @@ export function templateIssue(data) {
     });
   }
   if (data.new_products.length) {
-    sections.push({ kicker: 'Fresh on Goods', title: 'New this week', body: 'Independent shops, real people, no scams. Pay through UniHive and the seller is paid when you confirm delivery.', cta_label: 'Browse Goods', cta_url: data.links.marketplace, images: data.new_products.slice(0, 4).map((p) => p.image) });
+    sections.push({ kicker: 'Fresh on The Goods', title: 'New this week', body: 'Independent shops, real people, no scams. Pay through UniHive and the seller is paid when you confirm delivery.', cta_label: 'Browse The Goods', cta_url: data.links.marketplace, images: data.new_products.slice(0, 4).map((p) => p.image) });
   }
   if (data.new_shops.length) {
     sections.push({ kicker: 'New in the Hive', title: `${data.new_shops.length} new shop${data.new_shops.length > 1 ? 's' : ''} opened`, body: `Say hi to ${data.new_shops.map((s) => s.name).join(', ')}.`, cta_label: 'Visit', cta_url: data.new_shops[0].url, images: data.new_shops.map((s) => s.image).filter(Boolean).slice(0, 2) });

@@ -71,7 +71,7 @@ export function TermsPage() {
       <S id="about" title="1. About UniHive">
         <p>UniHive connects people, creates opportunities and brings people together through experiences. It has three parts:</p>
         <L items={[
-          <><strong>Goods</strong> — a marketplace where independent sellers list and sell products to buyers.</>,
+          <><strong>The Goods</strong> — a marketplace where independent sellers list and sell products to buyers.</>,
           <><strong>The Buzz</strong> — services, events and experiences, including bookings with independent service providers.</>,
           <><strong>THE HIVE</strong> — UniHive&rsquo;s own events, where you can pre-order drinks, food, merchandise and experiences from UniHive and its partner brands.</>,
         ]} />

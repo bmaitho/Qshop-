@@ -32,6 +32,10 @@ export const VIDEOS = {
   btsReel: v('ngh-bts-reel'),
   euphoriaReel: v('euphoria-reel'),
   euphoriaWide: v('euphoria-wide'),
+  // Pre-party (Oct 2026): the UniHive neon night, Supee x Smirnoff, Siwaka Podcast x UniHive.
+  neonNight: v('neon-night'),
+  supeeSmirnoff: v('supee-smirnoff'),
+  siwakaUnihive: v('siwaka-unihive'),
 };
 
 // Our own Halloween face-paint shoot (real UniHive faces), used for the

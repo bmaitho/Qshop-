@@ -39,9 +39,9 @@ const GoodsServicesToggle = ({ className = '', variant = 'auto' }) => {
   });
 
   return (
-    <div className={className} style={wrapStyle} role="group" aria-label="Goods & The Buzz">
+    <div className={className} style={wrapStyle} role="group" aria-label="The Goods & The Buzz">
       <button style={btn(!isServices)} onClick={() => navigate('/studentmarketplace')}>
-        🛍️ Goods
+        🛍️ The Goods
       </button>
       <span aria-hidden="true" style={{ alignSelf: 'center', fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '15px', fontWeight: 700, color: isDark ? '#e7c65f' : '#a8841f', padding: '0 2px' }}>&amp;</span>
       <button style={btn(isServices)} onClick={() => navigate('/services')}>
