@@ -59,6 +59,21 @@ function RsvpAction({ x, r, compact = false }) {
   );
 }
 
+// Clips only download and play while on screen (keeps the gallery light).
+function LazyClip({ src, poster, className }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { if (!el.src) el.src = src; el.play().catch(() => {}); } else el.pause();
+    }, { rootMargin: '200px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [src]);
+  return <video ref={ref} poster={poster} muted loop playsInline preload="none" className={className} />;
+}
+
 // After the day: "you missed it" + one clear way to the next night.
 function NextAction({ x }) {
   return (
@@ -88,7 +103,7 @@ function Recap({ x }) {
         <div className="columns-2 lg:columns-3 gap-3 mt-8 [&>*]:mb-3">
           {rc.gallery.map((m) => (
             m.video
-              ? <video key={m.video} src={m.video} poster={m.src} muted loop autoPlay playsInline preload="metadata" className="w-full rounded-2xl break-inside-avoid" />
+              ? <LazyClip key={m.video} src={m.video} poster={m.src} className="w-full rounded-2xl break-inside-avoid" />
               : (
                 <figure key={m.src} className="break-inside-avoid">
                   <img src={m.src} alt={m.caption || ''} loading="lazy" decoding="async" className="w-full rounded-2xl" />
