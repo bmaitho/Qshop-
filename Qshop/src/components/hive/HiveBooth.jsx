@@ -20,6 +20,7 @@ const FILTERS = [
 const REELS = [
   { key: 'reel-crew', kind: 'video', event: 'pre-party', ...VIDEOS.crewCheer2, w: 960, h: 540 },
   { key: 'reel-lake', kind: 'video', event: 'pre-party', ...VIDEOS.lakeSelfie, w: 540, h: 960 },
+  { key: 'reel-couch', kind: 'video', event: 'pre-party', src: '/hive/video/ppv-01.mp4', poster: '/hive/video/ppv-01.webp', w: 540, h: 720 },
   { key: 'reel-pp-0', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-01.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-01.webp', w: 402, h: 720 },
   { key: 'reel-pp-1', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-02.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-02.webp', w: 402, h: 720 },
   { key: 'reel-pp-2', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-03.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-03.webp', w: 406, h: 720 },
