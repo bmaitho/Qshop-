@@ -20,17 +20,45 @@ const FILTERS = [
 const REELS = [
   { key: 'reel-crew', kind: 'video', event: 'pre-party', ...VIDEOS.crewCheer2, w: 960, h: 540 },
   { key: 'reel-lake', kind: 'video', event: 'pre-party', ...VIDEOS.lakeSelfie, w: 540, h: 960 },
+  { key: 'reel-pp-0', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-01.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-01.webp', w: 402, h: 720 },
+  { key: 'reel-pp-1', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-02.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-02.webp', w: 402, h: 720 },
+  { key: 'reel-pp-2', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-03.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-03.webp', w: 406, h: 720 },
+  { key: 'reel-pp-3', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-04.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-04.webp', w: 402, h: 720 },
+  { key: 'reel-pp-4', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-05.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-05.webp', w: 402, h: 720 },
+  { key: 'reel-pp-5', kind: 'video', event: 'pre-party', src: '/experiences/the-hive-pre-party/recap/clip-06.mp4', poster: '/experiences/the-hive-pre-party/recap/clip-06.webp', w: 402, h: 720 },
+  { key: 'reel-pp-6', kind: 'video', event: 'pre-party', src: '/hive/video/neon-night.mp4', poster: '/hive/video/neon-night.webp', w: 576, h: 1024 },
+  { key: 'reel-pp-7', kind: 'video', event: 'pre-party', src: '/hive/video/supee-smirnoff.mp4', poster: '/hive/video/supee-smirnoff.webp', w: 720, h: 1280 },
+  { key: 'reel-pp-8', kind: 'video', event: 'pre-party', src: '/hive/video/siwaka-unihive.mp4', poster: '/hive/video/siwaka-unihive.webp', w: 720, h: 1280 },
+  { key: 'reel-pp-9', kind: 'video', event: 'pre-party', src: '/hive/video/crew-cheer-1.mp4', poster: '/hive/video/crew-cheer-1.webp', w: 960, h: 540 },
+  { key: 'reel-pp-10', kind: 'video', event: 'pre-party', src: '/hive/facepaint/uv-mirror.mp4', poster: '/hive/facepaint/uv-mirror.webp', w: 576, h: 1024 },
+  { key: 'reel-pp-11', kind: 'video', event: 'pre-party', src: '/hive/facepaint/clown-reveal.mp4', poster: '/hive/facepaint/clown-body.webp', w: 576, h: 1024 },
   { key: 'reel-bts', kind: 'video', event: 'no-going-home', ...VIDEOS.btsReel, w: 720, h: 1280 },
   { key: 'reel-euph', kind: 'video', event: 'euphoria', ...VIDEOS.euphoriaReel, w: 720, h: 1280 },
   { key: 'reel-euph-wide', kind: 'video', event: 'euphoria', ...VIDEOS.euphoriaWide, w: 1280, h: 720 },
 ];
+
+// Clips only download and play while near the screen, so a long booth
+// doesn't pull every video at once.
+function LazyVideo({ src, poster }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { if (!el.src) el.src = src; el.play().catch(() => {}); } else el.pause();
+    }, { rootMargin: '300px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [src]);
+  return <video ref={ref} poster={poster} muted loop playsInline preload="none" className="absolute inset-0 w-full h-full object-cover" />;
+}
 
 function Tile({ item, onOpen }) {
   const ratio = `${item.w} / ${item.h}`;
   return (
     <button onClick={onOpen} className="hive-card block w-full text-left" style={{ aspectRatio: ratio }}>
       {item.kind === 'video' ? (
-        <video src={item.src} poster={item.poster} muted loop autoPlay playsInline preload="metadata" className="absolute inset-0 w-full h-full object-cover" />
+        <LazyVideo src={item.src} poster={item.poster} />
       ) : (
         <img src={item.src} alt="" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-[1.03]" />
       )}
@@ -89,10 +117,14 @@ export default function HiveBooth() {
   const [open, setOpen] = useState(null);
 
   const items = useMemo(() => {
-    const photos = BOOTH_PHOTOS.map((p) => ({ ...p, key: p.src, kind: 'image' }));
+    // Filter first, then weave clips evenly through the photos.
+    const keep = (x) => filter === 'all' || x.event === filter;
+    const photos = BOOTH_PHOTOS.filter(keep).map((p) => ({ ...p, key: p.src, kind: 'image' }));
+    const reels = REELS.filter(keep);
+    const gap = reels.length ? Math.max(2, Math.floor(photos.length / reels.length)) : 0;
     const list = [...photos];
-    REELS.forEach((r, i) => list.splice(Math.min(2 + i * 9, list.length), 0, r));
-    return list.filter((x) => filter === 'all' || x.event === filter);
+    reels.forEach((r, i) => list.splice(Math.min(1 + i * (gap + 1), list.length), 0, r));
+    return list;
   }, [filter]);
 
   const nav = (d) => setOpen((i) => (i + d + items.length) % items.length);
