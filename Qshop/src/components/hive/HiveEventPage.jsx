@@ -124,7 +124,8 @@ function LittleCard() {
     >
       <div className="relative h-full flex flex-col justify-between p-4">
         <div>
-          <span className="text-[10px] uppercase tracking-[0.25em] text-[#f5b700]">Ride with Little</span>
+          <img src="/partners/little.png" alt="Little" className="h-7 w-auto" />
+          <span className="block mt-2 text-[10px] uppercase tracking-[0.25em] text-[#f5b700]">Ride with Little</span>
           <p className="text-white/55 text-xs mt-1 leading-snug">KSh 200 off rides to and from the Hive</p>
         </div>
         <div>
