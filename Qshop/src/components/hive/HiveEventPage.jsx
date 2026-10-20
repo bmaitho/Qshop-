@@ -665,10 +665,8 @@ export default function HiveEventPage() {
               </SectionTitle>
               <div className="px-3 sm:px-6 lg:px-10">
                 <Masonry
-                  items={[
-                    'facepaint-luminous', 'facepaint-look-devil-neon', 'facepaint-look-spider', 'facepaint-basic',
-                    'facepaint-look-jester-neon', 'facepaint-face-body', 'facepaint-look-webbed', 'facepaint-look-spider-eye', 'facepaint-look-bones',
-                  ].map((k) => ({ key: k, src: `/hive/products/${k}.webp` }))}
+                  // Our own Halloween face-paint shoot (pre-party, Oct 2026).
+                  items={['fp-01', 'fp-02', 'fp-03', 'fp-04', 'fp-05'].map((k) => ({ key: k, src: `/hive/facepaint/${k}.webp` }))}
                   render={(it) => (
                     <div className="hive-card"><img src={it.src} alt="Face paint look" loading="lazy" className="hive-card-img" /></div>
                   )}

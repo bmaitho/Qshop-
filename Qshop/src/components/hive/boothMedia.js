@@ -1,5 +1,13 @@
 // Curated event photography (Google Drive: UNIHIVE + THE HIVE EVENT: EUPHORIA), ordered to alternate events.
-export const BOOTH_PHOTOS = [{"src": "/hive/booth/ngh001.webp", "w": 787, "h": 1400, "event": "no-going-home"},
+export const BOOTH_PHOTOS = [
+// THE HIVE PRE-PARTY (16 Oct 2026): Red Bull, Smirnoff and UniHive moments.
+{"src": "/hive/booth/pp-brand-01.webp", "w": 1200, "h": 1600, "event": "pre-party"},
+{"src": "/hive/booth/pp-brand-02.webp", "w": 1200, "h": 1600, "event": "pre-party"},
+{"src": "/hive/booth/pp-brand-04.webp", "w": 1200, "h": 1600, "event": "pre-party"},
+{"src": "/hive/booth/pp-brand-06.webp", "w": 1200, "h": 1600, "event": "pre-party"},
+{"src": "/hive/booth/pp-brand-07.webp", "w": 464, "h": 832, "event": "pre-party"},
+{"src": "/hive/booth/pp-brand-08.webp", "w": 464, "h": 832, "event": "pre-party"},
+{"src": "/hive/booth/ngh001.webp", "w": 787, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh023.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/ngh031.webp", "w": 1050, "h": 1400, "event": "no-going-home"},
 {"src": "/hive/booth/euph025.webp", "w": 788, "h": 780, "event": "euphoria"},
