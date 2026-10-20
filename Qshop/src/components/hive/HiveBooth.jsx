@@ -12,6 +12,7 @@ import { VIDEOS, DRIVE_FOLDERS } from './hiveMedia';
 
 const FILTERS = [
   { key: 'all', label: 'Everything' },
+  { key: 'pre-party', label: 'Pre-Party' },
   { key: 'no-going-home', label: 'No Going Home · BTS' },
   { key: 'euphoria', label: 'Euphoria' },
 ];
