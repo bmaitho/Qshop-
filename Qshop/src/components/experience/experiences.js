@@ -64,7 +64,7 @@ export const EXPERIENCES = {
 
     // Only `confirmed: true` people are named on the page (all confirmed 13 Oct).
     people: [
-      { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/still-3.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka', confirmed: true },
+      { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/pick-smile.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka', confirmed: true },
       { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp', confirmed: true },
       { name: 'DJ Picasso', role: 'On the decks', img: '/hive/media/dj-piccasso.webp', confirmed: true },
       { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: true },
@@ -147,7 +147,7 @@ export const EXPERIENCES = {
       driveUrl: null,
       // Who actually pulled up (confirmed by the team, 20 Oct).
       people: [
-        { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/still-3.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka' },
+        { name: 'Siwaka Podcast', role: 'Official media outlet', img: '/media/siwaka/pick-smile.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka' },
         { name: 'Siwaka', role: 'Artist' },
         { name: 'Supee', role: 'Artist', img: '/hive/media/supee.webp' },
         { name: 'Denzz', role: 'Artist', img: '/hive/media/denzz.webp' },

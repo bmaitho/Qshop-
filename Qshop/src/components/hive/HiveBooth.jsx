@@ -146,7 +146,7 @@ export default function HiveBooth() {
 
       <div className="px-4 sm:px-8 lg:px-12 pb-6">
         <Link to="/hive/siwaka" className="group flex items-center gap-4 rounded-[22px] border border-white/10 bg-white/[0.03] hover:border-[#e7c65f]/50 p-3 pr-5 max-w-xl">
-          <img src="/media/siwaka/ep97-voxpop.webp" alt="" className="w-16 h-16 rounded-2xl object-cover" />
+          <img src="/media/siwaka/voxpop-cut.webp" alt="" className="w-16 h-16 rounded-2xl object-cover" />
           <div className="min-w-0 flex-1">
             <p className="text-[10px] tracking-[0.3em] uppercase text-[#e7c65f]">Official media outlet</p>
             <p className="hive-display text-white font-bold leading-tight">The Siwaka Podcast</p>

@@ -165,7 +165,7 @@ async function resolve(db, path, query) {
     }
   }
 
-  if (path === 'hive/siwaka') return { url, title: 'The Siwaka Podcast × UniHive — official media outlet', description: 'On the streets, in the crowd, at every Hive moment. Watch Episode 97 and follow @thesiwakapodcast on TikTok.', image: framed('/media/siwaka/ep97-hive.webp', 'hive') };
+  if (path === 'hive/siwaka') return { url, title: 'The Siwaka Podcast × UniHive — official media outlet', description: 'On the streets, in the crowd, at every Hive moment. Watch Episode 97 and follow @thesiwakapodcast on TikTok.', image: framed('/media/siwaka/ep97-hive-cover.webp', 'hive') };
   if (path === 'hive/booth') return { url, title: 'The Hive Photo Booth — real nights, real people', description: 'Find yourself in the photos and reels from every Hive night.', image: CARD('booth') };
   if (path.startsWith('claim')) return { url, title: 'Claim your HIVE — THE HIVE: NO GOING HOME', description: 'Bought on Little Events? Link your ticket to unlock the HIVE Wallet and perks.', image: CARD('hive') };
   if (path === 'services') return { url, title: 'The Buzz — UniHive', description: 'Events, experiences and the people who make them.', image: CARD('buzz') };
