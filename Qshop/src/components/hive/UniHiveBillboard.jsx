@@ -42,17 +42,28 @@ export const UNIHIVE_TIPS = [
   'Ride with Little: code UNIHIVE26 for KSh 200 off rides to and from the Hive.',
 ];
 
+// Slides stay at least AUTO_MS; video slides stay until the clip has played
+// through once (capped at MAX_DWELL).
 const AUTO_MS = 7000;
+const MAX_DWELL = 45000;
 const TIP_MS = 4500;
 
-function Media({ media, active }) {
+function Media({ media, active, onDone }) {
   const ref = useRef(null);
+  const reported = useRef(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (active) el.play().catch(() => {});
-    else el.pause();
+    reported.current = false;
+    if (active) { el.currentTime = 0; el.play().catch(() => onDone?.()); } else el.pause();
   }, [active]);
+  const onTime = (e) => {
+    const el = e.currentTarget;
+    if (active && !reported.current && el.duration && el.currentTime >= el.duration - 0.3) {
+      reported.current = true;
+      onDone?.();
+    }
+  };
   if (media.type === 'mosaic') {
     const srcs = media.srcs.slice(0, 6);
     return (
@@ -66,7 +77,7 @@ function Media({ media, active }) {
     );
   }
   if (media.type === 'video') {
-    return <video ref={ref} src={media.src} poster={media.poster} muted loop playsInline preload={active ? 'auto' : 'none'} className="absolute inset-0 w-full h-full object-cover" />;
+    return <video ref={ref} src={media.src} poster={media.poster} muted loop playsInline preload={active ? 'auto' : 'none'} onTimeUpdate={onTime} onError={() => onDone?.()} className="absolute inset-0 w-full h-full object-cover" />;
   }
   return <img src={media.src} alt="" loading={active ? 'eager' : 'lazy'} decoding="async" className="absolute inset-0 w-full h-full object-cover" />;
 }
@@ -81,10 +92,18 @@ export default function UniHiveBillboard({ slides = UNIHIVE_SLIDES, tips = UNIHI
   const go = useCallback((d) => setI((x) => (x + d + slides.length) % slides.length), [slides.length]);
   const pause = () => { pausedUntil.current = Date.now() + 15000; };
 
+  const [videoDone, setVideoDone] = useState(false);
+  const shownAt = useRef(Date.now());
+  useEffect(() => { shownAt.current = Date.now(); setVideoDone(false); }, [i]);
   useEffect(() => {
-    const t = setInterval(() => { if (Date.now() > pausedUntil.current && !document.hidden) go(1); }, AUTO_MS);
+    const needsVideo = slides[i].media.type === 'video';
+    const t = setInterval(() => {
+      if (Date.now() < pausedUntil.current || document.hidden) return;
+      const age = Date.now() - shownAt.current;
+      if (age >= MAX_DWELL || (age >= AUTO_MS && (!needsVideo || videoDone))) go(1);
+    }, 1000);
     return () => clearInterval(t);
-  }, [go]);
+  }, [go, i, videoDone, slides]);
   useEffect(() => {
     const t = setInterval(() => setTip((x) => (x + 1) % tips.length), TIP_MS);
     return () => clearInterval(t);
@@ -111,7 +130,7 @@ export default function UniHiveBillboard({ slides = UNIHIVE_SLIDES, tips = UNIHI
     >
       {slides.map((sl, k) => (
         <div key={k} className={`absolute inset-0 transition-opacity duration-1000 ${k === i ? 'opacity-100' : 'opacity-0'}`} aria-hidden={k !== i}>
-          {Math.abs(k - i) <= 1 || (i === 0 && k === slides.length - 1) || (i === slides.length - 1 && k === 0) ? <Media media={sl.media} active={k === i} /> : null}
+          {Math.abs(k - i) <= 1 || (i === 0 && k === slides.length - 1) || (i === slides.length - 1 && k === 0) ? <Media media={sl.media} active={k === i} onDone={k === i ? () => setVideoDone(true) : undefined} /> : null}
         </div>
       ))}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />

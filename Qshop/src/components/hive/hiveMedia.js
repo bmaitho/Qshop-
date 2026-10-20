@@ -34,6 +34,16 @@ export const VIDEOS = {
   euphoriaWide: v('euphoria-wide'),
 };
 
+// Our own Halloween face-paint shoot (real UniHive faces), used for the
+// face-paint products, the lookbook and the billboards.
+const fp = (name) => `/hive/facepaint/${name}`;
+export const FACEPAINT = {
+  uv: { src: fp('uv-mirror.mp4'), poster: fp('uv-mirror.webp') },
+  clown: { src: fp('clown-reveal.mp4'), poster: fp('clown-body.webp') },
+  flower: fp('look-flower.webp'),
+  red: fp('look-red.webp'),
+};
+
 const b = (name) => `/hive/booth/${name}.webp`;
 export const BOOTH = { b };
 
@@ -94,7 +104,7 @@ export const BRANDS = [
   { key: 'smirnoff', label: 'Smirnoff', tag: 'Kuja tukate tukatiane.', match: /smirnoff/i, cover: '/hive/products/smirnoff-ice-black-webs.webp', tint: 'from-[#5a0a10]' },
   { key: 'redbull', label: 'Red Bull', match: /red bull/i, cover: '/hive/products/redbull.png', tint: 'from-[#0b1d4a]' },
   { key: 'harrisons', label: "Harrison's Pearl Gerar", match: /shawarma|hotdog|hot dog/i, cover: '/hive/products/shawarma.png', tint: 'from-[#4a2205]' },
-  { key: 'facepaint', label: 'Face & Body Paint', by: 'Radiant By Tatty', tag: 'by Radiant By Tatty', instagram: 'https://www.instagram.com/radiantby_tatty/', match: /paint/i, cover: '/hive/products/facepaint-luminous.webp', tint: 'from-[#0f3a12]' },
+  { key: 'facepaint', label: 'Face & Body Paint', by: 'Radiant By Tatty', tag: 'by Radiant By Tatty', instagram: 'https://www.instagram.com/radiantby_tatty/', match: /paint/i, cover: '/hive/facepaint/look-red.webp', tint: 'from-[#0f3a12]' },
   { key: 'merch', label: 'THE HIVE Merch', match: /hive cup|tee/i, cover: '/hive/products/hive-cup-fang.webp', tint: 'from-[#2a2a2a]' },
 ];
 
