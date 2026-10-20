@@ -10,24 +10,26 @@ export const SIWAKA = {
   handle: '@thesiwakapodcast',
   tiktok: 'https://www.tiktok.com/@thesiwakapodcast',
   logo: '/partners/siwaka-podcast.png', // shows when the file is added
-  hero: { video: `${M}/ep97-voxpop.mp4`, poster: `${M}/ep97-voxpop.webp` },
+  hero: { video: `${M}/voxpop-cut.mp4`, poster: `${M}/voxpop-cut.webp` },
   episodes: [
     {
       id: 'ep97',
       title: 'Episode 97',
       line: 'Out on the streets with UniHive — and THE HIVE.',
       video: `${M}/ep97.mp4`,
-      poster: `${M}/ep97.webp`,
+      poster: `${M}/ep97-cover.webp`,
       tiktokUrl: 'https://vt.tiktok.com/ZSgdKmHcP/',
     },
   ],
+  // Frames picked so everyone looks their best (no mid-word or half-blink shots).
   moments: [
     { kind: 'video', src: '/hive/video/siwaka-unihive.mp4', poster: '/hive/video/siwaka-unihive.webp' },
-    { kind: 'video', src: `${M}/ep97-voxpop.mp4`, poster: `${M}/ep97-voxpop.webp` },
+    { kind: 'video', src: `${M}/voxpop-cut.mp4`, poster: `${M}/voxpop-cut.webp` },
     { kind: 'image', src: `${M}/still-1.webp` },
-    { kind: 'image', src: `${M}/still-3.webp` },
-    { kind: 'image', src: `${M}/still-2.webp` },
-    { kind: 'video', src: `${M}/ep97-hive.mp4`, poster: `${M}/ep97-hive.webp` },
-    { kind: 'image', src: `${M}/still-4.webp` },
+    { kind: 'image', src: `${M}/pick-smile.webp` },
+    { kind: 'image', src: `${M}/pick-crew.webp` },
+    { kind: 'video', src: `${M}/ep97-hive.mp4`, poster: `${M}/ep97-hive-cover.webp` },
+    { kind: 'image', src: `${M}/pick-blue.webp` },
+    { kind: 'image', src: `${M}/pick-host.webp` },
   ],
 };
