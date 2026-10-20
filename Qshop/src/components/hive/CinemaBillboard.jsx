@@ -13,11 +13,13 @@ const vid = (v) => ({ type: 'video', ...v });
 const m = (n) => `/hive/media/${n}.webp`;
 
 export const HIVE_SCENES = [
+  { layout: 'poster', media: [vid(VIDEOS.neonNight)], caption: 'Who are you when the lights go red?' },
   { layout: 'split', media: [vid(VIDEOS.btsReel), img(b('ngh158'))], caption: 'Rehearsed. Ready. Fri 30 Oct.' },
   { layout: 'full', media: [vid(VIDEOS.recap)], caption: 'Last time the Hive opened its doors' },
   { layout: 'poster', media: [img(POSTERS.master)], caption: 'THE HIVE · No Going Home · Sarakasi Dome' },
   { layout: 'split', media: [img(b('euph025')), vid(VIDEOS.euphoriaReel)], caption: 'Euphoria went loud' },
   { layout: 'poster', media: [img(m('vip-experience'))], caption: 'VIP — a Red Bull or Smirnoff on arrival' },
+  { layout: 'split', media: [vid(VIDEOS.supeeSmirnoff), vid(VIDEOS.siwakaUnihive)], caption: 'Supee × Smirnoff · Siwaka Podcast × UniHive' },
   { layout: 'split', media: [vid(FACEPAINT.uv), vid(FACEPAINT.clown)], caption: 'Face & body paint by Radiant By Tatty — real UniHive faces' },
   { layout: 'split', media: [img(m('dj-fringe')), vid(VIDEOS.fringe)], caption: 'On the decks: DJ Fringe' },
   { layout: 'full', media: [vid(VIDEOS.euphoriaWide)], caption: 'From the floor' },
@@ -33,7 +35,7 @@ export const HIVE_SCENES = [
 // Each scene stays at least DURATION; scenes with video stay until every
 // clip in them has played through once (capped so a stuck video can't freeze it).
 const DURATION = 8000;
-const MAX_DWELL = 45000;
+const MAX_DWELL = 70000;
 
 function Media({ item, active, muted, fit = 'cover', drift = true, onDone }) {
   const ref = useRef(null);

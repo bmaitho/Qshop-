@@ -25,7 +25,7 @@ export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
     { kicker: 'Experiences worth having', title: 'Nights people talk about.', body: 'We’re intentional about every experience — worth showing up for, worth remembering.', media: { type: 'image', src: b('euph033') }, cta: { label: 'See The Buzz', to: '/services' } },
     { kicker: 'We grow together', title: 'When one wins, the Hive wins.', body: 'Open a shop and grow with entrepreneurs, creatives and brands growing with you.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice(3).concat(productMosaic.slice(0, 3)) } : { type: 'image', src: PARTNER_SHOTS[4] }, cta: { label: 'Open your shop', to: '/myshop' } },
     { kicker: 'Official partners', title: 'People to possibilities.', body: 'Smirnoff, Red Bull, Little and Harrison’s Pearl Gerar — brands building with the Hive.', media: { type: 'mosaic', srcs: PARTNER_SHOTS } },
-    { kicker: 'The culture', title: 'Built by us. For us.', body: 'Not just a platform — a community you’re proud to be part of, online and in person.', media: { type: 'image', src: b('ngh193') } },
+    { kicker: 'The culture', title: 'Built by us. For us.', body: 'Not just a platform — a community you’re proud to be part of, online and in person.', media: { type: 'video', ...VIDEOS.neonNight } },
   ];
 };
 
@@ -45,7 +45,7 @@ export const UNIHIVE_TIPS = [
 // Slides stay at least AUTO_MS; video slides stay until the clip has played
 // through once (capped at MAX_DWELL).
 const AUTO_MS = 7000;
-const MAX_DWELL = 45000;
+const MAX_DWELL = 70000;
 const TIP_MS = 4500;
 
 function Media({ media, active, onDone }) {

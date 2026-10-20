@@ -22,6 +22,7 @@ export const SIWAKA = {
     },
   ],
   moments: [
+    { kind: 'video', src: '/hive/video/siwaka-unihive.mp4', poster: '/hive/video/siwaka-unihive.webp' },
     { kind: 'video', src: `${M}/ep97-voxpop.mp4`, poster: `${M}/ep97-voxpop.webp` },
     { kind: 'image', src: `${M}/still-1.webp` },
     { kind: 'image', src: `${M}/still-3.webp` },
