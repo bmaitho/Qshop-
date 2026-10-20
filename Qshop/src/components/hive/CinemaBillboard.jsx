@@ -14,6 +14,8 @@ const m = (n) => `/hive/media/${n}.webp`;
 
 export const HIVE_SCENES = [
   { layout: 'poster', media: [vid(VIDEOS.neonNight)], caption: 'Who are you when the lights go red?' },
+  { layout: 'full', media: [vid(VIDEOS.crewCheer2)], caption: 'Siwaka · Denzz · Supee · Amy Vlogs · Ria — the Hive pulled up' },
+  { layout: 'split', media: [img(b('pp-djs')), vid(VIDEOS.crewCheer1)], caption: 'On the decks: DJ Fringe & DJ Picasso' },
   { layout: 'split', media: [vid(VIDEOS.btsReel), img(b('ngh158'))], caption: 'Rehearsed. Ready. Fri 30 Oct.' },
   { layout: 'full', media: [vid(VIDEOS.recap)], caption: 'Last time the Hive opened its doors' },
   { layout: 'poster', media: [img(POSTERS.master)], caption: 'THE HIVE · No Going Home · Sarakasi Dome' },

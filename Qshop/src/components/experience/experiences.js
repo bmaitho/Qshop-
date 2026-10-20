@@ -115,6 +115,11 @@ export const EXPERIENCES = {
       gallery: [
         { src: `${PP}/recap/collab.webp`, caption: 'UniHive × Siwaka Podcast × Natalia Gathoni × Paradise Lost' },
         { src: '/hive/video/neon-night.webp', video: '/hive/video/neon-night.mp4' },
+        { src: '/hive/booth/pp-crew-1.webp' },
+        { src: '/hive/video/crew-cheer-2.webp', video: '/hive/video/crew-cheer-2.mp4' },
+        { src: '/hive/booth/pp-djs.webp' },
+        { src: '/hive/video/lake-selfie.webp', video: '/hive/video/lake-selfie.mp4' },
+        { src: '/hive/booth/pp-neon-redbull.webp' },
         { src: '/hive/video/supee-smirnoff.webp', video: '/hive/video/supee-smirnoff.mp4' },
         { src: '/hive/video/siwaka-unihive.webp', video: '/hive/video/siwaka-unihive.mp4' },
         // Picks from the pre-party Drive (sorted 20 Oct).
