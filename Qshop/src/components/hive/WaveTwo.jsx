@@ -7,7 +7,7 @@ const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 
 export function WaveStrip({ className = '' }) {
   return (
-    <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className={`group inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-[#e7c65f]/40 bg-black/45 backdrop-blur px-4 py-2 text-xs sm:text-sm ${className}`}>
+    <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className={`group inline-flex self-start w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-[#e7c65f]/40 bg-black/45 backdrop-blur px-4 py-2 text-xs sm:text-sm ${className}`}>
       <span className="font-bold text-white/45 line-through decoration-[#c3121f] decoration-2">{WAVES.soldOut.toUpperCase()}</span>
       <span className="text-[#ff8a8a] font-extrabold tracking-wide">SOLD OUT</span>
       <ArrowRight className="w-3.5 h-3.5 text-white/40" aria-hidden="true" />

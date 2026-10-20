@@ -6,9 +6,9 @@ import ServiceCheckout from "./ServiceCheckout";
 import UserServiceBookingModal from "./UserServiceBookingModal";
 import Billboard from "./Billboard";
 import { img } from '../utils/ImageUtils';
+import BuzzEvents, { splitEvents } from './buzz/BuzzEvents';
 
 const PINNED_EVENT_SLUG = 'the-hive-no-going-home';
-const PINNED_EVENT_POSTER = '/hive/media/blood-moon.webp';
 
 // ─── Supabase client ───────────────────────────────────────────────────────────
 const supabase = createClient(
@@ -685,10 +685,10 @@ export default function ServicesPage() {
     try {
       const { data } = await supabase
         .from('events')
-        .select('*')
-        .in('status', ['upcoming', 'live'])
-        .order('event_date', { ascending: true })
-        .limit(3);
+        .select('id, slug, title, event_date, event_time, venue, image_url, price, status')
+        .in('status', ['upcoming', 'live', 'completed'])
+        .order('event_date', { ascending: false })
+        .limit(8);
       setUpcomingEvents(data || []);
     } catch (err) {
       console.error('Error fetching events:', err);
@@ -701,7 +701,12 @@ export default function ServicesPage() {
       .from("service_providers")
       .select(`*, services(*, service_component_categories(*, service_components(*)))`)
       .eq("is_active", true);
-    setProviders(providerData || []);
+    // Only show trips that haven't ended; hide providers with nothing bookable.
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const live = (providerData || [])
+      .map((p) => ({ ...p, services: (p.services || []).filter((s) => !s.trip_end_date || s.trip_end_date >= todayIso) }))
+      .filter((p) => p.services.some((s) => s.status === 'active' || s.status === 'sold_out'));
+    setProviders(live);
     setLoading(false);
   }
 
@@ -824,100 +829,14 @@ export default function ServicesPage() {
         </div>
 
         {/* ── Pinned event billboard — full-bleed, edge to edge ── */}
-        {upcomingEvents.some((e) => e.slug === PINNED_EVENT_SLUG) && (
+        {splitEvents(upcomingEvents).upcoming.some((e) => e.slug === PINNED_EVENT_SLUG) && (
           <div style={{ margin: '8px 0 28px' }}>
             <Billboard linkTo={`/events/${PINNED_EVENT_SLUG}`} />
           </div>
         )}
 
-        {/* ── Events & Tickets Section ── */}
-        {upcomingEvents.length > 0 && (
-          <div style={{ padding: '0 24px 8px', maxWidth: '1100px', margin: '0 auto' }}>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <h2 style={{ fontFamily: "'Syne', sans-serif", fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-                🎟️ Events & Tickets
-              </h2>
-              <button
-                onClick={() => navigate('/events')}
-                style={{
-                  background: 'none', border: 'none', color: 'var(--accent)',
-                  fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '4px 0'
-                }}
-              >
-                View all →
-              </button>
-            </div>
-            <div className="buzz-events">
-              {upcomingEvents.map((evt) => {
-                const spotsLeft = evt.max_capacity ? evt.max_capacity - (evt.tickets_sold || 0) : null;
-                const isPinned = evt.slug === PINNED_EVENT_SLUG;
-                return (
-                  <div
-                    key={evt.id}
-                    className={isPinned ? 'buzz-pinned' : ''}
-                    onClick={() => navigate(`/events/${evt.slug}`)}
-                    style={{
-                      background: 'var(--surface)',
-                      border: isPinned ? '1.5px solid #E7C65F' : '1px solid var(--border)',
-                      borderRadius: 'var(--radius)', overflow: 'hidden', cursor: 'pointer',
-                      transition: 'transform 0.2s, border-color 0.2s',
-                      position: 'relative',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(231,198,95,0.4)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = isPinned ? '#E7C65F' : 'var(--border)'; }}
-                  >
-                    {isPinned && (
-                      <span style={{
-                        position: 'absolute', top: '10px', right: '10px', zIndex: 1,
-                        fontSize: '10px', fontWeight: 700, padding: '3px 10px', borderRadius: '99px',
-                        background: '#E7C65F', color: '#0D2B20',
-                      }}>
-                        Featured
-                      </span>
-                    )}
-                    {(evt.image_url || isPinned) && (
-                      <div style={{ height: '240px', overflow: 'hidden' }}>
-                        <img
-                          src={img(evt.image_url, 400) || PINNED_EVENT_POSTER}
-                          alt={evt.title}
-                          loading="lazy"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: isPinned ? 'center 30%' : 'center' }}
-                        />
-                      </div>
-                    )}
-                    <div style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                        {!isPinned && (
-                          <span style={{
-                            fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '99px',
-                            background: evt.price === 0 ? 'rgba(34,197,94,0.15)' : 'rgba(231,198,95,0.15)',
-                            color: evt.price === 0 ? '#22c55e' : '#E7C65F',
-                          }}>
-                            {evt.price === 0 ? 'FREE' : `KES ${evt.price}`}
-                          </span>
-                        )}
-                        {spotsLeft !== null && spotsLeft <= 20 && spotsLeft > 0 && (
-                          <span style={{ fontSize: '10px', color: '#f97316', fontWeight: 600 }}>
-                            {spotsLeft} spots left
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: isPinned ? '19px' : '15px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px', lineHeight: 1.3 }}>
-                        {evt.title}
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--muted)', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                        <span>📅 {new Date(evt.event_date + 'T00:00:00').toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })}</span>
-                        {evt.event_time && <span>🕐 {(() => { const [h,m] = evt.event_time.split(':'); const hr = parseInt(h); return `${hr > 12 ? hr-12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`; })()}</span>}
-                        {evt.venue && <span>📍 {evt.venue}</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* ── Events: up next + it happened ── */}
+        <BuzzEvents events={upcomingEvents} />
 
         {/* ── Provider grid */}
         {loading ? (
@@ -926,12 +845,7 @@ export default function ServicesPage() {
             <div className="pulse-dot" />
             <div className="pulse-dot" />
           </div>
-        ) : providers.length === 0 ? (
-          <div className="empty-state">
-            <h2>No services yet</h2>
-            <p>Check back soon — experiences are coming.</p>
-          </div>
-        ) : (
+        ) : providers.length === 0 ? null : (
           <>
           <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 24px 0' }}>
             <h2 className="buzz-section-title">✨ Getaways & experiences</h2>
