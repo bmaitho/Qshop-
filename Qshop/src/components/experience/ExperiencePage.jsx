@@ -78,7 +78,7 @@ function LazyClip({ src, poster, className }) {
 function NextAction({ x }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <a href={x.next?.ticketsUrl || LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-7 py-4 text-sm sm:text-base font-extrabold tracking-wide inline-flex items-center gap-2">
+      <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-7 py-4 text-sm sm:text-base font-extrabold tracking-wide inline-flex items-center gap-2">
         <Ticket className="w-5 h-5" aria-hidden="true" /> CATCH THE NEXT ONE · 30 OCT
       </a>
       {x.next && (

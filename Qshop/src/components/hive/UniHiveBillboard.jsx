@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
-import { VIDEOS, HIVE_SLUG } from './hiveMedia';
+import { VIDEOS, HIVE_SLUG, FLASH, flashActive } from './hiveMedia';
 import { liveExperiences } from '../experience/experiences';
 import './hive.css';
 
@@ -17,7 +17,7 @@ export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
   const shopMosaic = banners.length >= 3 ? banners : products;
   const productMosaic = products.length >= 3 ? products : banners;
   return [
-    { kicker: 'UniHive presents · Fri 30 Oct · 6PM–4AM', title: 'No Going Home.', body: 'THE HIVE at Sarakasi Dome — drinks, bites and partner experiences on UniHive. Tickets on Little.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
+    { kicker: flashActive() ? `⚡ Weekend flash sale · code ${FLASH.code}` : 'UniHive presents · Fri 30 Oct · 6PM–4AM', title: 'No Going Home.', body: flashActive() ? 'THE HIVE · Fri 30 Oct · Sarakasi Dome. Flash-sale tickets on Little this weekend only — the code is applied for you.' : 'THE HIVE at Sarakasi Dome — drinks, bites and partner experiences on UniHive. Tickets on Little.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
     ...liveExperiences().filter((x) => x.homeSlide).map((x) => ({ ...x.homeSlide, media: (x.media.backdrop || x.media.wide)?.video ? { type: 'video', src: (x.media.backdrop || x.media.wide).video, poster: (x.media.backdrop || x.media.wide).src } : { type: 'image', src: (x.media.backdrop || x.media.wide || x.media.poster).src }, cta: { label: 'RSVP free', to: `/events/${x.slug}` } })),
     { kicker: 'Storefronts', title: 'Shops worth following.', body: 'Real businesses, built by people in the Hive. Discover them, back them, buy from them.', media: shopMosaic.length >= 3 ? { type: 'mosaic', srcs: shopMosaic } : { type: 'image', src: PARTNER_SHOTS[3] }, cta: { label: 'Start shopping', to: '/studentmarketplace' } },
     { kicker: 'No scams. No stress.', title: 'Shop with confidence.', body: 'Pay with M-Pesa on UniHive. Sellers are paid once you confirm delivery.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice().reverse() } : { type: 'image', src: PARTNER_SHOTS[5] } },

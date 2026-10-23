@@ -74,8 +74,24 @@ export const SOCIALS = {
   tiktok: { label: 'TikTok', handle: '@unihive.entertainment', url: 'https://www.tiktok.com/@unihive.entertainment' },
 };
 
+const LITTLE_EVENT = 'https://apps.little.africa/events/the-hive-no-going-home-';
+
+// Weekend flash sale: Little applies the UNIHIVE discount code from the link.
+// While it runs, every "Tickets on Little" button uses this link; afterwards
+// they fall back to the normal page by themselves.
+export const FLASH = {
+  code: 'UNIHIVE',
+  url: `${LITTLE_EVENT}?code=UNIHIVE`,
+  startsAt: '2026-10-23T00:00:00+03:00',
+  endsAt: '2026-10-25T23:59:00+03:00',
+};
+export const flashActive = () => {
+  const now = Date.now();
+  return now >= new Date(FLASH.startsAt).getTime() && now < new Date(FLASH.endsAt).getTime();
+};
+
 export const LITTLE = {
-  tickets: 'https://apps.little.africa/events/the-hive-no-going-home-',
+  get tickets() { return flashActive() ? FLASH.url : LITTLE_EVENT; },
   code: 'UNIHIVE26',
   offer: 'KSh 200 off Little Cab rides to and from Hive events',
 };
@@ -86,9 +102,10 @@ export const WAVES = {
   soldOut: 'Wave 1',
   onSale: 'Wave 2',
   tiers: [
+    // As listed on Little, 23 Oct 2026.
     { name: 'Single Hive Regular', price: 1500 },
-    { name: 'Hive Duo Regular', price: 2500 },
     { name: 'Hive of 4 Regular', price: 4800 },
+    { name: 'Hive of 6 Regular', price: 5000 },
     { name: 'VIP Hive Single', price: 2500, perk: 'Complimentary Red Bull' },
     { name: 'VIP Hive Duo', price: 4500, perk: 'Complimentary Red Bull + Smirnoff cans', limited: true },
     { name: 'Hive of 6 VIP', price: 8000, perk: 'Complimentary Smirnoff & Red Bull cans for the whole crew', limited: true },
