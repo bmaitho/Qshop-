@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, MapPin, Clock } from 'lucide-react';
 import { img } from '../../utils/ImageUtils';
 import { getExperience } from '../experience/experiences';
-import { HIVE_SLUG, LITTLE, WAVES } from '../hive/hiveMedia';
+import { HIVE_SLUG, LITTLE, WAVES, FLASH, flashActive } from '../hive/hiveMedia';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const day = (d, opts) => new Date(`${d}T00:00:00`).toLocaleDateString('en-KE', opts);
@@ -43,7 +43,10 @@ function Featured({ evt }) {
           {evt.event_time && <li className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5"><Clock className="h-4 w-4 text-[#e7c65f]" aria-hidden="true" />{time(evt.event_time)}</li>}
           {evt.venue && <li className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5"><MapPin className="h-4 w-4 text-[#e7c65f]" aria-hidden="true" />{evt.venue}</li>}
         </ul>
-        {isHive && (
+        {isHive && flashActive() && (
+          <p className="text-sm text-[var(--muted)]"><span className="font-bold text-[#ff8a8a]">⚡ Weekend flash sale</span> — code <span className="font-bold text-[var(--text)]">{FLASH.code}</span>, applied for you on Little. Ends Sunday.</p>
+        )}
+        {isHive && !flashActive() && (
           <p className="text-sm text-[var(--muted)]">
             <span className="font-bold text-[#ff8a8a]">{WAVES.soldOut} sold out.</span>{' '}
             <span className="font-bold text-[#e7c65f]">{WAVES.onSale} is on sale now</span> — from KSh {Math.min(...WAVES.tiers.map((t) => t.price)).toLocaleString('en-KE')} on Little.
