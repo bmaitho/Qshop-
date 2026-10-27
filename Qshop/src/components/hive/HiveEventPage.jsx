@@ -37,6 +37,10 @@ function ProductPin({ product, onAdd, added, highlight }) {
   const brand = BRANDS.find((b) => b.key === brandOf(product));
   const Icon = added ? Check : Plus;
   const soon = isComingSoon(product);
+  // stock_remaining: null = unlimited; otherwise wallet units left (server-enforced).
+  const left = product.stock_remaining;
+  const soldOut = left === 0;
+  const canAdd = !soon && !soldOut;
   return (
     <div id={`item-${product.id}`} className={`group scroll-mt-40 rounded-[24px] transition-shadow duration-700 ${highlight ? 'ring-2 ring-[#e7c65f] ring-offset-4 ring-offset-[#07050a]' : ''}`}>
       <div className="hive-card">
@@ -55,20 +59,26 @@ function ProductPin({ product, onAdd, added, highlight }) {
         {soon && (
           <span className="absolute inset-x-0 bottom-0 z-20 py-2.5 text-center text-[11px] font-extrabold tracking-[0.3em] text-[#e7c65f] bg-black/70 backdrop-blur">COMING SOON</span>
         )}
+        {!soon && soldOut && (
+          <span className="absolute inset-x-0 bottom-0 z-20 py-2.5 text-center text-[11px] font-extrabold tracking-[0.3em] text-[#ff8a8a] bg-black/75 backdrop-blur">SOLD OUT</span>
+        )}
+        {canAdd && left != null && left <= 100 && (
+          <span className="absolute top-11 left-2.5 z-20 rounded-full bg-[#c3121f]/85 px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-white">Only {left} left</span>
+        )}
         <HiveShare
           className="absolute top-2.5 right-2.5 z-30 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
           path={`/events/${HIVE_SLUG}?tab=shop&item=${product.id}`}
           title={`${product.name} — ${ksh(product.price)} at THE HIVE`}
           text="Pre-order on UniHive, skip the queue."
         />
-        {!soon && <button
+        {canAdd && <button
           onClick={() => onAdd(product)}
           aria-label={`Add ${product.name} to cart`}
           className="hive-touch-only absolute bottom-2.5 right-2.5 z-20 w-10 h-10 rounded-full hive-btn-blood items-center justify-center"
         >
           <Icon className="w-5 h-5" />
         </button>}
-        {!soon && <div className="hive-card-reveal absolute inset-x-0 bottom-0 z-20 p-2.5 bg-gradient-to-t from-black/80 to-transparent">
+        {canAdd && <div className="hive-card-reveal absolute inset-x-0 bottom-0 z-20 p-2.5 bg-gradient-to-t from-black/80 to-transparent">
           <button onClick={() => onAdd(product)} className="w-full hive-btn-blood rounded-full py-2 text-xs font-bold flex items-center justify-center gap-1.5">
             <Icon className="w-3.5 h-3.5" /> {added ? 'Added' : 'Add to cart'}
           </button>
