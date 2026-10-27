@@ -4,6 +4,10 @@ import './index.css'
 import App from './App.jsx'
 import {BrowserRouter} from 'react-router-dom'
 import { originalImageUrl } from './utils/ImageUtils'
+import { rememberTicketCode } from './components/hive/hiveMedia'
+
+// Keep a university's ticket code from links like ?code=STRATHMORE.
+rememberTicketCode()
 
 // If Vercel's image CDN ever fails for a photo, load the original instead so
 // nobody sees a broken image.
