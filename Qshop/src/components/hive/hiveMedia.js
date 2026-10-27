@@ -76,22 +76,44 @@ export const SOCIALS = {
 
 const LITTLE_EVENT = 'https://apps.little.africa/events/the-hive-no-going-home-';
 
-// Weekend flash sale: Little applies the UNIHIVE discount code from the link.
-// While it runs, every "Tickets on Little" button uses this link; afterwards
-// they fall back to the normal page by themselves.
-export const FLASH = {
-  code: 'UNIHIVE',
-  url: `${LITTLE_EVENT}?code=UNIHIVE`,
+// Ticket discount on Little: 25% off Regular, 20% off VIP with a code in the
+// link. Each university's plug has its own code (STRATHMORE, USIU, ...);
+// anyone who arrives on unihive.shop with ?code=XYZ keeps that code on every
+// "Tickets on Little" button (see rememberTicketCode). Everyone else gets
+// UNIHIVE. After doors open the buttons go back to the plain Little page.
+export const PROMO = {
+  defaultCode: 'UNIHIVE',
+  regularOff: 25,
+  vipOff: 20,
   startsAt: '2026-10-23T00:00:00+03:00',
-  endsAt: '2026-10-25T23:59:00+03:00',
+  endsAt: '2026-10-30T18:00:00+03:00',
 };
-export const flashActive = () => {
+export const promoActive = () => {
   const now = Date.now();
-  return now >= new Date(FLASH.startsAt).getTime() && now < new Date(FLASH.endsAt).getTime();
+  return now >= new Date(PROMO.startsAt).getTime() && now < new Date(PROMO.endsAt).getTime();
 };
 
+const CODE_KEY = 'hiveTicketCode';
+const CODE_RE = /^[A-Za-z0-9]{3,24}$/;
+// Called once on page load: keep a university code from the link (?code=USIU).
+export const rememberTicketCode = (search = window.location.search) => {
+  try {
+    const code = new URLSearchParams(search).get('code');
+    if (code && CODE_RE.test(code)) localStorage.setItem(CODE_KEY, code.toUpperCase());
+  } catch { /* storage blocked: fall back to the default code */ }
+};
+export const ticketCode = () => {
+  try {
+    const c = localStorage.getItem(CODE_KEY);
+    if (c && CODE_RE.test(c)) return c;
+  } catch { /* ignore */ }
+  return PROMO.defaultCode;
+};
+export const isUniCode = () => ticketCode() !== PROMO.defaultCode;
+export const discounted = (tier) => Math.round(tier.price * (1 - (tier.vip ? PROMO.vipOff : PROMO.regularOff) / 100));
+
 export const LITTLE = {
-  get tickets() { return flashActive() ? FLASH.url : LITTLE_EVENT; },
+  get tickets() { return promoActive() ? `${LITTLE_EVENT}?code=${ticketCode()}` : LITTLE_EVENT; },
   code: 'UNIHIVE26',
   offer: 'KSh 200 off Little Cab rides to and from Hive events',
 };
@@ -106,16 +128,16 @@ export const WAVES = {
     { name: 'Single Hive Regular', price: 1500 },
     { name: 'Hive of 4 Regular', price: 4800 },
     { name: 'Hive of 6 Regular', price: 5000 },
-    { name: 'VIP Hive Single', price: 2500, perk: 'Complimentary Red Bull' },
-    { name: 'VIP Hive Duo', price: 4500, perk: 'Complimentary Red Bull + Smirnoff cans', limited: true },
-    { name: 'Hive of 6 VIP', price: 8000, perk: 'Complimentary Smirnoff & Red Bull cans for the whole crew', limited: true },
+    { name: 'VIP Hive Single', price: 2500, vip: true, perk: 'Complimentary Red Bull' },
+    { name: 'VIP Hive Duo', price: 4500, vip: true, perk: 'Complimentary Red Bull + Smirnoff cans', limited: true },
+    { name: 'Hive of 6 VIP', price: 8000, vip: true, perk: 'Complimentary Smirnoff & Red Bull cans for the whole crew', limited: true },
   ],
 };
 
 export const PERKS = [
   { title: 'Ride with Little', body: 'Code UNIHIVE26 — KSh 200 off Little Cab rides to and from the Dome.' },
-  { title: 'VIP treatment', body: 'Complimentary drink and private seating for VIP.' },
-  { title: 'Dress to impress', body: 'Come in costume — and disturb.' },
+  { title: 'VIP = free Red Bull', body: 'Every VIP ticket comes with a complimentary Red Bull — VIP Duo and Hive of 6 VIP add Smirnoff cans.' },
+  { title: 'Costume competition', body: 'Cartoons, villains, main characters — lots of prizes for the best costumes. Don’t show up looking regular.' },
   { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM until 4AM.' },
   { title: 'Stay charged', body: 'Charge24 power-bank stations on site — keep your phone alive till 4AM.' },
   { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — let Little get you home.' },

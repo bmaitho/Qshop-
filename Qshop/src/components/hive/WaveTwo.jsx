@@ -1,16 +1,17 @@
-// "Wave 1 sold out → Wave 2 on sale" announcement with the Little tiers.
-// Tickets are sold only on Little Events; this links there.
+// Ticket strip + ticket list for THE HIVE, as sold on Little Events (the only
+// place tickets are sold; every link goes there). While the discount runs it
+// shows Little's price crossed out next to the discounted one.
 import { ArrowRight } from 'lucide-react';
-import { LITTLE, WAVES, FLASH, flashActive } from './hiveMedia';
+import { LITTLE, WAVES, PROMO, promoActive, ticketCode, isUniCode, discounted } from './hiveMedia';
 
 const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 
 export function WaveStrip({ className = '' }) {
-  if (flashActive()) {
+  if (promoActive()) {
     return (
       <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className={`group inline-flex self-start w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-[#ff3b3b]/60 bg-[#c3121f]/25 backdrop-blur px-4 py-2 text-xs sm:text-sm ${className}`}>
-        <span className="font-extrabold tracking-wide text-white">⚡ WEEKEND FLASH SALE</span>
-        <span className="text-white/60">code {FLASH.code} · ends Sunday</span>
+        <span className="font-extrabold tracking-wide text-white">🎟️ {PROMO.regularOff}% OFF REGULAR · {PROMO.vipOff}% OFF VIP</span>
+        <span className="text-white/60">code {ticketCode()}</span>
         <span className="text-[#e7c65f] font-extrabold tracking-wide">GET TICKETS ↗</span>
       </a>
     );
@@ -26,13 +27,17 @@ export function WaveStrip({ className = '' }) {
 }
 
 export default function WaveTwo({ className = '' }) {
+  const promo = promoActive();
+  const code = ticketCode();
   return (
     <section className={`rounded-[28px] border border-[#e7c65f]/30 bg-[radial-gradient(110%_80%_at_100%_0%,rgba(195,18,31,0.35),transparent_60%),linear-gradient(160deg,#141008,#07050a)] p-5 sm:p-8 ${className}`}>
-      {flashActive() ? (
+      {promo ? (
         <>
-          <p className="text-[11px] tracking-[0.35em] text-[#ff7a1a] font-semibold uppercase">⚡ This weekend only · ends Sunday night</p>
-          <h2 className="hive-display hive-gold-text text-2xl sm:text-4xl font-extrabold mt-2">Weekend flash sale on Little</h2>
-          <p className="text-white/70 text-sm mt-2">Use code <span className="font-bold text-white">{FLASH.code}</span> — it’s applied for you when you tap any ticket below.</p>
+          <p className="text-[11px] tracking-[0.35em] text-[#ff7a1a] font-semibold uppercase">
+            {isUniCode() ? `Your ${code} code is on` : 'Shika tiko usipatwe na FOMO'}
+          </p>
+          <h2 className="hive-display hive-gold-text text-2xl sm:text-4xl font-extrabold mt-2">{PROMO.regularOff}% off Regular · {PROMO.vipOff}% off VIP</h2>
+          <p className="text-white/70 text-sm mt-2">Code <span className="font-bold text-white">{code}</span> is applied for you when you tap any ticket below. Until doors open, Fri 30 Oct.</p>
         </>
       ) : (
         <>
@@ -47,14 +52,22 @@ export default function WaveTwo({ className = '' }) {
               <span className="block text-white font-bold text-sm sm:text-base">{t.name}{t.limited && <span className="ml-2 text-[10px] tracking-widest text-[#ff8a8a]">LTD</span>}</span>
               {t.perk && <span className="block text-[#e7c65f]/90 text-xs mt-0.5">{t.perk}</span>}
             </span>
-            <span className="hive-display text-white font-bold whitespace-nowrap">{ksh(t.price)}</span>
+            {promo ? (
+              <span className="text-right whitespace-nowrap">
+                <span className="block text-white/40 text-xs line-through">{ksh(t.price)}</span>
+                <span className="block hive-display text-white font-bold">{ksh(discounted(t))}</span>
+                <span className="block text-[10px] font-extrabold tracking-widest text-[#ff8a8a]">−{t.vip ? PROMO.vipOff : PROMO.regularOff}%</span>
+              </span>
+            ) : (
+              <span className="hive-display text-white font-bold whitespace-nowrap">{ksh(t.price)}</span>
+            )}
           </a>
         ))}
       </div>
       <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-5 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-extrabold">
-        {flashActive() ? 'Grab the flash sale on Little' : `Book ${WAVES.onSale} on Little`} <ArrowRight className="w-4 h-4" aria-hidden="true" />
+        {promo ? `Get tickets with ${code}` : `Book ${WAVES.onSale} on Little`} <ArrowRight className="w-4 h-4" aria-hidden="true" />
       </a>
-      <p className="text-white/40 text-xs mt-3">Tickets are sold only on Little Events. Prices as listed on Little{flashActive() ? '; the flash discount is applied at checkout' : ''}.</p>
+      <p className="text-white/40 text-xs mt-3">Tickets are sold only on Little Events.{promo ? ' Crossed-out prices are Little’s listed prices; the discount is applied at checkout.' : ' Prices as listed on Little.'}</p>
     </section>
   );
 }

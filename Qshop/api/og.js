@@ -137,7 +137,10 @@ async function resolve(db, path, query) {
       return {
         url,
         title: 'THE HIVE: NO GOING HOME — Fri 30 Oct, Sarakasi Dome',
-        description: 'Halloween at the Dome · Fri 30 Oct, 6PM–4AM. Drinks, bites and the full lineup on UniHive. Tickets on Little Events. 18+.',
+        // Discount line only until doors open (Fri 30 Oct, 6PM EAT).
+        description: Date.now() < Date.parse('2026-10-30T18:00:00+03:00')
+          ? 'This Friday, 6PM–4AM · Sarakasi Dome. 25% off Regular, 20% off VIP on Little. Costumes, Smirnoff, DJs till sunrise. 18+.'
+          : 'Halloween at the Dome · Fri 30 Oct, 6PM–4AM. Drinks, bites and the full lineup on UniHive. Tickets on Little Events. 18+.',
         image: CARD('hive'),
       };
     }
@@ -146,7 +149,7 @@ async function resolve(db, path, query) {
     const EXPERIENCE_PREVIEWS = {
       'the-hive-pre-party': {
         title: 'THE HIVE PRE-PARTY — it happened. You missed it?',
-        description: 'Paradise Lost, 16 Oct: done deal. Catch the next one: THE HIVE: NO GOING HOME, Fri 30 Oct, Sarakasi Dome. Wave 2 tickets on Little now.',
+        description: 'Paradise Lost, 16 Oct: done deal. Catch the next one: THE HIVE: NO GOING HOME, Fri 30 Oct, Sarakasi Dome. 25% off Regular, 20% off VIP on Little.',
         image: CARD('pre-party'),
       },
     };
