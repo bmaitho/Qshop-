@@ -151,7 +151,7 @@ export const BRANDS = [
   { key: 'redbull', label: 'Red Bull', match: /red bull/i, cover: '/hive/products/redbull.png', tint: 'from-[#0b1d4a]' },
   { key: 'harrisons', label: "Harrison's Pearl Gerar", match: /shawarma|hotdog|hot dog/i, cover: '/hive/products/shawarma.png', tint: 'from-[#4a2205]' },
   { key: 'facepaint', label: 'Face & Body Paint', by: 'Radiant By Tatty', tag: 'by Radiant By Tatty', instagram: 'https://www.instagram.com/radiantby_tatty/', match: /paint/i, cover: '/hive/facepaint/look-red.webp', tint: 'from-[#0f3a12]' },
-  { key: 'merch', label: 'THE HIVE Merch', match: /hive cup|tee/i, cover: '/hive/products/hive-cup-fang.webp', tint: 'from-[#2a2a2a]' },
+  { key: 'merch', label: 'THE HIVE Merch', match: /hive cup|tee/i, cover: '/hive/media/after-dark.webp', tint: 'from-[#2a2a2a]' },
 ];
 
 export const brandOf = (product) => BRANDS.find((b) => b.match.test(product?.name || ''))?.key || 'other';
