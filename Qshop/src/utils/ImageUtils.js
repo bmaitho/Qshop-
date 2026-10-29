@@ -135,6 +135,7 @@ export const getProductCardUrl = (url) => getOptimisedUrl(url, { width: 320 });
 
 export const getProductDetailUrl = (url) => getOptimisedUrl(url, { width: 600, quality: 80 });
 
-export const getBannerUrl = (url) => getOptimisedUrl(url, { width: 640, quality: 80 });
+// Shop cards show banners at ~220-430px wide; 640 here asked Vercel for 1920px files.
+export const getBannerUrl = (url) => getOptimisedUrl(url, { width: 400, quality: 80 });
 
 export const getThumbnailUrl = (url) => getOptimisedUrl(url, { width: 64 });

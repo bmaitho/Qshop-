@@ -29,8 +29,9 @@ const Home = () => {
         supabase.from('products').select('image_url').eq('status', 'active').not('image_url', 'is', null).order('created_at', { ascending: false }).limit(12),
       ]);
       setMedia({
-        banners: (shops || []).map((x) => img(x.banner_url, 1200)).filter(Boolean),
-        products: (prods || []).map((x) => img(x.image_url, 640)).filter(Boolean),
+        // Billboard mosaic tiles are ~1/3 of the screen wide, so 400px (828 at 2x) is plenty.
+        banners: (shops || []).map((x) => img(x.banner_url, 400)).filter(Boolean),
+        products: (prods || []).map((x) => img(x.image_url, 400)).filter(Boolean),
       });
     })();
   }, []);
