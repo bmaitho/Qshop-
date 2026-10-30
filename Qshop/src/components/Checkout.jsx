@@ -187,40 +187,32 @@ const Checkout = () => {
       return;
     }
 
-    if (!info || !orderId) return;
+    if (!info || !orderId || info.requires_pickup_point_selection) return;
 
-    const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-    const deliveryFee = info.delivery_fee || 0;
-    const newTotal = productSubtotal + deliveryFee;
-
-    const updateData = {
-      delivery_method: info.delivery_method,
-      delivery_fee: deliveryFee,
-      amount: newTotal,
-      pickup_mtaani_destination_id: null,
-      pickup_mtaani_destination_name: null,
-      pickup_mtaani_destination_address: null,
-      pickup_mtaani_destination_town: null,
-      pickup_mtaani_business_id: null,
-      updated_at: new Date().toISOString()
-    };
-
-    if (info.delivery_method === 'pickup_mtaani') {
-      updateData.pickup_mtaani_destination_id = info.pickup_mtaani_destination_id || null;
-      updateData.pickup_mtaani_destination_name = info.pickup_mtaani_destination_name || null;
-      updateData.pickup_mtaani_destination_address = info.pickup_mtaani_destination_address || null;
-      updateData.pickup_mtaani_destination_town = info.pickup_mtaani_destination_town || null;
-      updateData.pickup_mtaani_business_id = info.pickup_mtaani_business_id || null;
-    }
-
-    const { error } = await supabase
-      .from('orders')
-      .update(updateData)
-      .eq('id', orderId);
-
-    if (error) {
+    try {
+      await saveDelivery(info);
+    } catch (error) {
       console.error('Error saving delivery selection:', error);
     }
+  };
+
+  // The backend sets delivery and recomputes the order total (item prices
+  // from the database, PickUp Mtaani fee calculated server-side).
+  const saveDelivery = async (info, phone) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/buyer-orders/checkout/${orderId}/delivery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({
+        deliveryMethod: info.delivery_method,
+        destinationId: info.pickup_mtaani_destination_id || null,
+        phoneNumber: phone || null,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) throw new Error(json.error || 'Could not update delivery');
+    setOrder((o) => (o ? { ...o, amount: json.amount, delivery_fee: json.deliveryFee } : o));
+    return json;
   };
 
   // Modified handleInitiatePayment to include delivery info from version 2
@@ -260,31 +252,9 @@ const Checkout = () => {
     setPaymentMessage('');
     
     try {
-      // Calculate total with delivery fee
-      const productSubtotal = orderItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-      const deliveryFee = deliveryInfo.delivery_fee || 0;
-      const totalAmount = productSubtotal + deliveryFee;
-
-      // Update order with delivery agreement and total
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          delivery_option: deliveryInfo.delivery_method,
-          delivery_method: deliveryInfo.delivery_method,
-          delivery_fee: deliveryFee,
-          amount: totalAmount,
-          phone_number: phoneNumber,
-          pickup_mtaani_destination_id: deliveryInfo.pickup_mtaani_destination_id || null,
-          pickup_mtaani_destination_name: deliveryInfo.pickup_mtaani_destination_name || null,
-          pickup_mtaani_destination_address: deliveryInfo.pickup_mtaani_destination_address || null,
-          pickup_mtaani_destination_town: deliveryInfo.pickup_mtaani_destination_town || null,
-          pickup_mtaani_business_id: deliveryInfo.pickup_mtaani_business_id || null
-        })
-        .eq('id', orderId);
-
-      if (updateError) {
-        console.error('Error updating order:', updateError);
-      }
+      // Save delivery and get the server-calculated total; M-Pesa is charged
+      // the stored order amount, not this number.
+      const { amount: totalAmount } = await saveDelivery(deliveryInfo, phoneNumber);
 
       // KEEPING VERSION 1 PAYMENT INITIATION (WORKING)
       const response = await initiateMpesaPayment(

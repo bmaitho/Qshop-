@@ -197,107 +197,20 @@ const Cart = () => {
         return;
       }
 
-      // ✅ STEP 1: Check for existing pending order AND cancel stale ones in PARALLEL
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // The database prices every item from the products table; the browser
+      // only says what is in the cart.
+      const { data: orderId, error: orderError } = await supabase.rpc('create_my_order', {
+        p_items: cart.map((item) => ({ productId: item.products.id, quantity: item.quantity })),
+      });
+      if (orderError) throw orderError;
 
-      const [existingOrderResult, staleOrdersResult] = await Promise.all([
-        // Check for recent valid pending order
-        supabase
-          .from('orders')
-          .select('id, created_at')
-          .eq('user_id', user.id)
-          .eq('payment_status', 'pending')
-          .gte('created_at', thirtyMinutesAgo)
-          .order('created_at', { ascending: false })
-          .limit(1),
-        // Cancel stale orders
-        supabase
-          .from('orders')
-          .update({ payment_status: 'cancelled' })
-          .eq('user_id', user.id)
-          .eq('payment_status', 'pending')
-          .lt('created_at', thirtyMinutesAgo)
-      ]);
-
-      let orderId;
-
-      if (existingOrderResult.data?.length > 0) {
-        // ✅ Reuse existing pending order
-        orderId = existingOrderResult.data[0].id;
-        
-        // Update order items to match current cart
-        const [deleteResult] = await Promise.all([
-          supabase.from('order_items').delete().eq('order_id', orderId)
-        ]);
-
-        // Calculate new total
-        const newTotal = cart.reduce((sum, item) => {
-          return sum + (item.products.price * item.quantity);
-        }, 0);
-
-        // Insert fresh order items + update order total in parallel
-        const orderItems = cart.map(item => ({
-          order_id: orderId,
-          product_id: item.products.id,
-          seller_id: item.products.seller_id,
-          buyer_user_id: user.id,
-          quantity: item.quantity,
-          price_per_unit: item.products.price,
-          subtotal: item.products.price * item.quantity,
-          status: 'pending_payment'
-        }));
-
-        await Promise.all([
-          supabase.from('order_items').insert(orderItems),
-          supabase.from('orders').update({ amount: newTotal }).eq('id', orderId)
-        ]);
-
-      } else {
-        // ✅ Create new order
-        const totalAmount = cart.reduce((sum, item) => {
-          return sum + (item.products.price * item.quantity);
-        }, 0);
-
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .insert([{
-            user_id: user.id,
-            amount: totalAmount,
-            payment_status: 'pending',
-            order_status: 'pending_payment',
-            created_at: new Date().toISOString()
-          }])
-          .select('id')
-          .single();
-
-        if (orderError) throw orderError;
-        orderId = orderData.id;
-
-        // Insert order items
-        const orderItems = cart.map(item => ({
-          order_id: orderId,
-          product_id: item.products.id,
-          seller_id: item.products.seller_id,
-          buyer_user_id: user.id,
-          quantity: item.quantity,
-          price_per_unit: item.products.price,
-          subtotal: item.products.price * item.quantity,
-          status: 'pending_payment'
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
-
-        if (itemsError) throw itemsError;
-      }
-
-      // Navigate immediately - don't wait for anything else
       navigate(`/checkout/${orderId}`);
 
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Failed to proceed to checkout');
+      toast.error(error?.message?.includes('no longer available') || error?.message?.includes('own product')
+        ? error.message
+        : 'Failed to proceed to checkout');
     } finally {
       setLoading(false);
     }
