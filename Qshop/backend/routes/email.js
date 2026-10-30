@@ -798,6 +798,7 @@ const sendEventTicketEmail = async (ticketId) => {
     eventTime: event.event_time,
     venue: event.venue,
     tierName: ticket.tier,
+    ticketCode: ticket.external_reference,
     amountPaid: ticket.amount_paid,
     mpesaReceipt: ticket.mpesa_receipt,
     ticketToken: ticket.ticket_token,
@@ -978,7 +979,7 @@ router.post('/guest-ticket-init', async (req, res) => {
     // 1. Fetch event + verify tier exists + capacity
     const { data: event, error: eErr } = await supabase
       .from('events')
-      .select('id, slug, title, status, max_capacity, tickets_sold, ticket_tiers')
+      .select('id, slug, title, status, max_capacity, tickets_sold, ticket_tiers, sell_tickets_on_unihive')
       .eq('id', eventId)
       .maybeSingle();
 
@@ -987,6 +988,9 @@ router.post('/guest-ticket-init', async (req, res) => {
     }
     if (event.status && event.status !== 'upcoming' && event.status !== 'active') {
       return res.status(400).json({ success: false, error: 'This event is not accepting ticket sales' });
+    }
+    if (!event.sell_tickets_on_unihive) {
+      return res.status(410).json({ success: false, error: 'Tickets for this event are sold on Little Events' });
     }
 
     const tier = (event.ticket_tiers || []).find(t => t.name === tierName);

@@ -77,21 +77,21 @@ export const initiateSTKPush = async (req, res) => {
       });
     }
 
-    // Paid event tickets are sold only on Little Events — never charge for one here.
-    if (orderId) {
-      const { data: ticketRow } = await supabase.from('event_tickets').select('id').eq('id', orderId).maybeSingle();
-      if (ticketRow) {
-        return res.status(410).json({ error: 'Tickets are sold exclusively on Little Events.' });
-      }
-    }
-
     // Charge what the database says is owed, never an amount from the browser.
-    const [{ data: order }, { data: tripBooking }, { data: serviceBooking }] = await Promise.all([
+    // Event tickets are priced server-side by /api/email/guest-ticket-init and
+    // can only be bought here for events that sell on UniHive.
+    const [{ data: order }, { data: tripBooking }, { data: serviceBooking }, { data: ticket }] = await Promise.all([
       supabase.from('orders').select('amount, payment_status').eq('id', orderId).maybeSingle(),
       supabase.from('service_bookings').select('amount_due, payment_status').eq('id', orderId).maybeSingle(),
       supabase.from('user_service_bookings').select('amount, payment_status').eq('id', orderId).maybeSingle(),
+      supabase.from('event_tickets').select('amount_paid, payment_status, source_platform, events(sell_tickets_on_unihive)').eq('id', orderId).maybeSingle(),
     ]);
-    const payable = order
+    if (ticket && (ticket.source_platform !== 'unihive' || !ticket.events?.sell_tickets_on_unihive)) {
+      return res.status(410).json({ error: 'Tickets for this event are sold on Little Events.' });
+    }
+    const payable = ticket
+      ? { amount: ticket.amount_paid, status: ticket.payment_status }
+      : order
       ? { amount: order.amount, status: order.payment_status }
       : tripBooking
         ? { amount: tripBooking.amount_due, status: tripBooking.payment_status }

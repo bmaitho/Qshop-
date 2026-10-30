@@ -115,6 +115,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/services" element={<ServicePage />} />
       <Route path="/events" element={<EventsPage token={token} />} />
       <Route path="/events/:slug" element={<EventRoute token={token} />} />
+      {/* Native ticket checkout (used by THE HIVE, whose main page is HiveEventPage) */}
+      <Route path="/events/:slug/tickets" element={<EventPage token={token} />} />
       <Route path="/hive/booth" element={<HiveBooth />} />
       <Route path="/hive/siwaka" element={<SiwakaPage />} />
       <Route path="/partner" element={<PartnerDashboard />} />

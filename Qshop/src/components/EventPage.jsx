@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User, Minus, Plus } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
@@ -22,6 +22,7 @@ const describePackageItem = (item) => {
 
 const EventPage = ({ token }) => {
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -213,9 +214,11 @@ const EventPage = ({ token }) => {
         .order('display_order', { ascending: true });
       setProducts(productRows || []);
 
-      // Auto-select first available tier
+      // Auto-select the tier from ?tier=, else the first available one
       if (eventData.ticket_tiers?.length > 0) {
-        const available = eventData.ticket_tiers.find(t => !t.capacity || t.sold < t.capacity);
+        const open = (t) => !t.capacity || t.sold < t.capacity;
+        const wanted = eventData.ticket_tiers.find(t => t.name === searchParams.get('tier') && open(t));
+        const available = wanted || eventData.ticket_tiers.find(open);
         if (available) setSelectedTier(available);
       }
 
@@ -548,7 +551,9 @@ const EventPage = ({ token }) => {
   const soldOut = spotsLeft !== null && spotsLeft <= 0;
   const tiers = event?.ticket_tiers || [];
   const hasTiers = tiers.length > 0;
-  // Paid tickets for every event are sold only on Little Events (partnership).
+  // Paid tickets sell on UniHive only for events with sell_tickets_on_unihive;
+  // otherwise they're sold on Little Events (partnership).
+  const unihiveSales = !!event?.sell_tickets_on_unihive;
   const isFreeEvent = hasTiers ? tiers.every((t) => Number(t.price) === 0) : Number(event?.price || 0) === 0;
   const littleUrl = event?.ticket_url || null;
 
@@ -884,7 +889,7 @@ const EventPage = ({ token }) => {
             <div className="border-t border-border mb-6" />
 
             {/* ═══ TICKET AREA (native tier flow — only when this event has no package catalogue) ═══ */}
-            {view === 'shop' && packages.length === 0 && (existingTicket ? (
+            {view === 'shop' && (packages.length === 0 || unihiveSales) && (existingTicket ? (
               /* ── Already have ticket ── */
               <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 sm:p-8">
                 <div className="flex flex-col items-center text-center">
@@ -920,7 +925,7 @@ const EventPage = ({ token }) => {
                 </div>
               </div>
 
-            ) : !isFreeEvent ? (
+            ) : !isFreeEvent && !unihiveSales ? (
               /* ── Paid tickets live on Little ── */
               <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 text-center">
                 <Ticket className="w-8 h-8 mx-auto text-primary mb-2" aria-hidden="true" />

@@ -1039,6 +1039,7 @@ export const eventTicketConfirmationTemplate = (t) => {
             ${t.eventDate ? `<tr><td style="padding:6px 0;color:#888;">Date</td><td style="padding:6px 0;color:#0D2B20;">${fmtDate(t.eventDate)}</td></tr>` : ''}
             ${t.eventTime ? `<tr><td style="padding:6px 0;color:#888;">Time</td><td style="padding:6px 0;color:#0D2B20;">${fmtTime(t.eventTime)}</td></tr>` : ''}
             ${t.venue ? `<tr><td style="padding:6px 0;color:#888;">Venue</td><td style="padding:6px 0;color:#0D2B20;">${t.venue}</td></tr>` : ''}
+            ${t.ticketCode ? `<tr><td style="padding:6px 0;color:#888;">Ticket code</td><td style="padding:6px 0;color:#0D2B20;font-weight:800;font-family:monospace;letter-spacing:1px;">${t.ticketCode}</td></tr>` : ''}
             ${t.tierName ? `<tr><td style="padding:6px 0;color:#888;">Tier</td><td style="padding:6px 0;color:#0D2B20;font-weight:600;">${t.tierName}</td></tr>` : ''}
             <tr><td style="padding:6px 0;color:#888;">Amount</td><td style="padding:6px 0;color:#0D2B20;font-weight:600;">${fmtKes(t.amountPaid)}</td></tr>
             ${t.mpesaReceipt ? `<tr><td style="padding:6px 0;color:#888;">Receipt</td><td style="padding:6px 0;color:#0D2B20;font-family:monospace;">${t.mpesaReceipt}</td></tr>` : ''}

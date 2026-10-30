@@ -1,8 +1,10 @@
-// Ticket strip + ticket list for THE HIVE, as sold on Little Events (the only
-// place tickets are sold; every link goes there). While the discount runs it
-// shows Little's price crossed out next to the discounted one.
+// Ticket strip + ticket list for THE HIVE. Tickets sell on UniHive (checkout at
+// /events/:slug/tickets) and on Little Events. While the discount runs it shows
+// Little's listed price crossed out next to the discounted one.
 import { ArrowRight } from 'lucide-react';
-import { LITTLE, WAVES, PROMO, promoActive, ticketCode, isUniCode, discounted } from './hiveMedia';
+import { LITTLE, WAVES, PROMO, HIVE_SLUG, promoActive, ticketCode, isUniCode, discounted } from './hiveMedia';
+
+const BUY_URL = `/events/${HIVE_SLUG}/tickets`;
 
 const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 
@@ -47,7 +49,7 @@ export default function WaveTwo({ className = '' }) {
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-5">
         {WAVES.tiers.map((t) => (
-          <a key={t.name} href={LITTLE.tickets} target="_blank" rel="noreferrer" className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors hover:border-[#e7c65f]/60 ${t.perk ? 'border-[#e7c65f]/30 bg-[#e7c65f]/[0.06]' : 'border-white/10 bg-white/[0.03]'}`}>
+          <a key={t.name} href={`${BUY_URL}?tier=${encodeURIComponent(t.name)}`} className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors hover:border-[#e7c65f]/60 ${t.perk ? 'border-[#e7c65f]/30 bg-[#e7c65f]/[0.06]' : 'border-white/10 bg-white/[0.03]'}`}>
             <span>
               <span className="block text-white font-bold text-sm sm:text-base">{t.name}{t.limited && <span className="ml-2 text-[10px] tracking-widest text-[#ff8a8a]">LTD</span>}</span>
               {t.perk && <span className="block text-[#e7c65f]/90 text-xs mt-0.5">{t.perk}</span>}
@@ -64,10 +66,15 @@ export default function WaveTwo({ className = '' }) {
           </a>
         ))}
       </div>
-      <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 mt-5 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-extrabold">
-        {promo ? `Get tickets with ${code}` : `Book ${WAVES.onSale} on Little`} <ArrowRight className="w-4 h-4" aria-hidden="true" />
-      </a>
-      <p className="text-white/40 text-xs mt-3">Tickets are sold only on Little Events.{promo ? ' Crossed-out prices are Little’s listed prices; the discount is applied at checkout.' : ' Prices as listed on Little.'}</p>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mt-5">
+        <a href={BUY_URL} className="inline-flex items-center gap-2 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-extrabold">
+          Buy on UniHive · M-Pesa <ArrowRight className="w-4 h-4" aria-hidden="true" />
+        </a>
+        <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="text-sm font-bold text-[#e7c65f] underline underline-offset-4">
+          {promo ? `or on Little with ${code} ↗` : 'or on Little ↗'}
+        </a>
+      </div>
+      <p className="text-white/40 text-xs mt-3">Pay with M-Pesa on UniHive and your QR ticket is emailed to you straight away, or buy on Little Events.{promo ? ' Crossed-out prices are Little’s listed prices.' : ''}</p>
     </section>
   );
 }

@@ -296,8 +296,8 @@ function Hero({ onShop, onPacks }) {
           <button onClick={onPacks} className="rounded-full px-6 py-3.5 text-sm font-bold border border-white/25 bg-white/5 backdrop-blur hover:bg-white/10">
             UniHive specials
           </button>
-          <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
-            Tickets on Little <ArrowRight className="w-4 h-4" />
+          <a href={`/events/${HIVE_SLUG}/tickets`} className="hive-btn-gold rounded-full px-6 py-3.5 text-sm font-bold flex items-center gap-2">
+            Buy tickets <ArrowRight className="w-4 h-4" />
           </a>
         </div>
 
@@ -628,8 +628,11 @@ export default function HiveEventPage() {
               {packages.filter((p) => !p.sale_end || new Date(p.sale_end) > new Date()).map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} />)}
             </div>
             <div className="text-center mt-10 px-6">
-              <p className="text-white/70 text-sm">Every ticket and special is sold exclusively on Little Events.</p>
-              <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex mt-4 hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Get tickets on Little ↗</a>
+              <p className="text-white/70 text-sm">Specials are sold on Little Events. Tickets are on UniHive and Little.</p>
+              <div className="flex flex-wrap justify-center gap-3 mt-4">
+                <a href={`/events/${HIVE_SLUG}/tickets`} className="inline-flex hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Buy tickets on UniHive</a>
+                <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex rounded-full px-7 py-3.5 text-sm font-bold border border-white/25 bg-white/5">Specials on Little ↗</a>
+              </div>
               <p className="text-white/40 text-xs mt-4">
                 Already have your Little ticket?{' '}
                 <button onClick={() => navigate(`/claim/${HIVE_SLUG}`)} className="text-[#e7c65f] underline underline-offset-4">Claim it here</button>{' '}
