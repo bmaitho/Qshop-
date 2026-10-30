@@ -2,7 +2,7 @@
 // partner's own items, stock switches, and a scanner limited to their brand.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ScanLine, LayoutDashboard, Package, ExternalLink, Ticket } from 'lucide-react';
+import { Loader2, ScanLine, LayoutDashboard, Package, ExternalLink, Ticket, Receipt } from 'lucide-react';
 import { supabase } from '../SupabaseClient';
 import HiveShell from './HiveShell';
 import HiveScanner from './HiveScanner';
@@ -10,6 +10,7 @@ import HiveShare from './HiveShare';
 import useStaffGate from './useStaffGate';
 import { Gate, itemScanner } from '../VendorRedeem';
 import { ticketScanner } from '../StaffScanner';
+import StandSales from './StandSales';
 import { HIVE_SLUG } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
 
@@ -111,9 +112,9 @@ export default function PartnerDashboard() {
             </div>
           </div>
 
-          <div className="inline-flex p-1 rounded-full bg-white/[0.05] border border-white/10 mt-8">
-            {[['overview', 'Overview', LayoutDashboard], ['products', 'Products', Package], ['scan', 'Coupons', ScanLine], ['door', 'Door', Ticket]].map(([k, l, I]) => (
-              <button key={k} onClick={() => setTab(k)} className={`px-4 sm:px-5 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${tab === k ? 'hive-btn-blood' : 'text-white/55'}`}>
+          <div className="flex w-fit max-w-full overflow-x-auto hive-noscroll p-1 rounded-full bg-white/[0.05] border border-white/10 mt-8">
+            {[['overview', 'Overview', LayoutDashboard], ['sales', 'Sales', Receipt], ['products', 'Products', Package], ['scan', 'Coupons', ScanLine], ['door', 'Door', Ticket]].map(([k, l, I]) => (
+              <button key={k} onClick={() => setTab(k)} className={`shrink-0 whitespace-nowrap px-4 sm:px-5 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${tab === k ? 'hive-btn-blood' : 'text-white/55'}`}>
                 <I className="w-4 h-4" /> {l}
               </button>
             ))}
@@ -183,6 +184,8 @@ export default function PartnerDashboard() {
               ))}
               <p className="text-xs text-white/40 sm:col-span-2 lg:col-span-3">Price or photo changes go through the UniHive team so what buyers paid always matches the menu.</p>
             </div>
+          ) : tab === 'sales' ? (
+            <StandSales partner={active} products={products} userId={gate.user.id} isOwner={canVoid} isAdmin={isAdmin} partners={gate.partners} />
           ) : tab === 'scan' ? (
             <div className="mt-6 max-w-md hive-fade-in">
               <p className="text-white/50 text-sm mb-4">Scan a buyer’s QR to verify their UniHive purchase and hand it over. Mistakes can be undone within 15 minutes{canVoid ? '; as the brand owner you can also void or restore an item' : ''}.</p>
