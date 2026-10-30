@@ -68,6 +68,7 @@ const HiveWallet = lazyPage(() => import('./components/HiveWallet'));
 const VendorRedeem = lazyPage(() => import('./components/VendorRedeem'));
 const TermsPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.PrivacyPage })));
+const DeleteAccountPage = lazyPage(() => import('./components/legal/LegalPage').then((m) => ({ default: m.DeleteAccountPage })));
 const ConsentGate = lazyPage(() => import('./components/legal/ConsentGate'));
 const ExperiencePage = lazyPage(() => import('./components/experience/ExperiencePage'));
 
@@ -123,6 +124,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/claim/:eventId" element={<ClaimHiveTicket />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/delete-account" element={<DeleteAccountPage />} />
 
       {/* Auth routes — redirect to /home if already logged in */}
       <Route path="/auth/*" element={token ? <Navigate to={peekAuthDestination()} replace /> : <AuthLayout setToken={setToken} />} />

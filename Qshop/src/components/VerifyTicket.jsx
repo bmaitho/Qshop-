@@ -33,22 +33,25 @@ const VerifyTicket = () => {
       // 1. Check auth state
       const { data: { user } } = await supabase.auth.getUser();
 
-      // 2. Look up the ticket (public SELECT policy allows this)
-      const { data: ticketData, error: ticketError } = await supabase
-        .from('event_tickets')
-        .select('*')
-        .eq('ticket_token', token)
-        .eq('payment_status', 'completed')
-        .maybeSingle();
+      // 2. Look up this one ticket by its secret token. Tickets are not
+      //    publicly readable; the RPC returns only what this page shows.
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+        setStatus('invalid');
+        return;
+      }
+      const { data: rows, error: ticketError } = await supabase
+        .rpc('get_ticket_by_token', { p_token: token });
 
       if (ticketError) throw ticketError;
 
+      const ticketData = rows?.[0];
       if (!ticketData) {
         setStatus('invalid');
         return;
       }
 
       setTicket(ticketData);
+      if (ticketData.holder_name) setAttendee({ full_name: ticketData.holder_name });
 
       // Fetch event
       const { data: eventData } = await supabase
@@ -57,14 +60,6 @@ const VerifyTicket = () => {
         .eq('id', ticketData.event_id)
         .single();
       if (eventData) setEvent(eventData);
-
-      // Fetch attendee profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email, phone')
-        .eq('id', ticketData.user_id)
-        .single();
-      if (profileData) setAttendee(profileData);
 
       // 3. If already used, show used state regardless of who's viewing
       if (ticketData.scanned) {

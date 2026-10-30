@@ -212,7 +212,7 @@ export function PrivacyPage() {
       </>}
     >
       <S id="who" title="1. Who we are">
-        <p>The data controller is <strong>{CONTACT.company}</strong>, which owns and operates UniHive, in Kenya. See <a href="#contact" className="underline">Contact</a> for how to reach us.</p>
+        <p>The data controller is <strong>{CONTACT.company}</strong>, which owns and operates UniHive (the website at unihive.shop and the UniHive Android app), in Kenya. See <a href="#contact" className="underline">Contact</a> for how to reach us.</p>
       </S>
 
       <S id="collect" title="2. What we collect">
@@ -318,6 +318,7 @@ export function PrivacyPage() {
           'object to processing, or withdraw consent you have given;',
           'receive your data in a portable format.',
         ]} />
+        <p>To close your account and delete your data, see <Link to="/delete-account" className="underline">Delete your account</Link>.</p>
         <p>Contact us using the details below and we will respond within the time the law requires. If you are unhappy with our response you can complain to the <a className="underline" href={CONTACT.odpcUrl} target="_blank" rel="noreferrer">Office of the Data Protection Commissioner (ODPC)</a>.</p>
       </S>
 
@@ -343,6 +344,47 @@ export function PrivacyPage() {
       <S id="contact" title="14. Contact">
         <p>For questions or to exercise your rights:</p>
         <Contact />
+      </S>
+    </Shell>
+  );
+}
+
+const DELETE_TOC = [
+  ['app', 'In the UniHive app'], ['request', 'Without the app'], ['deleted', 'What is deleted'], ['kept', 'What we keep'],
+];
+
+// Google Play requires a web page where people can ask for account deletion
+// without installing the app.
+export function DeleteAccountPage() {
+  return (
+    <Shell
+      title="Delete your account"
+      toc={DELETE_TOC}
+      intro={<p>You can close your UniHive account at any time. This applies to your account on both the UniHive app and unihive.shop.</p>}
+    >
+      <S id="app" title="1. In the UniHive app">
+        <L items={[
+          'Open the app and sign in.',
+          <>Tap the account icon in the top bar, then <strong>Delete account</strong>.</>,
+          <>Tap <strong>Delete</strong> to confirm. You are signed out and the account is closed straight away.</>,
+        ]} />
+      </S>
+
+      <S id="request" title="2. Without the app">
+        <p>Send us a message from the phone number or email linked to your account saying &ldquo;Delete my UniHive account&rdquo;. We will confirm who you are, close the account within 7 days and let you know when it is done.</p>
+        <Contact />
+      </S>
+
+      <S id="deleted" title="3. What is deleted">
+        <L items={[
+          'Your sign-in, so the account can no longer be used.',
+          'Your name, email address and phone number on your profile.',
+          'Your saved sign-in on every device.',
+        ]} />
+      </S>
+
+      <S id="kept" title="4. What we keep">
+        <p>Records of orders, tickets, wallet top-ups and M-Pesa payments are kept for as long as tax and accounting laws require (currently at least five years), and to handle disputes and prevent fraud. They are no longer linked to an account you can sign in to. See <Link to="/privacy#retention" className="underline">How long we keep it</Link>.</p>
       </S>
     </Shell>
   );
