@@ -12,8 +12,9 @@ import useStaffGate from './hive/useStaffGate';
 const when = (ts) => (ts ? new Date(ts).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
 // Builds the stand lookup/redeem pair. Whoever redeemed an item can undo it
-// within 15 minutes (enforced server-side); admins can void and restore.
-export function itemScanner({ isAdmin }) {
+// within 15 minutes; admins and the brand's owners can void and restore
+// (all enforced server-side).
+export function itemScanner({ canVoid }) {
   const rpc = async (name, args) => {
     const { data, error } = await supabase.rpc(name, args);
     if (error) throw error;
@@ -26,7 +27,7 @@ export function itemScanner({ isAdmin }) {
     if (!e.voided_at && e.status === 'redeemed') {
       actions.push({ label: 'Undo redeem', run: async () => { await rpc('undo_redeem', { p_qr_token: token }); return lookup(token); } });
     }
-    if (isAdmin && !e.voided_at) {
+    if (canVoid && !e.voided_at) {
       actions.push({
         label: 'Void item', danger: true,
         run: async () => {
@@ -37,7 +38,7 @@ export function itemScanner({ isAdmin }) {
         },
       });
     }
-    if (isAdmin && e.voided_at) {
+    if (canVoid && e.voided_at) {
       actions.push({ label: 'Restore item', run: async () => { await rpc('set_entitlement_void', { p_qr_token: token, p_void: false }); return lookup(token); } });
     }
     return { ...v, actions };
@@ -88,8 +89,8 @@ export default function VendorRedeem() {
   const gate = useStaffGate();
   const [count, setCount] = useState(0);
   const allowed = gate.isStaff || gate.partners.length > 0;
-  const isAdmin = !!gate.profile?.is_admin;
-  const { lookup, redeem } = useMemo(() => itemScanner({ isAdmin }), [isAdmin]);
+  const canVoid = !!gate.profile?.is_admin || gate.partners.some((p) => p.role === 'owner');
+  const { lookup, redeem } = useMemo(() => itemScanner({ canVoid }), [canVoid]);
   const login = () => { sessionStorage.setItem('postLoginRedirect', '/staff/redeem'); navigate('/auth'); };
 
   return (

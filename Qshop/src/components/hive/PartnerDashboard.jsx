@@ -2,13 +2,14 @@
 // partner's own items, stock switches, and a scanner limited to their brand.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ScanLine, LayoutDashboard, Package, ExternalLink } from 'lucide-react';
+import { Loader2, ScanLine, LayoutDashboard, Package, ExternalLink, Ticket } from 'lucide-react';
 import { supabase } from '../SupabaseClient';
 import HiveShell from './HiveShell';
 import HiveScanner from './HiveScanner';
 import HiveShare from './HiveShare';
 import useStaffGate from './useStaffGate';
 import { Gate, itemScanner } from '../VendorRedeem';
+import { ticketScanner } from '../StaffScanner';
 import { HIVE_SLUG } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
 
@@ -20,7 +21,7 @@ const ago = (ts) => {
   if (s < 86400) return `${Math.round(s / 3600)}h ago`;
   return new Date(ts).toLocaleDateString('en-KE', { day: 'numeric', month: 'short' });
 };
-const SHOP_FILTER = { smirnoff: 'smirnoff', redbull: 'redbull', harrisons: 'harrisons' };
+const SHOP_FILTER = { smirnoff: 'smirnoff', redbull: 'redbull', harrisons: 'harrisons', charge24: 'charge24' };
 
 function Stat({ label, value, sub }) {
   return (
@@ -42,7 +43,9 @@ export default function PartnerDashboard() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(null);
   const isAdmin = !!gate.profile?.is_admin;
-  const scan = useMemo(() => itemScanner({ isAdmin }), [isAdmin]);
+  const canVoid = isAdmin || active?.role === 'owner';
+  const scan = useMemo(() => itemScanner({ canVoid }), [canVoid]);
+  const door = useMemo(() => ticketScanner({ isAdmin }), [isAdmin]);
 
   useEffect(() => { if (!active && gate.partners.length) setActive(gate.partners[0]); }, [gate.partners, active]);
 
@@ -109,7 +112,7 @@ export default function PartnerDashboard() {
           </div>
 
           <div className="inline-flex p-1 rounded-full bg-white/[0.05] border border-white/10 mt-8">
-            {[['overview', 'Overview', LayoutDashboard], ['products', 'Products', Package], ['scan', 'Scan', ScanLine]].map(([k, l, I]) => (
+            {[['overview', 'Overview', LayoutDashboard], ['products', 'Products', Package], ['scan', 'Coupons', ScanLine], ['door', 'Door', Ticket]].map(([k, l, I]) => (
               <button key={k} onClick={() => setTab(k)} className={`px-4 sm:px-5 py-2 rounded-full text-sm font-bold flex items-center gap-2 ${tab === k ? 'hive-btn-blood' : 'text-white/55'}`}>
                 <I className="w-4 h-4" /> {l}
               </button>
@@ -180,9 +183,15 @@ export default function PartnerDashboard() {
               ))}
               <p className="text-xs text-white/40 sm:col-span-2 lg:col-span-3">Price or photo changes go through the UniHive team so what buyers paid always matches the menu.</p>
             </div>
+          ) : tab === 'scan' ? (
+            <div className="mt-6 max-w-md hive-fade-in">
+              <p className="text-white/50 text-sm mb-4">Scan a buyer’s QR to verify their UniHive purchase and hand it over. Mistakes can be undone within 15 minutes{canVoid ? '; as the brand owner you can also void or restore an item' : ''}.</p>
+              <HiveScanner lookup={scan.lookup} act={scan.redeem} onCompleted={load} hint={`Scan a ${active.name} QR`} />
+            </div>
           ) : (
             <div className="mt-6 max-w-md hive-fade-in">
-              <HiveScanner lookup={scan.lookup} act={scan.redeem} onCompleted={load} hint={`Scan a ${active.name} QR`} />
+              <p className="text-white/50 text-sm mb-4">Admit guests at the door: UniHive passes and Little tickets. A Little ticket that hasn’t been imported, or isn’t paid, shows as not verified. Don’t let them in.</p>
+              <HiveScanner allowText lookup={door.lookup} act={door.admit} hint="Scan a ticket QR" />
             </div>
           )}
         </div>

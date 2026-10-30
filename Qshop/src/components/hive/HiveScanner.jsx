@@ -88,7 +88,9 @@ function Verdict({ v, onAct, onExtra, onClose, busy }) {
   );
 }
 
-export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at the QR code' }) {
+// allowText: also pass codes that aren't UniHive tokens (e.g. Little ticket
+// references) through to lookup, which decides whether they're valid.
+export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at the QR code', allowText = false }) {
   const scanner = useRef(null);
   const busyRef = useRef(false);
   const last = useRef({ t: null, at: 0 });
@@ -107,7 +109,7 @@ export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at
   useEffect(() => () => { stop(); }, [stop]);
 
   const handle = useCallback(async (text) => {
-    const t = tokenFrom(text);
+    const t = tokenFrom(text) || (allowText ? String(text || '').trim().slice(0, 500) || null : null);
     const now = Date.now();
     if (!t || busyRef.current) return;
     if (last.current.t === t && now - last.current.at < 2500) return;
@@ -116,7 +118,7 @@ export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at
     try { setVerdict(await lookup(t)); }
     catch (e) { setVerdict({ kind: 'error', label: 'Error', title: 'Lookup failed', subtitle: e.message }); }
     finally { setTimeout(() => { busyRef.current = false; }, 600); }
-  }, [lookup]);
+  }, [lookup, allowText]);
 
   const start = async () => {
     setErr('');

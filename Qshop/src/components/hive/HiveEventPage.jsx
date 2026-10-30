@@ -598,7 +598,7 @@ export default function HiveEventPage() {
             </SectionTitle>
             <BrandShelf products={products} active={filter} onPick={setFilter} />
             <div className="flex gap-2 overflow-x-auto hive-noscroll px-3 sm:px-6 lg:px-10 py-5" data-noswipe>
-              {[{ key: 'all', label: 'Everything' }, ...BRANDS].map((b) => (
+              {[{ key: 'all', label: 'Everything' }, ...BRANDS.filter((b) => products.some((p) => brandOf(p) === b.key))].map((b) => (
                 <button
                   key={b.key}
                   onClick={() => setFilter(b.key)}
