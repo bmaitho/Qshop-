@@ -27,7 +27,7 @@ export default function UserServiceBookingModal({ service, sellerProfile, onClos
     async function prefillPhone() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('phone').eq('id', user.id).single();
+        const { data: profile } = await supabase.from('my_profile').select('phone').eq('id', user.id).single();
         if (profile?.phone) setPhoneNumber(profile.phone);
       }
     }

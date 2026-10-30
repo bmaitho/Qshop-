@@ -226,7 +226,7 @@ const EventPage = ({ token }) => {
 
         // Prefill buyer form from profile
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('full_name, email, phone')
           .eq('id', user.id)
           .maybeSingle();

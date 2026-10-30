@@ -136,9 +136,7 @@ const SellerOrderDetail = () => {
       // ✅ FIX: Fetch buyer profile using buyer_user_id from order_items
       if (orderItemData.buyer_user_id) {
         const { data: buyerData, error: buyerError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', orderItemData.buyer_user_id)
+          .rpc('profile_contacts', { p_ids: [orderItemData.buyer_user_id] })
           .single();
 
         if (!buyerError && buyerData) {

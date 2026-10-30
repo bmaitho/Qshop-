@@ -50,7 +50,7 @@ const SellerProfile = () => {
         // Since we found shop data, let's try to find matching profile data
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, full_name, campus_location, is_seller, created_at, email:public_email, phone:public_phone')
           .eq('id', id);
         
         if (!profileError && profileData && profileData.length > 0) {
@@ -70,7 +70,7 @@ const SellerProfile = () => {
         // If no shop data, try profile data
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, full_name, campus_location, is_seller, created_at, email:public_email, phone:public_phone')
           .eq('id', id);
         
         if (profileError) {

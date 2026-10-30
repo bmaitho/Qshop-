@@ -180,8 +180,8 @@ const ProductDetails = () => {
           profiles:seller_id (
             id,
             full_name,
-            email,
-            phone,
+            email:public_email,
+            phone:public_phone,
             campus_location
           )
         `)

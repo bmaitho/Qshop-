@@ -9,7 +9,7 @@ export const fetchProducts = async () => {
         *,
         seller:seller_id (
           id,
-          email,
+          email:public_email,
           campus_location
         )
       `)
@@ -32,7 +32,7 @@ export const fetchProductById = async (id) => {
         profile:profiles!products_seller_id_fkey (
           id,
           campus_location,
-          phone
+          phone:public_phone
         )
       `)
       .eq('id', id)

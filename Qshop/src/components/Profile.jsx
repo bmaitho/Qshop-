@@ -183,7 +183,7 @@ const Profile = () => {
 
       // Try to get profile data
       const { data: profile, error } = await supabase
-        .from('profiles')
+        .from('my_profile')
         .select('*')
         .eq('id', user.id);
 
@@ -321,7 +321,7 @@ const Profile = () => {
           order_items!fk_order_items_order_id (
             *,
             products (*),
-            profiles:seller_id (*)
+            profiles:seller_id (id, full_name, campus_location, is_seller, created_at, email:public_email, phone:public_phone)
           )
         `)
         .eq('user_id', user.id)

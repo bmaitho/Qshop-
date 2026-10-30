@@ -28,7 +28,7 @@ const MessageCenter = () => {
         
         // Also fetch the profile to get the name
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('*')
           .eq('id', user.id)
           .single();
@@ -171,9 +171,7 @@ const MessageCenter = () => {
       
       // Fetch the recipient profile...
       const { data: recipientProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', activeConversation.otherUserId)
+        .rpc('profile_contacts', { p_ids: [activeConversation.otherUserId] })
         .maybeSingle();
       
       let recipientInfo = {

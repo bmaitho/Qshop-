@@ -38,7 +38,7 @@ const ProfileCompletion = ({ token }) => {
 
         // Check if user already has complete profile information
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('*')
           .eq('id', user.id)
           .single();

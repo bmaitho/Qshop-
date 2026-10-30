@@ -66,9 +66,7 @@ const MessageDialog = ({
       console.log('Fetching recipient details for ID:', recipientId);
       
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, campus_location')
-        .eq('id', recipientId)
+        .rpc('profile_contacts', { p_ids: [recipientId] })
         .maybeSingle();
 
       if (error) {
@@ -91,7 +89,7 @@ const MessageDialog = ({
       setCurrentUser(user);
       
       const { data, error } = await supabase
-        .from('profiles')
+        .from('my_profile')
         .select('id, full_name, email, phone, campus_location')
         .eq('id', user.id)
         .maybeSingle();

@@ -38,7 +38,7 @@ export default function AdminServicesPanel() {
     try {
       const { data, error } = await supabase
         .from('user_services')
-        .select('*, profiles(full_name, email, phone), user_service_availabilities(*)')
+        .select('*, profiles(full_name, email:public_email, phone:public_phone), user_service_availabilities(*)')
         .eq('approval_status', activeTab)
         .order('created_at', { ascending: false });
       if (error) throw error;

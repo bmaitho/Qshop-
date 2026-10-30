@@ -118,16 +118,14 @@ const OrderCard = ({ item, onActionComplete }) => {
 
       // Fetch sender profile for name
       const { data: senderProfile } = await supabase
-        .from('profiles')
+        .from('my_profile')
         .select('full_name, email')
         .eq('id', user.id)
         .single();
 
       // Fetch buyer profile for name
       const { data: buyerProfile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', item.buyer_user_id)
+        .rpc('profile_contacts', { p_ids: [item.buyer_user_id] })
         .single();
 
       const senderName = senderProfile?.full_name || senderProfile?.email || 'Seller';

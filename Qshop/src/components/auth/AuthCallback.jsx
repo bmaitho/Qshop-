@@ -37,7 +37,7 @@ const AuthCallback = ({ setToken }) => {
 
         // Check if user already exists in the profiles table
         const { data: existingProfile, error: profileError } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('*')
           .eq('id', session.user.id)
           .single();
@@ -139,7 +139,7 @@ const AuthCallback = ({ setToken }) => {
         
         // Check if user exists in profiles
         const { data: existingProfile, error: profileError } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('*')
           .eq('id', user.id)
           .single();

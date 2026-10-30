@@ -39,7 +39,7 @@ export default function ServiceCheckout({ service, selectedComps, total, deposit
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('my_profile')
           .select('phone')
           .eq('id', user.id)
           .single();

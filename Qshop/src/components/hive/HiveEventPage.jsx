@@ -459,7 +459,7 @@ export default function HiveEventPage() {
       setUser(u || null);
       if (u) {
         loadBalance(ev.id, u.id);
-        const { data: prof } = await supabase.from('profiles').select('phone').eq('id', u.id).maybeSingle();
+        const { data: prof } = await supabase.from('my_profile').select('phone').eq('id', u.id).maybeSingle();
         if (prof?.phone) setPhone(prof.phone);
       }
       setLoading(false);

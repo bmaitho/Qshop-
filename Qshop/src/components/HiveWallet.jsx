@@ -73,7 +73,7 @@ export default function HiveWallet() {
         const { data: pr } = await supabase.from('event_products').select('*').eq('event_id', ev.id).eq('active', true);
         setProducts(pr || []);
       }
-      const { data: prof } = await supabase.from('profiles').select('phone').eq('id', u.id).maybeSingle();
+      const { data: prof } = await supabase.from('my_profile').select('phone').eq('id', u.id).maybeSingle();
       if (prof?.phone) setPhone(prof.phone);
       if (ev) load(ev, u);
     })();

@@ -44,7 +44,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
         order_items!fk_order_items_order_id(
           *,
           products(id, name, image_url),
-          seller:seller_id(id, full_name, phone, email, campus_location)
+          seller:seller_id(id, full_name, phone:public_phone, email:public_email, campus_location)
         )
       `)
       .eq('id', orderId)
@@ -66,7 +66,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
 
     // 2. Get buyer info
     const { data: buyerProfile, error: buyerError } = await supabase
-      .from('profiles')
+      .from('my_profile')
       .select('full_name, phone, email')
       .eq('id', order.user_id)
       .single();

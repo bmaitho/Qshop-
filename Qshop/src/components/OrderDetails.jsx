@@ -79,8 +79,8 @@ const MessageThread = ({ messages, currentUserId, orderItem, onNewMessage }) => 
       if (!user) throw new Error('Not authenticated');
 
       const [{ data: senderProfile }, { data: recipientProfile }] = await Promise.all([
-        supabase.from('profiles').select('full_name, email').eq('id', user.id).single(),
-        supabase.from('profiles').select('full_name, email').eq('id', orderItem.seller_id).single(),
+        supabase.from('my_profile').select('full_name, email').eq('id', user.id).single(),
+        supabase.from('profiles').select('full_name, email:public_email').eq('id', orderItem.seller_id).single(),
       ]);
 
       const { error } = await supabase.from('messages').insert({
@@ -371,7 +371,7 @@ const ReportProblem = ({ orderItem, order, currentUser }) => {
 
       // Get buyer profile for the email
       const { data: buyerProfile } = await supabase
-        .from('profiles')
+        .from('my_profile')
         .select('full_name, email')
         .eq('id', user.id)
         .single();
@@ -654,7 +654,7 @@ const OrderDetails = () => {
       // Order items
       const { data: items, error: itemsErr } = await supabase
         .from('order_items')
-        .select(`*, products(id, name, image_url, price), seller_profile:seller_id(id, full_name, email)`)
+        .select(`*, products(id, name, image_url, price), seller_profile:seller_id(id, full_name, email:public_email)`)
         .eq('order_id', orderId);
       if (itemsErr) throw itemsErr;
 

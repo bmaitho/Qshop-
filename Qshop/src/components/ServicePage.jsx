@@ -714,7 +714,7 @@ export default function ServicesPage() {
     setUserServicesLoading(true);
     const { data } = await supabase
       .from("user_services")
-      .select("*, profiles(id, full_name, phone), user_service_availabilities(*)")
+      .select("*, profiles(id, full_name, phone:public_phone), user_service_availabilities(*)")
       .eq("approval_status", "approved")
       .eq("is_active", true)
       .order("created_at", { ascending: false });

@@ -103,7 +103,7 @@ const Checkout = () => {
         .select(`
           *,
           products(*),
-          profiles:seller_id(*)
+          profiles:seller_id(id, full_name, campus_location, is_seller, created_at, email:public_email, phone:public_phone)
         `)
         .eq('order_id', orderId);
 

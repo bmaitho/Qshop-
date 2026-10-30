@@ -105,9 +105,7 @@ export const sendOrderMessage = async ({
 async function fetchUserProfile(userId) {
   try {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
+      .rpc('profile_contacts', { p_ids: [userId] })
       .single();
     
     if (error) throw error;
