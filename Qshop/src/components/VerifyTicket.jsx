@@ -45,7 +45,8 @@ const VerifyTicket = () => {
       if (ticketError) throw ticketError;
 
       const ticketData = rows?.[0];
-      if (!ticketData) {
+      // Voided passes (refunded, resold, fraud) show as cancelled.
+      if (!ticketData || ticketData.voided) {
         setStatus('invalid');
         return;
       }

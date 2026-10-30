@@ -2,6 +2,8 @@
 // lookup(token) → verdict { kind: 'ready'|'used'|'invalid'|'error', title,
 // subtitle, image, meta: [[label, value]], note, actionLabel, raw }
 // act(verdict) → verdict after the action (kind 'done' or 'error').
+// verdict.actions: optional extra buttons [{ label, run(verdict) → verdict,
+// danger }] for undo / void / restore.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, CameraOff, Loader2, CheckCircle2, XCircle, AlertTriangle, Keyboard } from 'lucide-react';
@@ -26,7 +28,7 @@ function Corners() {
   );
 }
 
-function Verdict({ v, onAct, onClose, busy }) {
+function Verdict({ v, onAct, onExtra, onClose, busy }) {
   const tone = {
     ready: ['from-emerald-500/25', 'text-emerald-300', CheckCircle2],
     done: ['from-emerald-500/30', 'text-emerald-300', CheckCircle2],
@@ -66,6 +68,15 @@ function Verdict({ v, onAct, onClose, busy }) {
               <button onClick={onAct} disabled={busy} className="w-full hive-btn-gold rounded-full py-3.5 font-bold flex items-center justify-center gap-2 disabled:opacity-60">
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} {v.actionLabel}
               </button>
+            )}
+            {v.actions?.length > 0 && (
+              <div className="flex gap-2">
+                {v.actions.map((a) => (
+                  <button key={a.label} onClick={() => onExtra(a)} disabled={busy} className={`flex-1 rounded-full py-2.5 text-sm font-semibold border disabled:opacity-50 ${a.danger ? 'border-[#c3121f]/60 text-[#ff8a92]' : 'border-[#e7c65f]/40 text-[#e7c65f]'}`}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
             )}
             <button onClick={onClose} disabled={busy} className="w-full rounded-full py-3 font-semibold border border-white/15 text-white/80 disabled:opacity-50">
               {v.kind === 'ready' ? 'Cancel' : 'Scan next'}
@@ -131,6 +142,16 @@ export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at
     } finally { setBusy(false); }
   };
 
+  const doExtra = async (a) => {
+    setBusy(true);
+    try {
+      const v = await a.run(verdict);
+      if (v) setVerdict(v);
+    } catch (e) {
+      setVerdict((x) => ({ ...x, kind: 'error', label: 'Error', subtitle: e.message, actions: [] }));
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="relative aspect-square w-full rounded-[28px] overflow-hidden bg-black border border-white/10">
@@ -160,7 +181,7 @@ export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at
           <button className="hive-btn-gold rounded-full px-5 text-sm font-bold shrink-0">Check</button>
         </form>
       )}
-      {verdict && <Verdict v={verdict} busy={busy} onAct={doAct} onClose={() => { setVerdict(null); last.current = { t: null, at: 0 }; }} />}
+      {verdict && <Verdict v={verdict} busy={busy} onAct={doAct} onExtra={doExtra} onClose={() => { setVerdict(null); last.current = { t: null, at: 0 }; }} />}
     </div>
   );
 }

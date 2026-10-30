@@ -8,7 +8,7 @@ import HiveShell from './HiveShell';
 import HiveScanner from './HiveScanner';
 import HiveShare from './HiveShare';
 import useStaffGate from './useStaffGate';
-import { Gate, lookupItem, redeemItem } from '../VendorRedeem';
+import { Gate, itemScanner } from '../VendorRedeem';
 import { HIVE_SLUG } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
 
@@ -41,6 +41,8 @@ export default function PartnerDashboard() {
   const [ents, setEnts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(null);
+  const isAdmin = !!gate.profile?.is_admin;
+  const scan = useMemo(() => itemScanner({ isAdmin }), [isAdmin]);
 
   useEffect(() => { if (!active && gate.partners.length) setActive(gate.partners[0]); }, [gate.partners, active]);
 
@@ -180,7 +182,7 @@ export default function PartnerDashboard() {
             </div>
           ) : (
             <div className="mt-6 max-w-md hive-fade-in">
-              <HiveScanner lookup={lookupItem} act={redeemItem} onCompleted={load} hint={`Scan a ${active.name} QR`} />
+              <HiveScanner lookup={scan.lookup} act={scan.redeem} onCompleted={load} hint={`Scan a ${active.name} QR`} />
             </div>
           )}
         </div>

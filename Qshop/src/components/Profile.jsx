@@ -571,6 +571,7 @@ const Profile = () => {
 
             {profileData.is_admin && (
               <HubGroup title="Admin" icon={Shield}>
+                <HubTile to="/admin/brands" icon={Store} label="Brands" hint="Contacts & brand staff" />
                 <HubTile to="/admin/buzz" icon={Sparkles} label="The Buzz emails" hint="Agent drafts · you approve" />
                 <HubTile to="/admin/broadcast" icon={Mail} label="Email shop owners" />
                 <HubTile to="/admin/events/import-tickets" icon={Ticket} label="Import Little tickets" />

@@ -1,7 +1,7 @@
 // src/components/VendorRedeem.jsx — redeem purchased Bar & Bites items.
 // Staff/admin can redeem anything; partner members only their own brand
 // (enforced server-side by lookup_entitlement / redeem_entitlement).
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock } from 'lucide-react';
 import { supabase } from './SupabaseClient';
@@ -11,25 +11,61 @@ import useStaffGate from './hive/useStaffGate';
 
 const when = (ts) => (ts ? new Date(ts).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
-export async function lookupItem(token) {
-  const { data, error } = await supabase.rpc('lookup_entitlement', { p_qr_token: token });
-  if (error) {
-    if (/another partner/i.test(error.message)) return { kind: 'invalid', label: 'Not yours', title: 'Another brand’s item', subtitle: 'Send them to the right stand.' };
-    throw error;
-  }
-  const e = Array.isArray(data) ? data[0] : data;
-  if (!e) return { kind: 'invalid', label: 'Invalid', title: 'No matching item', subtitle: 'Don’t hand anything over.' };
-  const meta = [['Quantity', `×${e.quantity}`]];
-  if (e.partner_name) meta.push(['Stand', e.partner_name]);
-  if (e.buyer_name) meta.push(['Buyer', e.buyer_name]);
-  if (e.status === 'redeemed') return { kind: 'used', label: 'Already redeemed', title: e.product_name, subtitle: when(e.redeemed_at), image: e.image_url, meta };
-  return { kind: 'ready', label: 'Ready to hand over', title: e.product_name, image: e.image_url, meta, actionLabel: `Redeem ×${e.quantity}`, raw: { token, e } };
-}
+// Builds the stand lookup/redeem pair. Whoever redeemed an item can undo it
+// within 15 minutes (enforced server-side); admins can void and restore.
+export function itemScanner({ isAdmin }) {
+  const rpc = async (name, args) => {
+    const { data, error } = await supabase.rpc(name, args);
+    if (error) throw error;
+    return data;
+  };
 
-export async function redeemItem(v) {
-  const { data, error } = await supabase.rpc('redeem_entitlement', { p_qr_token: v.raw.token });
-  if (error) throw error;
-  return { ...v, kind: 'done', label: 'Redeemed', subtitle: `Hand it over · ${when(data.redeemed_at)}` };
+  const withActions = (v) => {
+    const { e, token } = v.raw;
+    const actions = [];
+    if (!e.voided_at && e.status === 'redeemed') {
+      actions.push({ label: 'Undo redeem', run: async () => { await rpc('undo_redeem', { p_qr_token: token }); return lookup(token); } });
+    }
+    if (isAdmin && !e.voided_at) {
+      actions.push({
+        label: 'Void item', danger: true,
+        run: async () => {
+          const reason = window.prompt('Why are you voiding this item? (e.g. refunded, fraud)');
+          if (reason === null) return null;
+          await rpc('set_entitlement_void', { p_qr_token: token, p_void: true, p_reason: reason });
+          return lookup(token);
+        },
+      });
+    }
+    if (isAdmin && e.voided_at) {
+      actions.push({ label: 'Restore item', run: async () => { await rpc('set_entitlement_void', { p_qr_token: token, p_void: false }); return lookup(token); } });
+    }
+    return { ...v, actions };
+  };
+
+  async function lookup(token) {
+    const { data, error } = await supabase.rpc('lookup_entitlement', { p_qr_token: token });
+    if (error) {
+      if (/another partner/i.test(error.message)) return { kind: 'invalid', label: 'Not yours', title: 'Another brand’s item', subtitle: 'Send them to the right stand.' };
+      throw error;
+    }
+    const e = Array.isArray(data) ? data[0] : data;
+    if (!e) return { kind: 'invalid', label: 'Invalid', title: 'No matching item', subtitle: 'Don’t hand anything over.' };
+    const meta = [['Quantity', `×${e.quantity}`]];
+    if (e.partner_name) meta.push(['Stand', e.partner_name]);
+    if (e.buyer_name) meta.push(['Buyer', e.buyer_name]);
+    const base = { title: e.product_name, image: e.image_url, meta, raw: { token, e } };
+    if (e.voided_at) return withActions({ ...base, kind: 'invalid', label: 'Voided', subtitle: `Don’t hand over${e.void_reason ? ` · ${e.void_reason}` : ''} · ${when(e.voided_at)}` });
+    if (e.status === 'redeemed') return withActions({ ...base, kind: 'used', label: 'Already redeemed', subtitle: when(e.redeemed_at) });
+    return withActions({ ...base, kind: 'ready', label: 'Ready to hand over', actionLabel: `Redeem ×${e.quantity}` });
+  }
+
+  async function redeem(v) {
+    const data = await rpc('redeem_entitlement', { p_qr_token: v.raw.token });
+    return withActions({ ...v, raw: { ...v.raw, e: { ...v.raw.e, status: data.status } }, kind: 'done', label: 'Redeemed', subtitle: `Hand it over · ${when(data.redeemed_at)}` });
+  }
+
+  return { lookup, redeem };
 }
 
 export function Gate({ loading, user, allowed, title, onLogin }) {
@@ -52,6 +88,8 @@ export default function VendorRedeem() {
   const gate = useStaffGate();
   const [count, setCount] = useState(0);
   const allowed = gate.isStaff || gate.partners.length > 0;
+  const isAdmin = !!gate.profile?.is_admin;
+  const { lookup, redeem } = useMemo(() => itemScanner({ isAdmin }), [isAdmin]);
   const login = () => { sessionStorage.setItem('postLoginRedirect', '/staff/redeem'); navigate('/auth'); };
 
   return (
@@ -62,7 +100,7 @@ export default function VendorRedeem() {
           <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold">{gate.isStaff ? 'ALL STANDS' : gate.partners.map((p) => p.name).join(' · ').toUpperCase()}</p>
           <h1 className="hive-display hive-gold-text text-4xl font-extrabold mt-1">Redeem</h1>
           <p className="text-white/50 text-sm mt-2 mb-6">Scan the buyer’s QR from their HIVE Wallet. {count > 0 && <span className="text-white/80">· {count} redeemed this shift</span>}</p>
-          <HiveScanner lookup={lookupItem} act={redeemItem} onCompleted={() => setCount((c) => c + 1)} hint="Scan a Bar & Bites QR" />
+          <HiveScanner lookup={lookup} act={redeem} onCompleted={() => setCount((c) => c + 1)} hint="Scan a Bar & Bites QR" />
         </div>
       )}
     </HiveShell>

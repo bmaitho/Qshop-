@@ -49,6 +49,7 @@ const AdminServicesPanel = lazyPage(() => import('./components/AdminServicesPane
 const EventTicketImport = lazyPage(() => import('./components/admin/EventTicketImport'));
 const ShopOwnerBroadcast = lazyPage(() => import('./components/admin/ShopOwnerBroadcast'));
 const BuzzAdmin = lazyPage(() => import('./components/admin/BuzzAdmin'));
+const BrandsAdmin = lazyPage(() => import('./components/admin/BrandsAdmin'));
 const SiwakaPage = lazyPage(() => import('./components/media/SiwakaPage'));
 const SubscriptionPage = lazyPage(() => import('./components/SubscriptionPage'));
 const SellerOrderDetail = lazyPage(() => import('./components/SellerOrderDetail'));
@@ -146,6 +147,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/admin/services" element={token ? <AdminServicesPanel /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/broadcast" element={token ? <ShopOwnerBroadcast /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/buzz" element={token ? <BuzzAdmin /> : <Navigate to="/auth" replace />} />
+      <Route path="/admin/brands" element={token ? <BrandsAdmin /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/events/import-tickets" element={token ? <EventTicketImport /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
       <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
