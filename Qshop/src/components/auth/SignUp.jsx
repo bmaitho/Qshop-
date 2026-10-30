@@ -395,21 +395,18 @@ const SignUp = ({ setToken }) => {
         if (data.session) {
           sessionStorage.setItem('token', JSON.stringify(data));
 
-          // Create profile row immediately so the user lands on /home ready to go.
-          // Fire-and-forget — a quota/RLS failure here must not block the user.
+          // The on_auth_user_created trigger has already created the profile
+          // row; fill in what the form collected. (An upsert can't be used:
+          // phone/email aren't readable by browsers.) Fire-and-forget — a
+          // failure here must not block the user.
           try {
-            await supabase.from('profiles').upsert([{
-              id: userId,
+            await supabase.from('profiles').update({
               full_name: formData.fullName,
               phone: formData.phone,
-              email: formData.email,
-              campus_location: null,
-              is_seller: false,
               terms_version: LEGAL_VERSION,
               terms_accepted_at: new Date().toISOString(),
-              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            }]);
+            }).eq('id', userId);
           } catch (profileErr) {
             console.warn('Profile row creation failed (non-critical):', profileErr);
           }
