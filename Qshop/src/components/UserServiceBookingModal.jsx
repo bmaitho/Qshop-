@@ -76,7 +76,7 @@ export default function UserServiceBookingModal({ service, sellerProfile, onClos
 
       const response = await initiateMpesaPayment(
         phoneNumber,
-        service.price,
+        booking.amount, // priced by the database, not this page
         booking.id,
         `UniHive-${booking.booking_reference}`
       );

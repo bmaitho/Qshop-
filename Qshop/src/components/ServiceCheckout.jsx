@@ -104,7 +104,7 @@ export default function ServiceCheckout({ service, selectedComps, total, deposit
       // Initiate STK Push — reuses existing mpesaService
       const response = await initiateMpesaPayment(
         phoneNumber,
-        amountDue,
+        booking.amount_due, // priced by the database, not this page
         booking.id, // orderId field used as booking reference for callback
         `UniHive-${booking.booking_reference}`
       );

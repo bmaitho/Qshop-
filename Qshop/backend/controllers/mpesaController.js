@@ -54,11 +54,11 @@ async function confirmedBySafaricom(checkoutRequestId) {
  */
 export const initiateSTKPush = async (req, res) => {
   try {
-    const { phoneNumber, amount, orderId, accountReference } = req.body;
+    const { phoneNumber, orderId, accountReference } = req.body;
 
-    if (!phoneNumber || !amount) {
-      return res.status(400).json({ 
-        error: 'Phone number and amount are required' 
+    if (!phoneNumber || !orderId) {
+      return res.status(400).json({
+        error: 'Phone number and order are required'
       });
     }
 
@@ -83,6 +83,30 @@ export const initiateSTKPush = async (req, res) => {
       if (ticketRow) {
         return res.status(410).json({ error: 'Tickets are sold exclusively on Little Events.' });
       }
+    }
+
+    // Charge what the database says is owed, never an amount from the browser.
+    const [{ data: order }, { data: tripBooking }, { data: serviceBooking }] = await Promise.all([
+      supabase.from('orders').select('amount, payment_status').eq('id', orderId).maybeSingle(),
+      supabase.from('service_bookings').select('amount_due, payment_status').eq('id', orderId).maybeSingle(),
+      supabase.from('user_service_bookings').select('amount, payment_status').eq('id', orderId).maybeSingle(),
+    ]);
+    const payable = order
+      ? { amount: order.amount, status: order.payment_status }
+      : tripBooking
+        ? { amount: tripBooking.amount_due, status: tripBooking.payment_status }
+        : serviceBooking
+          ? { amount: serviceBooking.amount, status: serviceBooking.payment_status }
+          : null;
+    if (!payable) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    if (payable.status === 'completed') {
+      return res.status(409).json({ error: 'This order is already paid' });
+    }
+    const amount = Math.ceil(Number(payable.amount));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'This order has no amount to pay' });
     }
 
     // Generate new access token - Must be fresh for each request
@@ -174,57 +198,17 @@ export const initiateSTKPush = async (req, res) => {
           });
         }
 
-        console.log(`Updating order ${orderId} with CheckoutRequestID: ${response.data.CheckoutRequestID}`);
-        
-        // Get the current order to check if it exists
-        const { data: existingOrder, error: checkError } = await supabase
-          .from('orders')
-          .select('id')
-          .eq('id', orderId)
-          .single();
-          
-        if (checkError) {
-          console.error('Order not found or database error:', checkError);
-          
-          // Create the order if it doesn't exist
-          console.log(`Creating new order with ID: ${orderId}`);
-          const { data: newOrder, error: createError } = await supabase
-            .from('orders')
-            .insert([
-              { 
-                id: orderId,
-                checkout_request_id: response.data.CheckoutRequestID,
-                payment_status: 'pending',
-                payment_method: 'mpesa',
-                amount: amount,
-                phone_number: formattedPhone,
-                created_at: new Date().toISOString()
-              }
-            ])
-            .select();
-            
-          if (createError) {
-            console.error('Error creating new order:', createError);
-          } else {
-            console.log('Successfully created new order:', newOrder);
-          }
-        } else {
-          // Update the existing order
-          const { data, error } = await supabase
-            .from('orders')
-            .update({ 
-              checkout_request_id: response.data.CheckoutRequestID,
-              payment_status: 'pending',
-              payment_method: 'mpesa'
-            })
+        // Link the checkout id so the callback can find what was paid for.
+        const checkoutId = response.data.CheckoutRequestID;
+        const { error } = order
+          ? await supabase.from('orders')
+            .update({ checkout_request_id: checkoutId, payment_status: 'pending', payment_method: 'mpesa' })
             .eq('id', orderId)
-            .select();
-            
-          if (error) {
-            console.error('Error updating order with CheckoutRequestID:', error);
-          } else {
-            console.log('Successfully updated order with CheckoutRequestID:', data);
-          }
+          : await supabase.from(tripBooking ? 'service_bookings' : 'user_service_bookings')
+            .update({ checkout_request_id: checkoutId })
+            .eq('id', orderId);
+        if (error) {
+          console.error(`Error linking CheckoutRequestID to ${orderId}:`, error);
         }
       } catch (dbError) {
         console.error('Database error:', dbError);
