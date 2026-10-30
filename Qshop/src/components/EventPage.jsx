@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Users, Ticket, ArrowLeft, Share2, CheckCircle, AlertCircle, PhoneCall, Loader2, XCircle, Tag, X, Mail, User, Minus, Plus } from 'lucide-react';
 import { supabase } from './SupabaseClient';
 import { toast } from 'react-toastify';
@@ -23,6 +23,8 @@ const describePackageItem = (item) => {
 const EventPage = ({ token }) => {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
+  // /events/:slug/tickets shows only the ticket checkout (no catalogue).
+  const ticketsOnly = useLocation().pathname.endsWith('/tickets');
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -751,7 +753,7 @@ const EventPage = ({ token }) => {
               </div>
             )}
 
-            {view === 'shop' && (packages.length > 0 || products.length > 0) && (
+            {view === 'shop' && !ticketsOnly && (packages.length > 0 || products.length > 0) && (
               <>
                 {existingTicket && (
                   <div className="bg-green-50 dark:bg-green-900/15 border border-green-200 dark:border-green-800/50 rounded-2xl p-5 flex flex-col items-center text-center mb-4">
