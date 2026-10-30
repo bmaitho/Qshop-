@@ -208,21 +208,7 @@ export const createPickupMtaaniParcel = async (orderId) => {
       }
     }
 
-    // 5. Update order-level tracking (backward compat — use first seller's code)
-    if (firstTrackingCode && firstOriginPoint) {
-      await supabase
-        .from('orders')
-        .update({
-          pickup_mtaani_tracking_code: firstTrackingCode,
-          pickup_mtaani_parcel_id: results[0]?.parcelId || null,
-          pickup_mtaani_origin_id: firstOriginPoint.shop_id,
-          pickup_mtaani_origin_name: firstOriginPoint.shop_name,
-          pickup_mtaani_origin_address: firstOriginPoint.street_address || firstOriginPoint.town,
-          pickup_mtaani_status: 'pending_pickup',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-    }
+    // 5. Order-level tracking is saved server-side by /create-parcel.
 
     // 6. Send buyer confirmation email with all tracking codes
     if (buyerProfile.email) {

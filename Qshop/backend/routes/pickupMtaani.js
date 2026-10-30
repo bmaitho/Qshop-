@@ -506,6 +506,36 @@ router.post('/create-parcel', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
+    // Parcels are billed to UniHive's PickUp Mtaani account, so only create
+    // them for a paid PickUp Mtaani order, to the buyer's chosen point, for
+    // items of that order that have no parcel yet.
+    const { data: paidOrder } = await supabase
+      .from('orders')
+      .select('id, payment_status, delivery_method, pickup_mtaani_destination_id')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!paidOrder || paidOrder.payment_status !== 'completed' || paidOrder.delivery_method !== 'pickup_mtaani') {
+      return res.status(403).json({ success: false, error: 'Parcels can only be created for paid PickUp Mtaani orders' });
+    }
+    if (String(paidOrder.pickup_mtaani_destination_id) !== String(receiverAgentId)) {
+      return res.status(400).json({ success: false, error: 'Destination does not match the order' });
+    }
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'Missing order items' });
+    }
+    const { data: parcelItems } = await supabase
+      .from('order_items')
+      .select('id, seller_id, pickup_mtaani_tracking_code')
+      .eq('order_id', orderId)
+      .in('id', itemIds);
+    if (!parcelItems || parcelItems.length !== itemIds.length
+        || parcelItems.some((i) => (sellerId && i.seller_id !== sellerId))) {
+      return res.status(400).json({ success: false, error: 'Items do not belong to this order' });
+    }
+    if (parcelItems.some((i) => i.pickup_mtaani_tracking_code)) {
+      return res.status(409).json({ success: false, error: 'A parcel already exists for these items' });
+    }
+
     console.log(`📦 Creating parcel for order ${orderNumber || orderId}${sellerId ? ` (seller: ${sellerId.substring(0,8)})` : ''}...`);
 
     const result = await createParcel({
