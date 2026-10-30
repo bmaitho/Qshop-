@@ -192,12 +192,14 @@ const SellerOrderDetail = () => {
       setPaymentProcessing(true);
       
       const backendUrl = import.meta.env.VITE_API_URL;
-      
+      const { data: { session } } = await supabase.auth.getSession();
+
       // ✅ Call the backend endpoint that handles commission calculation
       const response = await fetch(`${backendUrl}/mpesa/orders/trigger-payment/${id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
         }
       });
 

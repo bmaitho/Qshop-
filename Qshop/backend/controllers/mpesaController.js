@@ -8,6 +8,7 @@ dotenv.config();
 // Environment configuration
 const isProduction = true; // Force production mode
 const MPESA_API_URL = 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+const STK_QUERY_URL = 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query';
 
 // M-Pesa credentials from environment variables
 const BUSINESS_SHORT_CODE = process.env.MPESA_BUSINESS_SHORT_CODE;
@@ -17,6 +18,35 @@ const CALLBACK_URL = process.env.VITE_MPESA_CALLBACK_URL;
 // Validate required configuration
 if (!BUSINESS_SHORT_CODE || !PASSKEY || !CALLBACK_URL) {
   throw new Error('Missing required M-Pesa configuration in environment variables');
+}
+
+/**
+ * The callback URL is public, so anyone can POST a fake "ResultCode: 0".
+ * A success is only trusted once Safaricom's STK query confirms it for the
+ * same CheckoutRequestID. Retries while Safaricom still reports the
+ * transaction as processing.
+ */
+async function confirmedBySafaricom(checkoutRequestId) {
+  if (!checkoutRequestId) return false;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const accessToken = await generateAccessToken();
+      const timestamp = generateTimestamp();
+      const { data } = await axios.post(STK_QUERY_URL, {
+        BusinessShortCode: BUSINESS_SHORT_CODE,
+        Password: generatePassword(BUSINESS_SHORT_CODE, PASSKEY, timestamp),
+        Timestamp: timestamp,
+        CheckoutRequestID: checkoutRequestId,
+      }, { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 15000 });
+      if (String(data.ResultCode) === '0') return true;
+      if (data.ResultCode !== undefined) return false;
+    } catch (e) {
+      // "The transaction is being processed" comes back as an HTTP error.
+      console.log(`STK query attempt ${attempt + 1} for ${checkoutRequestId}: ${e.response?.data?.errorMessage || e.message}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  return false;
 }
 
 /**
@@ -239,6 +269,12 @@ export const handleCallback = async (req, res) => {
       const { ResultCode, ResultDesc, CallbackMetadata, CheckoutRequestID } = callbackData;
 
       console.log(`M-Pesa transaction result: ${ResultCode} - ${ResultDesc}`);
+
+      if (ResultCode === 0 && !(await confirmedBySafaricom(CheckoutRequestID))) {
+        console.error(`Rejected success callback that Safaricom did not confirm: ${CheckoutRequestID}`);
+        return res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+      }
+
       console.log(`Looking for order with CheckoutRequestID: ${CheckoutRequestID}`);
 
       // ── Check wallet_transactions first (event wallet top-up)

@@ -6,7 +6,6 @@ import {
   checkTransactionStatus
 } from '../controllers/mpesaController.js';
 import {
-  initiateB2C,
   handleB2CResult,
   handleB2CTimeout,
   checkB2CStatus,
@@ -14,6 +13,7 @@ import {
 } from '../controllers/mpesaB2CController.js';
 import { calculateOrderItemCommission } from '../utils/commissionCalculator.js';
 import { supabase } from '../supabaseClient.js';
+import { verifyAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -27,7 +27,8 @@ router.get('/status/:checkoutRequestId', checkTransactionStatus);
 // ============================================
 // B2C (Business to Customer) - Seller payment endpoints
 // ============================================
-router.post('/b2c', initiateB2C);
+// No public route starts a B2C payout: it would let anyone send business
+// funds to any phone. Payouts go through processSellerPayment only.
 router.post('/b2c/result', handleB2CResult);
 router.post('/b2c/timeout', handleB2CTimeout);
 router.get('/b2c/status/:transactionId', checkB2CStatus);
@@ -101,7 +102,7 @@ router.post('/orders/calculate-commission', async (req, res) => {
  *
  * This version is fully aligned with the actual database schema
  */
-router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
+router.post('/orders/trigger-payment/:orderItemId', verifyAuth, async (req, res) => {
   try {
     const { orderItemId } = req.params;
 
@@ -110,6 +111,18 @@ router.post('/orders/trigger-payment/:orderItemId', async (req, res) => {
         success: false,
         error: 'Order item ID is required'
       });
+    }
+
+    // Only the seller of this item (or an admin) can mark it delivered.
+    const [{ data: ownedItem }, { data: caller }] = await Promise.all([
+      supabase.from('order_items').select('seller_id').eq('id', orderItemId).maybeSingle(),
+      supabase.from('profiles').select('is_admin').eq('id', req.user.id).maybeSingle(),
+    ]);
+    if (!ownedItem) {
+      return res.status(404).json({ success: false, error: 'Order item not found' });
+    }
+    if (ownedItem.seller_id !== req.user.id && !caller?.is_admin) {
+      return res.status(403).json({ success: false, error: 'Only the seller can update this order' });
     }
 
     console.log(`\n========================================`);
