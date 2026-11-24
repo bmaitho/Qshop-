@@ -10,7 +10,6 @@ import HiveShell, { useCountdown } from '../hive/HiveShell';
 import HiveShare from '../hive/HiveShare';
 import QRCode from '../QRCode';
 import useEventRsvp from './useEventRsvp';
-import WaveTwo from '../hive/WaveTwo';
 import { LITTLE } from '../hive/hiveMedia';
 import '../hive/hive.css';
 
@@ -325,7 +324,6 @@ export default function ExperiencePage({ x }) {
         <div className="mt-6"><RsvpAction x={x} r={r} /></div>
       </section>}
 
-      {ended && <div className="px-4 sm:px-8 lg:px-12 pb-6"><WaveTwo /></div>}
 
       {/* What it builds toward */}
       {x.next && (
