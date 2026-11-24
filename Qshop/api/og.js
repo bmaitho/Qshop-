@@ -169,7 +169,7 @@ async function resolve(db, path, query) {
   }
 
   if (path === 'collabs/till-dawn') return { url, title: 'TILL DAWN 2.0 — MCM × METANOIA × UniHive', description: 'Sat 5 Dec, 12PM till 3AM · Skate City, Parklands. Music, a runway model competition with cash prizes, and the city going till dawn. Tickets on Passly.', image: framed('/collabs/till-dawn/poster.webp', 'hive') };
-  if (path === 'collabs/cultur-fm') return { url, title: 'CULTUR FM Nairobi × UniHive', description: 'CULTUR FM came back to Nairobi, 3–6 Nov 2026: Nairobi Street Kitchen, Networks Padel Village and the Masshouse main night.', image: framed('/collabs/cultur-fm/main-night-6nov.webp', 'hive') };
+  if (path === 'collabs/cultur-fm') return { url, title: 'CULTUR FM Nairobi — 808 Masters × UniHive', description: 'CULTUR FM came back to Nairobi, 3–6 Nov 2026: Nairobi Street Kitchen, Networks Padel Village and the Masshouse main night.', image: framed('/collabs/cultur-fm/main-night-6nov.webp', 'hive') };
   if (path === 'hive/siwaka') return { url, title: 'The Siwaka Podcast × UniHive — official media outlet', description: 'On the streets, in the crowd, at every Hive moment. Watch Episode 97 and follow @thesiwakapodcast on TikTok.', image: framed('/media/siwaka/ep97-hive-cover.webp', 'hive') };
   if (path === 'hive/booth') return { url, title: 'The Hive Photo Booth — real nights, real people', description: 'Find yourself in the photos and reels from every Hive night.', image: CARD('booth') };
   if (path === 'services') return { url, title: 'The Buzz — UniHive', description: 'Events, experiences and the people who make them.', image: CARD('buzz') };
