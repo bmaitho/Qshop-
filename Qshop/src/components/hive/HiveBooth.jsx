@@ -19,6 +19,11 @@ const FILTERS = [
 ];
 
 const REELS = [
+  { key: 'night-v-04', kind: 'video', event: 'night', src: '/hive/night/v-04.mp4', poster: '/hive/night/v-04.webp', w: 540, h: 960 },
+  { key: 'night-v-05', kind: 'video', event: 'night', src: '/hive/night/v-05.mp4', poster: '/hive/night/v-05.webp', w: 540, h: 960 },
+  { key: 'night-v-06', kind: 'video', event: 'night', src: '/hive/night/v-06.mp4', poster: '/hive/night/v-06.webp', w: 540, h: 960 },
+  { key: 'night-v-07', kind: 'video', event: 'night', src: '/hive/night/v-07.mp4', poster: '/hive/night/v-07.webp', w: 540, h: 960 },
+  { key: 'night-v-08', kind: 'video', event: 'night', src: '/hive/night/v-08.mp4', poster: '/hive/night/v-08.webp', w: 960, h: 540 },
   { key: 'night-v-01', kind: 'video', event: 'night', src: '/hive/night/v-01.mp4', poster: '/hive/night/v-01.webp', w: 540, h: 960 },
   { key: 'night-v-02', kind: 'video', event: 'night', src: '/hive/night/v-02.mp4', poster: '/hive/night/v-02.webp', w: 540, h: 960 },
   { key: 'night-v-03', kind: 'video', event: 'night', src: '/hive/night/v-03.mp4', poster: '/hive/night/v-03.webp', w: 540, h: 954 },

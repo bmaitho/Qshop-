@@ -39,6 +39,10 @@ export const VIDEOS = {
   crewCheer1: v('crew-cheer-1'),
   crewCheer2: v('crew-cheer-2'),
   lakeSelfie: v('lake-selfie'),
+  // THE HIVE: NO GOING HOME, 30 Oct 2026 (media team, iPhone 4K).
+  nightStage: { src: '/hive/night/v-04.mp4', poster: '/hive/night/v-04.webp' },
+  nightToga: { src: '/hive/night/v-06.mp4', poster: '/hive/night/v-06.webp' },
+  nightSmirnoff: { src: '/hive/night/v-07.mp4', poster: '/hive/night/v-07.webp' },
 };
 
 // Our own Halloween face-paint shoot (real UniHive faces), used for the
