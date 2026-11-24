@@ -51,7 +51,7 @@ export const COLLABS = {
     startsAt: '2026-11-03T17:00:00+03:00',
     endsAt: '2026-11-07T04:00:00+03:00',
     chips: ['3 – 6 Nov 2026', 'Nairobi'],
-    role: 'UniHive supported marketing and event presence for CULTUR FM’s Nairobi run, alongside 808 Masters.',
+    role: 'Through our official partner 808 Masters, UniHive worked alongside CULTUR FM’s Nairobi run — promoting it and growing the crowd.',
     hero: { src: `${CF}/main-night-6nov.webp`, alt: 'CULTUR FM Nairobi poster' },
     cta: { label: 'CULTUR FM on Instagram', href: 'https://www.instagram.com/cultur.fm/' },
     ctaNote: 'CULTUR FM is a global music and culture platform; this was its second visit to Nairobi.',
