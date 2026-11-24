@@ -126,7 +126,7 @@ async function journey() {
     if (n < 5) throw new Error(`only ${n} priced items visible`);
   });
   await visit(ctx, 'THE HIVE · The Night', '/events/the-hive-no-going-home?tab=night', sees('Tonight at THE Sarakasi Dome'));
-  await visit(ctx, 'THE HIVE · Specials', '/events/the-hive-no-going-home?tab=packs', sees(/Little/));
+  await visit(ctx, 'THE HIVE · Specials', '/events/the-hive-no-going-home?tab=packs', sees(/UniHive Specials/));
   await visit(ctx, 'Pre-party', '/events/the-hive-pre-party', async (p) => {
     await p.getByText('Good vibes. New connections. Big energy.').first().waitFor({ timeout: FAIL_MS });
     const rsvp = p.getByRole('button', { name: /RSVP/ }).first();

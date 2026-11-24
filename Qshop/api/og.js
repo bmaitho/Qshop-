@@ -129,7 +129,7 @@ async function resolve(db, path, query) {
           return {
             url,
             title: `${pk.name} — ${ksh(pk.base_price)} · THE HIVE: NO GOING HOME`,
-            description: `${pk.description || 'A UniHive special, sold exclusively on Little Events.'} Fri 30 Oct, 6PM–4AM · Sarakasi Dome · 18+`,
+            description: `${pk.description || 'A UniHive special.'} Fri 30 Oct, 6PM–4AM · Sarakasi Dome · 18+`,
             image: framed(packPoster(pk.name), 'hive'),
           };
         }
@@ -139,8 +139,8 @@ async function resolve(db, path, query) {
         title: 'THE HIVE: NO GOING HOME — Fri 30 Oct, Sarakasi Dome',
         // Discount line only until doors open (Fri 30 Oct, 6PM EAT).
         description: Date.now() < Date.parse('2026-10-30T18:00:00+03:00')
-          ? 'This Friday, 6PM–4AM · Sarakasi Dome. 25% off Regular, 20% off VIP on Little. Costumes, Smirnoff, DJs till sunrise. 18+.'
-          : 'Halloween at the Dome · Fri 30 Oct, 6PM–4AM. Drinks, bites and the full lineup on UniHive. Tickets on Little Events. 18+.',
+          ? 'This Friday, 6PM–4AM · Sarakasi Dome. 25% off Regular, 20% off VIP on UniHive. Costumes, Smirnoff, DJs till sunrise. 18+.'
+          : 'Halloween at the Dome · Fri 30 Oct, 6PM–4AM. Drinks, bites and the full lineup on UniHive. Tickets on UniHive. 18+.',
         image: CARD('hive'),
       };
     }
@@ -149,7 +149,7 @@ async function resolve(db, path, query) {
     const EXPERIENCE_PREVIEWS = {
       'the-hive-pre-party': {
         title: 'THE HIVE PRE-PARTY — it happened. You missed it?',
-        description: 'Paradise Lost, 16 Oct: done deal. Catch the next one: THE HIVE: NO GOING HOME, Fri 30 Oct, Sarakasi Dome. 25% off Regular, 20% off VIP on Little.',
+        description: 'Paradise Lost, 16 Oct: done deal. Catch the next one: THE HIVE: NO GOING HOME, Fri 30 Oct, Sarakasi Dome.',
         image: CARD('pre-party'),
       },
     };
@@ -162,7 +162,7 @@ async function resolve(db, path, query) {
       return {
         url,
         title: `${ev.title}${ev.venue ? ` — ${ev.venue}` : ''}`,
-        description: (ev.description || 'Tickets on Little Events.').slice(0, 180),
+        description: (ev.description || 'See what’s on at UniHive.').slice(0, 180),
         image: ev.image_url ? framed(ev.image_url) : CARD('buzz'),
       };
     }
@@ -170,7 +170,6 @@ async function resolve(db, path, query) {
 
   if (path === 'hive/siwaka') return { url, title: 'The Siwaka Podcast × UniHive — official media outlet', description: 'On the streets, in the crowd, at every Hive moment. Watch Episode 97 and follow @thesiwakapodcast on TikTok.', image: framed('/media/siwaka/ep97-hive-cover.webp', 'hive') };
   if (path === 'hive/booth') return { url, title: 'The Hive Photo Booth — real nights, real people', description: 'Find yourself in the photos and reels from every Hive night.', image: CARD('booth') };
-  if (path.startsWith('claim')) return { url, title: 'Claim your HIVE — THE HIVE: NO GOING HOME', description: 'Bought on Little Events? Link your ticket to unlock the HIVE Wallet and perks.', image: CARD('hive') };
   if (path === 'services') return { url, title: 'The Buzz — UniHive', description: 'Events, experiences and the people who make them.', image: CARD('buzz') };
 
   return {

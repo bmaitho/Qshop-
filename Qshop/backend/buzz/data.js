@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient.js';
 
 const SITE = 'https://unihive.shop';
 const HIVE_SLUG = 'the-hive-no-going-home';
-const LITTLE_TICKETS = 'https://apps.little.africa/events/the-hive-no-going-home-';
+const HIVE_TICKETS = `${SITE}/events/the-hive-no-going-home/tickets`;
 const abs = (u) => (!u ? null : u.startsWith('http') ? u : `${SITE}${u}`);
 const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
 
@@ -13,7 +13,7 @@ export async function gatherBuzzData() {
   const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
   const [{ data: events }, { data: newProducts }, { data: newShops }, { count: shopCount }, { data: poll }] = await Promise.all([
-    supabase.from('events').select('title, slug, event_date, event_time, venue, price, rsvp_enabled, description')
+    supabase.from('events').select('title, slug, event_date, event_time, venue, price, rsvp_enabled, description, ticket_url')
       .in('status', ['upcoming', 'live']).gte('event_date', today).lte('event_date', in30).order('event_date'),
     supabase.from('products').select('id, name, price, image_url, created_at')
       .eq('status', 'active').not('image_url', 'is', null).gte('created_at', daysAgo(10))
@@ -32,9 +32,9 @@ export async function gatherBuzzData() {
       date: e.event_date,
       time: e.event_time,
       venue: e.venue,
-      admission: e.slug === HIVE_SLUG ? 'paid — tickets exclusively on Little Events' : e.rsvp_enabled && Number(e.price) === 0 ? 'free — RSVP on UniHive' : Number(e.price) === 0 ? 'free' : 'paid — tickets on Little Events',
+      admission: e.rsvp_enabled && Number(e.price) === 0 ? 'free — RSVP on UniHive' : Number(e.price) === 0 ? 'free' : 'paid — tickets on UniHive',
       url: `${SITE}/events/${e.slug}`,
-      tickets_url: e.slug === HIVE_SLUG ? LITTLE_TICKETS : null,
+      tickets_url: e.slug === HIVE_SLUG ? HIVE_TICKETS : (e.ticket_url || null),
       blurb: (e.description || '').slice(0, 240),
     })),
     new_products: (newProducts || []).map((p) => ({ name: p.name, price_ksh: p.price, image: abs(p.image_url), url: `${SITE}/product/${p.id}` })),

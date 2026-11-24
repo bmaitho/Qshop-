@@ -2,7 +2,7 @@
 //
 // To launch a new activation:
 //   1. Add an `events` row (slug, title, date, venue, price 0, rsvp_enabled
-//      true for free RSVP; paid admission always links to Little instead).
+//      true for free RSVP; paid admission uses UniHive's ticket checkout).
 //   2. Add an entry below keyed by that slug. Drop media into
 //      public/experiences/<slug>/ and point the slots at it.
 //   3. Flip `confirmed: true` on people/brands/activities once verified;
@@ -70,8 +70,7 @@ export const EXPERIENCES = {
       { name: 'DJ Nikx', role: 'On the decks', img: '/hive/media/dj-nikx.webp', confirmed: true },
     ],
 
-    // Brands on the published poster. Little is a UniHive partner but is not
-    // part of this activation unless approved — do not add it here.
+    // Brands on the published poster.
     brands: [
       { name: 'UniHive', img: null, confirmed: true },
       { name: 'Smirnoff', img: '/hive/products/smirnoff-vodka-webs.webp', confirmed: true },
@@ -92,9 +91,9 @@ export const EXPERIENCES = {
       slug: 'the-hive-no-going-home',
       title: 'THE HIVE: NO GOING HOME',
       line: 'Fri 30 Oct · 6PM – 4AM · Sarakasi Dome, Nairobi · 18+',
-      note: 'Paid tickets on Little Events.',
-      offer: 'Get your ticket on Little — ticket holders get complimentary Red Bull & Smirnoff.',
-      ticketsUrl: 'https://apps.little.africa/events/the-hive-no-going-home-',
+      note: 'Paid tickets on UniHive.',
+      offer: 'Get your ticket on UniHive — VIP tickets come with a complimentary Red Bull.',
+      ticketsUrl: '/events/the-hive-no-going-home/tickets',
     },
 
     // Shown once the day is over: the page flips from "RSVP" to "you missed it,

@@ -136,7 +136,7 @@ const EventsPage = ({ token }) => {
 
                     <div className="flex items-center gap-3 mt-2">
                       {event.slug === HIVE_SLUG ? (
-                        <span className="text-xs font-semibold text-foreground/70">Tickets on Little</span>
+                        <span className="text-xs font-semibold text-foreground/70">Tickets on UniHive</span>
                       ) : event.price === 0 ? (
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                           FREE

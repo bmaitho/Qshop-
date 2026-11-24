@@ -12,7 +12,7 @@ import { Gate } from './VendorRedeem';
 const when = (ts) => (ts ? new Date(ts).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) : '');
 
 // Builds the door lookup/admit pair. Accepts UniHive pass QRs and imported
-// Little tickets (QR or Payment Key); anything else is rejected. Scanners can
+// imported tickets (QR or ticket code); anything else is rejected. Scanners can
 // undo a mistaken admit; admins can also void a pass and restore it.
 export function ticketScanner({ isAdmin }) {
   const rpc = async (name, args) => {
@@ -55,10 +55,10 @@ export function ticketScanner({ isAdmin }) {
       throw e;
     }
     const t = Array.isArray(data) ? data[0] : data;
-    if (!t) return { kind: 'invalid', label: 'Not verified', title: 'No matching paid ticket', subtitle: 'Don’t admit. Little tickets must be imported into UniHive first.' };
+    if (!t) return { kind: 'invalid', label: 'Not verified', title: 'No matching paid ticket', subtitle: 'Don’t admit.' };
     const total = t.admits_count || 1;
     const used = t.admits_used || 0;
-    const meta = [['Name', t.holder || '—'], ['Pass', t.tier || '—'], ['Entries', `${used} of ${total} used`], ['Sold on', t.source === 'little' ? 'Little' : 'UniHive']];
+    const meta = [['Name', t.holder || '—'], ['Pass', t.tier || '—'], ['Entries', `${used} of ${total} used`], ['Sold on', t.source === 'unihive' ? 'UniHive' : 'Imported']];
     const base = { title: t.event_title || 'Pass', image: t.event_image, meta, raw: { t, token } };
     if (t.voided_at) {
       return withActions({ ...base, kind: 'invalid', label: 'Voided', subtitle: `Don’t admit${t.void_reason ? ` · ${t.void_reason}` : ''} · ${when(t.voided_at)}` });
@@ -100,7 +100,7 @@ export default function StaffScanner() {
         <div className="max-w-md mx-auto px-4 py-8 sm:py-12">
           <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold">DOOR · {(gate.profile?.full_name || gate.user.email || '').toUpperCase()}</p>
           <h1 className="hive-display hive-gold-text text-4xl font-extrabold mt-1">Admit</h1>
-          <p className="text-white/50 text-sm mt-2 mb-6">Scan UniHive passes and Little tickets. For a Little ticket without a readable QR, tap Enter code and type its Payment Key. Tickets that aren’t verified are rejected. {count > 0 && <span className="text-white/80">· {count} admitted this shift</span>}</p>
+          <p className="text-white/50 text-sm mt-2 mb-6">Scan UniHive passes. If a QR won’t read, tap Enter code and type the ticket code. Tickets that aren’t verified are rejected. {count > 0 && <span className="text-white/80">· {count} admitted this shift</span>}</p>
           <HiveScanner allowText lookup={lookup} act={admit} onCompleted={() => setCount((c) => c + 1)} hint="Scan a ticket QR" />
           <button onClick={() => navigate('/staff/redeem')} className="mt-6 w-full text-sm text-[#e7c65f]">Switch to stand redemption →</button>
         </div>

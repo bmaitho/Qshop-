@@ -4,8 +4,8 @@ import { getPackagePurchaseStatus } from '../controllers/packagePurchaseControll
 
 const router = express.Router();
 
-// Packs that include entry are sold only on Little Events.
-router.post('/:packageId/purchase', (req, res) => res.status(410).json({ error: 'Specials are sold exclusively on Little Events.' }));
+// Packs that include entry are not sold through this route.
+router.post('/:packageId/purchase', (req, res) => res.status(410).json({ error: 'Specials aren’t on sale.' }));
 router.get('/purchases/:purchaseId', getPackagePurchaseStatus);
 
 export default router;

@@ -555,7 +555,6 @@ const Profile = () => {
             <HubGroup title="Events" icon={CalendarDays}>
               <HubTile to="/my-tickets" icon={Ticket} label="My tickets" hint="Entry QR codes" count={hub.tickets} />
               <HubTile to={`/events/${HIVE_SLUG}/wallet`} icon={Wallet} label="HIVE wallet" hint="Credit, drinks & QR codes" count={hub.drinks} countLabel="to collect" />
-              <HubTile to={`/claim/${HIVE_SLUG}`} icon={QrCode} label="Claim a Little ticket" hint="Unlock wallet & perks" />
               <HubTile to="/services" icon={CalendarDays} label="The Buzz" hint="Events & experiences" />
             </HubGroup>
 
@@ -574,7 +573,6 @@ const Profile = () => {
                 <HubTile to="/admin/brands" icon={Store} label="Brands" hint="Contacts & brand staff" />
                 <HubTile to="/admin/buzz" icon={Sparkles} label="The Buzz emails" hint="Agent drafts · you approve" />
                 <HubTile to="/admin/broadcast" icon={Mail} label="Email shop owners" />
-                <HubTile to="/admin/events/import-tickets" icon={Ticket} label="Import Little tickets" />
                 <HubTile to="/admin/services" icon={Settings} label="Services" />
                 <HubTile to="/admin/codes" icon={Shield} label="Wholesaler codes" />
               </HubGroup>

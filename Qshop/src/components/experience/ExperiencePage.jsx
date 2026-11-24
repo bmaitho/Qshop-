@@ -10,7 +10,7 @@ import HiveShell, { useCountdown } from '../hive/HiveShell';
 import HiveShare from '../hive/HiveShare';
 import QRCode from '../QRCode';
 import useEventRsvp from './useEventRsvp';
-import { LITTLE } from '../hive/hiveMedia';
+import { TICKETS_PATH } from '../hive/hiveMedia';
 import '../hive/hive.css';
 
 const ICONS = { Mountain, Waves, Sailboat, Trees, Target, Wind, Footprints, Sparkles };
@@ -77,7 +77,7 @@ function LazyClip({ src, poster, className }) {
 function NextAction({ x }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-7 py-4 text-sm sm:text-base font-extrabold tracking-wide inline-flex items-center gap-2">
+      <a href={TICKETS_PATH} className="hive-btn-gold rounded-full px-7 py-4 text-sm sm:text-base font-extrabold tracking-wide inline-flex items-center gap-2">
         <Ticket className="w-5 h-5" aria-hidden="true" /> CATCH THE NEXT ONE · 30 OCT
       </a>
       {x.next && (
@@ -336,9 +336,9 @@ export default function ExperiencePage({ x }) {
             <span className="inline-flex items-center gap-2 mt-5 text-sm font-bold text-[#e7c65f]">Enter THE HIVE <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" aria-hidden="true" /></span>
           </Link>
           {!ended && x.next.offer && x.next.ticketsUrl && (
-            <a href={x.next.ticketsUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between gap-4 rounded-[22px] border border-[#f5b700]/30 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.18),transparent_60%),#0b0805] px-5 py-4">
+            <a href={x.next.ticketsUrl} className="mt-3 flex items-center justify-between gap-4 rounded-[22px] border border-[#f5b700]/30 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.18),transparent_60%),#0b0805] px-5 py-4">
               <span className="text-white/85 text-sm sm:text-base">{x.next.offer}</span>
-              <span className="shrink-0 rounded-full bg-[#f5b700] text-[#1a0f05] px-4 py-2 text-xs sm:text-sm font-extrabold">Tickets on Little ↗</span>
+              <span className="shrink-0 rounded-full bg-[#f5b700] text-[#1a0f05] px-4 py-2 text-xs sm:text-sm font-extrabold">Get tickets</span>
             </a>
           )}
         </section>

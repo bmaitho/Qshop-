@@ -88,7 +88,7 @@ function Verdict({ v, onAct, onExtra, onClose, busy }) {
   );
 }
 
-// allowText: also pass codes that aren't UniHive tokens (e.g. Little ticket
+// allowText: also pass codes that aren't UniHive tokens (e.g. imported ticket
 // references) through to lookup, which decides whether they're valid.
 export default function HiveScanner({ lookup, act, onCompleted, hint = 'Point at the QR code', allowText = false }) {
   const scanner = useRef(null);

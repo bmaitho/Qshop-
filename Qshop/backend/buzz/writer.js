@@ -12,7 +12,7 @@ Voice: creative, minimal, quietly funny, cool and collected — the email people
 
 Hard rules:
 - Use ONLY facts, names, prices, dates and URLs present in the DATA. Never invent offers, prices, line-ups, discounts or numbers.
-- Paid event tickets are sold only on Little Events — say so and link the tickets_url; never suggest buying admission on UniHive.
+- Paid event tickets: link the tickets_url (UniHive's ticket checkout) when present, else the event url.
 - Free events: "free — RSVP on UniHive" with the event url.
 - If a section has no data, leave it out. Fewer, better sections beat filler.
 - Don't address the reader by name (the greeting is added separately).
@@ -49,7 +49,7 @@ export function templateIssue(data) {
     sections.push({
       kicker: free ? 'Free · RSVP' : 'Coming up',
       title: ev.title,
-      body: `${ev.venue || ''}${ev.venue ? ' · ' : ''}${nice(ev.date)}. ${free ? 'Free entry — RSVP on UniHive and your pass lands in My Tickets.' : 'Tickets exclusively on Little Events.'}`,
+      body: `${ev.venue || ''}${ev.venue ? ' · ' : ''}${nice(ev.date)}. ${free ? 'Free entry — RSVP on UniHive and your pass lands in My Tickets.' : 'Tickets on UniHive.'}`,
       cta_label: free ? 'RSVP free' : 'Get tickets',
       cta_url: free ? ev.url : (ev.tickets_url || ev.url),
       images: [],

@@ -74,13 +74,12 @@ export const SOCIALS = {
   tiktok: { label: 'TikTok', handle: '@unihive.entertainment', url: 'https://www.tiktok.com/@unihive.entertainment' },
 };
 
-const LITTLE_EVENT = 'https://apps.little.africa/events/the-hive-no-going-home-';
+// Tickets are sold on UniHive's own checkout.
+export const TICKETS_PATH = `/events/${HIVE_SLUG}/tickets`;
 
-// Ticket discount on Little: 25% off Regular, 20% off VIP with a code in the
-// link. Each university's plug has its own code (STRATHMORE, USIU, ...);
-// anyone who arrives on unihive.shop with ?code=XYZ keeps that code on every
-// "Tickets on Little" button (see rememberTicketCode). Everyone else gets
-// UNIHIVE. After doors open the buttons go back to the plain Little page.
+// Ticket discount codes (25% off Regular, 20% off VIP) used for THE HIVE.
+// Each university's plug had its own code; anyone who arrives with
+// ?code=XYZ keeps it (see rememberTicketCode).
 export const PROMO = {
   defaultCode: 'UNIHIVE',
   regularOff: 25,
@@ -112,19 +111,13 @@ export const ticketCode = () => {
 export const isUniCode = () => ticketCode() !== PROMO.defaultCode;
 export const discounted = (tier) => Math.round(tier.price * (1 - (tier.vip ? PROMO.vipOff : PROMO.regularOff) / 100));
 
-export const LITTLE = {
-  get tickets() { return promoActive() ? `${LITTLE_EVENT}?code=${ticketCode()}` : LITTLE_EVENT; },
-  code: 'UNIHIVE26',
-  offer: 'KSh 200 off Little Cab rides to and from Hive events',
-};
 
-// Ticket waves, as listed on Little Events (the only place tickets are sold).
-// Update `onSale`/`soldOut` and the tiers when Little moves to the next wave.
+// Ticket waves for THE HIVE. Update `onSale`/`soldOut` and the tiers per wave.
 export const WAVES = {
   soldOut: 'Wave 1',
   onSale: 'Wave 2',
   tiers: [
-    // As listed on Little, 23 Oct 2026.
+    // Tier prices, 23 Oct 2026.
     { name: 'Single Hive Regular', price: 1500 },
     { name: 'Hive of 4 Regular', price: 4800 },
     { name: 'Hive of 6 Regular', price: 5000 },
@@ -135,15 +128,14 @@ export const WAVES = {
 };
 
 export const PERKS = [
-  { title: 'Ride with Little', body: 'Code UNIHIVE26 — KSh 200 off Little Cab rides to and from the Dome.' },
   { title: 'VIP = free Red Bull', body: 'Every VIP ticket comes with a complimentary Red Bull — VIP Duo and Hive of 6 VIP add Smirnoff cans.' },
   { title: 'Costume competition', body: 'Cartoons, villains, main characters — lots of prizes for the best costumes. Don’t show up looking regular.' },
   { title: 'Live sets all night', body: 'DJs on the decks and artists on stage, 6PM until 4AM.' },
   { title: 'Stay charged', body: 'Charge24 power-bank stations on site — keep your phone alive till 4AM.' },
-  { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — let Little get you home.' },
+  { title: 'Usidrive ukiwa maji', body: 'Drink responsibly — get a ride home.' },
 ];
 
-export const PARTNERS = ['Little', 'Smirnoff', 'Red Bull', 'Charge24', "Harrison's Pearl Gerar"];
+export const PARTNERS = ['Smirnoff', 'Red Bull', 'Charge24', "Harrison's Pearl Gerar"];
 
 // Catalogue grouping — derived from product name so no schema change is needed.
 export const BRANDS = [

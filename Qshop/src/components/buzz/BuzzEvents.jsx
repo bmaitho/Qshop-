@@ -1,11 +1,11 @@
 // Events on The Buzz (/services): what's next, and what already happened.
 // Upcoming vs past is decided by date, so an event never looks "on sale"
-// after its night. Paid tickets always go to Little Events.
+// after its night. Paid tickets sell on UniHive's own checkout.
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, MapPin, Clock } from 'lucide-react';
 import { img } from '../../utils/ImageUtils';
 import { getExperience } from '../experience/experiences';
-import { HIVE_SLUG, LITTLE, WAVES, PROMO, promoActive, ticketCode } from '../hive/hiveMedia';
+import { HIVE_SLUG, TICKETS_PATH, WAVES, PROMO, promoActive, ticketCode } from '../hive/hiveMedia';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const day = (d, opts) => new Date(`${d}T00:00:00`).toLocaleDateString('en-KE', opts);
@@ -44,19 +44,19 @@ function Featured({ evt }) {
           {evt.venue && <li className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5"><MapPin className="h-4 w-4 text-[#e7c65f]" aria-hidden="true" />{evt.venue}</li>}
         </ul>
         {isHive && promoActive() && (
-          <p className="text-sm text-[var(--muted)]"><span className="font-bold text-[#ff8a8a]">🎟️ {PROMO.regularOff}% off Regular · {PROMO.vipOff}% off VIP</span> — code <span className="font-bold text-[var(--text)]">{ticketCode()}</span>, applied for you on Little.</p>
+          <p className="text-sm text-[var(--muted)]"><span className="font-bold text-[#ff8a8a]">🎟️ {PROMO.regularOff}% off Regular · {PROMO.vipOff}% off VIP</span> — code <span className="font-bold text-[var(--text)]">{ticketCode()}</span>, applied for you.</p>
         )}
         {isHive && !promoActive() && (
           <p className="text-sm text-[var(--muted)]">
             <span className="font-bold text-[#ff8a8a]">{WAVES.soldOut} sold out.</span>{' '}
-            <span className="font-bold text-[#e7c65f]">{WAVES.onSale} is on sale now</span> — from KSh {Math.min(...WAVES.tiers.map((t) => t.price)).toLocaleString('en-KE')} on Little.
+            <span className="font-bold text-[#e7c65f]">{WAVES.onSale} is on sale now</span> — from KSh {Math.min(...WAVES.tiers.map((t) => t.price)).toLocaleString('en-KE')}.
           </p>
         )}
         <div className="flex flex-wrap gap-3">
           {isHive && (
-            <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-[#e7c65f] px-6 py-3.5 text-sm font-extrabold text-[#1a0f05] transition-transform hover:-translate-y-0.5">
-              Tickets on Little ↗
-            </a>
+            <Link to={TICKETS_PATH} className="inline-flex items-center gap-2 rounded-full bg-[#e7c65f] px-6 py-3.5 text-sm font-extrabold text-[#1a0f05] transition-transform hover:-translate-y-0.5">
+              Get tickets
+            </Link>
           )}
           <Link to={`/events/${evt.slug}`} className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-6 py-3.5 text-sm font-bold text-[var(--text)] hover:border-[#e7c65f]/60">
             {isHive ? 'Explore the night' : 'View event'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
