@@ -45,7 +45,8 @@ export const COLLABS = {
   'cultur-fm': {
     slug: 'cultur-fm',
     name: 'CULTUR FM NAIROBI',
-    kicker: 'CULTUR FM × UniHive',
+    kicker: 'CULTUR FM',
+    kicker2: '808 Masters × UniHive',
     tagline: 'CULTUR FM came back to Nairobi — three days, three rooms, one city.',
     startsAt: '2026-11-03T17:00:00+03:00',
     endsAt: '2026-11-07T04:00:00+03:00',

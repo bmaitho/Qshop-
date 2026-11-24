@@ -15,7 +15,7 @@ function Chip({ children }) {
 export default function CollabPage() {
   const { slug } = useParams();
   const c = getCollab(slug);
-  useEffect(() => { if (c) document.title = `${c.name} — ${c.kicker}`; }, [c]);
+  useEffect(() => { if (c) document.title = `${c.name} — ${c.kicker2 || c.kicker}`; }, [c]);
   if (!c) return <Navigate to="/services" replace />;
   const ended = isEnded(c);
 
@@ -25,10 +25,11 @@ export default function CollabPage() {
       <section className="relative overflow-hidden lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:min-h-[72vh]">
         <div className="relative aspect-[4/5] lg:aspect-auto bg-black">
           <img src={c.hero.src} alt={c.hero.alt} className="absolute inset-0 w-full h-full object-cover" />
-          <HiveShare className="absolute top-4 right-4" path={`/collabs/${c.slug}`} title={`${c.name} — ${c.kicker}`} text={c.tagline} />
+          <HiveShare className="absolute top-4 right-4" path={`/collabs/${c.slug}`} title={`${c.name} — ${c.kicker2 || c.kicker}`} text={c.tagline} />
         </div>
         <div className="px-4 sm:px-8 lg:px-12 py-8 lg:py-16 flex flex-col justify-center bg-[radial-gradient(80%_60%_at_80%_20%,rgba(195,18,31,0.25),transparent_70%)]">
           <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold uppercase">{ended ? `It happened · ${c.kicker}` : c.kicker}</p>
+          {c.kicker2 && <p className="text-[11px] tracking-[0.4em] text-[#ff7a1a] font-semibold uppercase mt-1">{c.kicker2}</p>}
           <h1 className="hive-display hive-gold-text text-4xl sm:text-6xl font-extrabold leading-[1.02] mt-2">{c.name}</h1>
           <p className="hive-accent text-white/85 text-xl sm:text-2xl mt-3 max-w-xl">{c.tagline}</p>
           <div className="flex flex-wrap gap-2 mt-5">
