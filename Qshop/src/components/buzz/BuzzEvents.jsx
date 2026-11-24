@@ -2,6 +2,7 @@
 // Upcoming vs past is decided by date, so an event never looks "on sale"
 // after its night. Paid tickets sell on UniHive's own checkout.
 import { Link } from 'react-router-dom';
+import { upcomingCollabs, pastCollabs } from '../collabs/collabs';
 import { ArrowRight, CalendarDays, MapPin, Clock } from 'lucide-react';
 import { img } from '../../utils/ImageUtils';
 import { getExperience } from '../experience/experiences';
@@ -117,6 +118,23 @@ export default function BuzzEvents({ events }) {
           )}
         </section>
       )}
+      <section className="mt-10">
+        <h2 className="font-['Syne',sans-serif] text-xl font-bold text-[var(--text)] sm:text-2xl">Collabs</h2>
+        <p className="mt-1 text-sm text-[var(--muted)]">Nights we build with the people shaping the city.</p>
+        <div className="-mx-4 mt-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+          {[...upcomingCollabs(), ...pastCollabs()].map((c) => (
+            <Link key={c.slug} to={`/collabs/${c.slug}`} className="group relative block aspect-[4/5] w-[68vw] shrink-0 snap-start overflow-hidden rounded-[22px] bg-black sm:w-[260px] md:w-auto">
+              <img src={c.hero.src} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-4">
+                <p className="text-[11px] uppercase tracking-[0.25em] text-[#e7c65f]">{c.kicker}</p>
+                <p className="mt-1 font-['Syne',sans-serif] text-lg font-bold leading-tight text-white">{c.name}</p>
+                <p className="mt-1 text-xs text-white/60 group-hover:text-white/90">{c.chips[0]} →</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
       {past.length > 0 && (
         <section className="mt-10">
           <h2 className="font-['Syne',sans-serif] text-xl font-bold text-[var(--text)] sm:text-2xl">It happened</h2>

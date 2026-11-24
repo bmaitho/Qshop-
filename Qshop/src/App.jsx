@@ -50,6 +50,7 @@ const ShopOwnerBroadcast = lazyPage(() => import('./components/admin/ShopOwnerBr
 const BuzzAdmin = lazyPage(() => import('./components/admin/BuzzAdmin'));
 const BrandsAdmin = lazyPage(() => import('./components/admin/BrandsAdmin'));
 const SiwakaPage = lazyPage(() => import('./components/media/SiwakaPage'));
+const CollabPage = lazyPage(() => import('./components/collabs/CollabPage'));
 const SubscriptionPage = lazyPage(() => import('./components/SubscriptionPage'));
 const SellerOrderDetail = lazyPage(() => import('./components/SellerOrderDetail'));
 const BuyerOrders = lazyPage(() => import('./components/BuyerOrders'));
@@ -122,6 +123,7 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/events/:slug/tickets" element={<EventPage token={token} />} />
       <Route path="/hive/booth" element={<HiveBooth />} />
       <Route path="/hive/siwaka" element={<SiwakaPage />} />
+      <Route path="/collabs/:slug" element={<CollabPage />} />
       <Route path="/partner" element={<PartnerDashboard />} />
       <Route path="/verify-ticket/:token" element={<VerifyTicket />} />
       <Route path="/staff" element={<StaffScanner />} />

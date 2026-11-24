@@ -170,6 +170,17 @@
       "destination": "/api/og?path=hive/siwaka"
     },
     {
+      "source": "/collabs/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|Applebot|Snapchat|vkShare|W3C_Validator|redditbot|Embedly|Quora Link Preview|Showyoubot).*"
+        }
+      ],
+      "destination": "/api/og?path=collabs/:slug"
+    },
+    {
       "source": "/claim/:id",
       "has": [
         {

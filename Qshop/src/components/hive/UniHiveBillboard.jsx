@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { VIDEOS, HIVE_SLUG, PROMO, promoActive } from './hiveMedia';
 import { liveExperiences } from '../experience/experiences';
+import { upcomingCollabs } from '../collabs/collabs';
 import './hive.css';
 
 
@@ -18,6 +19,7 @@ export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
   const productMosaic = products.length >= 3 ? products : banners;
   return [
     { kicker: promoActive() ? `This Friday · ${PROMO.regularOff}% off Regular · ${PROMO.vipOff}% off VIP` : 'UniHive presents · Fri 30 Oct · 6PM–4AM', title: 'No Going Home.', body: promoActive() ? 'THE HIVE · Fri 30 Oct · 6PM–4AM · Sarakasi Dome. Costumes, Smirnoff, DJs till sunrise — discounted tickets on UniHive.' : 'THE HIVE at Sarakasi Dome — drinks, bites and partner experiences on UniHive. Tickets on UniHive.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
+    ...upcomingCollabs().filter((c) => c.homeSlide).map((c) => ({ ...c.homeSlide, media: { type: 'image', src: c.hero.src }, cta: { label: 'See the event', to: `/collabs/${c.slug}` } })),
     ...liveExperiences().filter((x) => x.homeSlide).map((x) => ({ ...x.homeSlide, media: (x.media.backdrop || x.media.wide)?.video ? { type: 'video', src: (x.media.backdrop || x.media.wide).video, poster: (x.media.backdrop || x.media.wide).src } : { type: 'image', src: (x.media.backdrop || x.media.wide || x.media.poster).src }, cta: { label: 'RSVP free', to: `/events/${x.slug}` } })),
     { kicker: 'Storefronts', title: 'Shops worth following.', body: 'Real businesses, built by people in the Hive. Discover them, back them, buy from them.', media: shopMosaic.length >= 3 ? { type: 'mosaic', srcs: shopMosaic } : { type: 'image', src: PARTNER_SHOTS[3] }, cta: { label: 'Start shopping', to: '/studentmarketplace' } },
     { kicker: 'No scams. No stress.', title: 'Shop with confidence.', body: 'Pay with M-Pesa on UniHive. Sellers are paid once you confirm delivery.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice().reverse() } : { type: 'image', src: PARTNER_SHOTS[5] } },
