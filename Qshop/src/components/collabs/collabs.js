@@ -35,7 +35,7 @@ export const COLLABS = {
       { src: `${TD}/faces-of-till-dawn.webp`, caption: 'Faces of Till Dawn' },
     ],
     partners: [
-      { name: 'MCM', links: [['Instagram', 'https://www.instagram.com/mcmlive.25/'], ['TikTok', 'https://www.tiktok.com/@mcm.26']] },
+      { name: 'MCM', links: [['Instagram', 'https://www.instagram.com/mcmlive.26/'], ['TikTok', 'https://www.tiktok.com/@mcm.26']] },
       { name: 'METANOIA', links: [['Instagram', 'https://www.instagram.com/metanoiake/'], ['TikTok', 'https://www.tiktok.com/@metanoiake']] },
     ],
     credit: 'Posters: MCM.',
