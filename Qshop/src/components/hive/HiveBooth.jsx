@@ -12,12 +12,16 @@ import { VIDEOS, DRIVE_FOLDERS } from './hiveMedia';
 
 const FILTERS = [
   { key: 'all', label: 'Everything' },
+  { key: 'night', label: 'No Going Home · The Night' },
   { key: 'pre-party', label: 'Pre-Party' },
   { key: 'no-going-home', label: 'No Going Home · BTS' },
   { key: 'euphoria', label: 'Euphoria' },
 ];
 
 const REELS = [
+  { key: 'night-v-01', kind: 'video', event: 'night', src: '/hive/night/v-01.mp4', poster: '/hive/night/v-01.webp', w: 540, h: 960 },
+  { key: 'night-v-02', kind: 'video', event: 'night', src: '/hive/night/v-02.mp4', poster: '/hive/night/v-02.webp', w: 540, h: 960 },
+  { key: 'night-v-03', kind: 'video', event: 'night', src: '/hive/night/v-03.mp4', poster: '/hive/night/v-03.webp', w: 540, h: 954 },
   { key: 'reel-crew', kind: 'video', event: 'pre-party', ...VIDEOS.crewCheer2, w: 960, h: 540 },
   { key: 'reel-lake', kind: 'video', event: 'pre-party', ...VIDEOS.lakeSelfie, w: 540, h: 960 },
   { key: 'reel-couch', kind: 'video', event: 'pre-party', src: '/hive/video/ppv-01.mp4', poster: '/hive/video/ppv-01.webp', w: 540, h: 720 },
