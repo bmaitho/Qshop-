@@ -12,7 +12,7 @@ import ExperiencePromo from '../experience/ExperiencePromo';
 import useHiveCart, { cartTotal } from './useHiveCart';
 import CartDrawer from './HiveCart';
 import {
-  HIVE_SLUG, POSTERS, VIDEOS, FACEPAINT, LINEUP, PERKS, PARTNERS, BRANDS, LITTLE, brandOf, isWebbedCan, isComingSoon, packagePoster,
+  HIVE_SLUG, POSTERS, VIDEOS, FACEPAINT, LINEUP, PERKS, PARTNERS, BRANDS, TICKETS_PATH, brandOf, isWebbedCan, isComingSoon, packagePoster,
 } from './hiveMedia';
 import { img } from '../../utils/ImageUtils';
 import { WaveStrip } from './WaveTwo';
@@ -117,39 +117,6 @@ const EDITORIAL = [
   { at: 20, key: 'ed-faceB', type: 'video', ...FACEPAINT.uv, caption: 'Go luminous — UV designs', brand: 'facepaint' },
 ];
 
-function LittleCard() {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(LITTLE.code); } catch { /* blocked */ }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
-  return (
-    <a
-      href={LITTLE.tickets}
-      target="_blank"
-      rel="noreferrer"
-      onClick={copy}
-      className="group relative block shrink-0 w-[72vw] sm:w-[320px] h-[190px] sm:h-[220px] rounded-[22px] overflow-hidden border border-[#f5b700]/25 hover:border-[#f5b700]/60 transition-colors bg-[radial-gradient(120%_90%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#141008,#07050a)]"
-    >
-      <div className="relative h-full flex flex-col justify-between p-4">
-        <div>
-          <img src="/partners/little.png" alt="Little" className="h-7 w-auto" />
-          <span className="block mt-2 text-[10px] uppercase tracking-[0.25em] text-[#f5b700]">Ride with Little</span>
-          <p className="text-white/55 text-xs mt-1 leading-snug">KSh 200 off rides to and from the Hive</p>
-        </div>
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#f5b700]/60 px-3 py-1.5">
-            <span className="hive-display text-white text-xl font-bold tracking-[0.12em]">{LITTLE.code}</span>
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-[#f5b700]" />}
-          </span>
-          <p className="hive-accent text-white/70 text-base mt-2 leading-tight">Usidrive ukiwa maji.</p>
-          <p className="text-[11px] text-[#f5b700]/80 mt-1 group-hover:text-[#f5b700]">{copied ? 'Code copied · opening Little ↗' : 'Tap to copy code & open Little ↗'}</p>
-        </div>
-      </div>
-    </a>
-  );
-}
 
 const POLL = 'redbull-vodka';
 
@@ -215,7 +182,6 @@ function BrandShelf({ products, active, onPick }) {
   }, [products]);
   return (
     <div data-noswipe className="hive-snap-x hive-noscroll flex gap-3 overflow-x-auto px-3 sm:px-6 lg:px-10 scroll-px-3 sm:scroll-px-6 lg:scroll-px-10 pb-1">
-      <LittleCard />
       <RedBullPollCard />
       {BRANDS.filter((b) => counts[b.key]).map((b) => (
         <button
@@ -340,7 +306,7 @@ function PackCard({ pkg, highlight }) {
           className="absolute top-3 right-3"
           path={`/events/${HIVE_SLUG}?tab=packs&pack=${pkg.id}`}
           title={`${pkg.name} — ${ksh(pkg.base_price)} · THE HIVE`}
-          text="UniHive special — get it on Little Events before it's gone."
+          text="UniHive special — get it before it's gone."
         />
         <div className="absolute inset-x-0 bottom-0 p-5">
           <h3 className="hive-display text-white text-2xl font-bold leading-tight">{pkg.name}</h3>
@@ -364,13 +330,13 @@ function PackCard({ pkg, highlight }) {
         )}
         <div className="flex items-center justify-between gap-3 mt-5">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/55">Only on Little · 30 Oct</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/55">THE HIVE · 30 Oct</p>
             <p className="hive-display text-[#ffe9a8] text-2xl font-bold">{ksh(pkg.base_price)}</p>
           </div>
           {soon ? (
             <span className="rounded-full border border-white/30 px-5 py-2.5 text-sm font-bold text-white/70 whitespace-nowrap">Coming soon</span>
           ) : (
-            <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold whitespace-nowrap">Buy on Little ↗</a>
+            <a href={TICKETS_PATH} className="hive-btn-gold rounded-full px-5 py-2.5 text-sm font-bold whitespace-nowrap">Get tickets</a>
           )}
         </div>
       </div>
@@ -622,21 +588,12 @@ export default function HiveEventPage() {
 
         {tab === 'packs' && (
           <div className="hive-fade-in pb-16">
-            <SectionTitle kicker="Crazy packs · exclusively on Little Events" title="UniHive Specials" />
+            <SectionTitle kicker="Crazy packs for the crew" title="UniHive Specials" />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-5 gap-y-8 px-3 sm:px-6 lg:px-10">
               {packages.filter((p) => !p.sale_end || new Date(p.sale_end) > new Date()).map((p) => <PackCard key={p.id} pkg={p} highlight={highlight === p.id} />)}
             </div>
             <div className="text-center mt-10 px-6">
-              <p className="text-white/70 text-sm">Specials are sold on Little Events. Tickets are on UniHive and Little.</p>
-              <div className="flex flex-wrap justify-center gap-3 mt-4">
-                <a href={`/events/${HIVE_SLUG}/tickets`} className="inline-flex hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Buy tickets on UniHive</a>
-                <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="inline-flex rounded-full px-7 py-3.5 text-sm font-bold border border-white/25 bg-white/5">Specials on Little ↗</a>
-              </div>
-              <p className="text-white/40 text-xs mt-4">
-                Already have your Little ticket?{' '}
-                <button onClick={() => navigate(`/claim/${HIVE_SLUG}`)} className="text-[#e7c65f] underline underline-offset-4">Claim it here</button>{' '}
-                to unlock your wallet and perks.
-              </p>
+              <a href={TICKETS_PATH} className="inline-flex hive-btn-gold rounded-full px-7 py-3.5 text-sm font-bold">Buy tickets on UniHive</a>
             </div>
           </div>
         )}

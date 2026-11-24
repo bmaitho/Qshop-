@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import Navbar from '../Navbar';
 import MobileNavbar from '../MobileNavbar';
 import HiveTheme from './HiveTheme';
-import { HIVE_SLUG, HIVE_STARTS_AT, SOCIALS, LITTLE } from './hiveMedia';
+import { HIVE_SLUG, HIVE_STARTS_AT, SOCIALS, TICKETS_PATH } from './hiveMedia';
 import { liveExperiences } from '../experience/experiences';
 
 export function useIsMobile(bp = 768) {
@@ -39,7 +39,6 @@ const LINKS = [
   { label: 'Photo Booth', to: '/hive/booth', match: (p) => p === '/hive/booth' || p === '/hive/siwaka' },
   { label: 'Wallet', to: `/events/${HIVE_SLUG}/wallet`, match: (p) => p.endsWith('/wallet') },
   { label: 'UniHive Specials', to: `/events/${HIVE_SLUG}?tab=packs`, match: (p, q) => p === `/events/${HIVE_SLUG}` && q === 'packs' },
-  { label: 'Claim a Little ticket', to: `/claim/${HIVE_SLUG}`, match: (p) => p.startsWith('/claim') },
   { label: 'My Tickets', to: '/my-tickets', match: (p) => p === '/my-tickets' },
 ];
 
@@ -94,7 +93,7 @@ function HiveFooter() {
         {Object.values(SOCIALS).map((s) => (
           <a key={s.label} href={s.url} target="_blank" rel="noreferrer" className="hover:text-white">{s.label} {s.handle}</a>
         ))}
-        <a href={LITTLE.tickets} target="_blank" rel="noreferrer" className="hover:text-white">Tickets on Little Events ↗</a>
+        <Link to={TICKETS_PATH} className="hover:text-white">Tickets</Link>
         <Link to="/terms" className="hover:text-white">Terms</Link>
         <Link to="/privacy" className="hover:text-white">Privacy</Link>
         <Link to="/partner" className="hover:text-white">Partner login</Link>

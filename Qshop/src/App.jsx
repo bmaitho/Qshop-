@@ -46,7 +46,6 @@ const OrderConfirmation = lazyPage(() => import('./components/OrderConfirmation'
 const OrderDetails = lazyPage(() => import('./components/OrderDetails'));
 const WholesalerCodes = lazyPage(() => import('./components/admin/WholesalerCodes'));
 const AdminServicesPanel = lazyPage(() => import('./components/AdminServicesPanel'));
-const EventTicketImport = lazyPage(() => import('./components/admin/EventTicketImport'));
 const ShopOwnerBroadcast = lazyPage(() => import('./components/admin/ShopOwnerBroadcast'));
 const BuzzAdmin = lazyPage(() => import('./components/admin/BuzzAdmin'));
 const BrandsAdmin = lazyPage(() => import('./components/admin/BrandsAdmin'));
@@ -60,7 +59,6 @@ const EventPage = lazyPage(() => import('./components/EventPage'));
 const MyTickets = lazyPage(() => import('./components/MyTickets'));
 const VerifyTicket = lazyPage(() => import('./components/VerifyTicket'));
 const StaffScanner = lazyPage(() => import('./components/StaffScanner'));
-const ClaimHiveTicket = lazyPage(() => import('./components/ClaimHiveTicket'));
 const HiveEventPage = lazyPage(() => import('./components/hive/HiveEventPage'));
 const HiveBooth = lazyPage(() => import('./components/hive/HiveBooth'));
 const EuphoriaRecap = lazyPage(() => import('./components/hive/EuphoriaRecap'));
@@ -86,6 +84,11 @@ const EventRoute = ({ token }) => {
   const experience = getExperience(slug);
   if (experience) return <ExperiencePage x={experience} />;
   return <EventPage token={token} />;
+};
+
+const ClaimRedirect = () => {
+  const { eventId } = useParams();
+  return <Navigate to={`/events/${eventId}`} replace />;
 };
 
 const PackagesRedirect = () => {
@@ -124,7 +127,8 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/staff" element={<StaffScanner />} />
       <Route path="/staff/scanner" element={<StaffScanner />} />
       <Route path="/staff/redeem" element={<VendorRedeem />} />
-      <Route path="/claim/:eventId" element={<ClaimHiveTicket />} />
+      {/* Old ticket-claim links now go to the event page. */}
+      <Route path="/claim/:eventId" element={<ClaimRedirect />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/delete-account" element={<DeleteAccountPage />} />
@@ -150,7 +154,6 @@ const AppRoutes = ({ token, setToken }) => {
       <Route path="/admin/broadcast" element={token ? <ShopOwnerBroadcast /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/buzz" element={token ? <BuzzAdmin /> : <Navigate to="/auth" replace />} />
       <Route path="/admin/brands" element={token ? <BrandsAdmin /> : <Navigate to="/auth" replace />} />
-      <Route path="/admin/events/import-tickets" element={token ? <EventTicketImport /> : <Navigate to="/auth" replace />} />
       <Route path="/my-orders" element={token ? <BuyerOrders /> : <Navigate to="/auth" replace />} />
       <Route path="/my-tickets" element={token ? <MyTickets /> : <Navigate to="/auth" replace />} />
       <Route path="/events/:slug/packages" element={<PackagesRedirect />} />

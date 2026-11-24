@@ -87,7 +87,7 @@ export const initiateSTKPush = async (req, res) => {
       supabase.from('event_tickets').select('amount_paid, payment_status, source_platform, events(sell_tickets_on_unihive)').eq('id', orderId).maybeSingle(),
     ]);
     if (ticket && (ticket.source_platform !== 'unihive' || !ticket.events?.sell_tickets_on_unihive)) {
-      return res.status(410).json({ error: 'Tickets for this event are sold on Little Events.' });
+      return res.status(410).json({ error: 'Tickets for this event aren’t on sale on UniHive.' });
     }
     const payable = ticket
       ? { amount: ticket.amount_paid, status: ticket.payment_status }

@@ -17,13 +17,13 @@ export const buildHomeSlides = ({ banners = [], products = [] } = {}) => {
   const shopMosaic = banners.length >= 3 ? banners : products;
   const productMosaic = products.length >= 3 ? products : banners;
   return [
-    { kicker: promoActive() ? `This Friday · ${PROMO.regularOff}% off Regular · ${PROMO.vipOff}% off VIP` : 'UniHive presents · Fri 30 Oct · 6PM–4AM', title: 'No Going Home.', body: promoActive() ? 'THE HIVE · Fri 30 Oct · 6PM–4AM · Sarakasi Dome. Costumes, Smirnoff, DJs till sunrise — discounted tickets on Little, code applied for you.' : 'THE HIVE at Sarakasi Dome — drinks, bites and partner experiences on UniHive. Tickets on Little.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
+    { kicker: promoActive() ? `This Friday · ${PROMO.regularOff}% off Regular · ${PROMO.vipOff}% off VIP` : 'UniHive presents · Fri 30 Oct · 6PM–4AM', title: 'No Going Home.', body: promoActive() ? 'THE HIVE · Fri 30 Oct · 6PM–4AM · Sarakasi Dome. Costumes, Smirnoff, DJs till sunrise — discounted tickets on UniHive.' : 'THE HIVE at Sarakasi Dome — drinks, bites and partner experiences on UniHive. Tickets on UniHive.', media: { type: 'video', ...VIDEOS.btsReel }, cta: { label: 'Enter the Hive', to: `/events/${HIVE_SLUG}` } },
     ...liveExperiences().filter((x) => x.homeSlide).map((x) => ({ ...x.homeSlide, media: (x.media.backdrop || x.media.wide)?.video ? { type: 'video', src: (x.media.backdrop || x.media.wide).video, poster: (x.media.backdrop || x.media.wide).src } : { type: 'image', src: (x.media.backdrop || x.media.wide || x.media.poster).src }, cta: { label: 'RSVP free', to: `/events/${x.slug}` } })),
     { kicker: 'Storefronts', title: 'Shops worth following.', body: 'Real businesses, built by people in the Hive. Discover them, back them, buy from them.', media: shopMosaic.length >= 3 ? { type: 'mosaic', srcs: shopMosaic } : { type: 'image', src: PARTNER_SHOTS[3] }, cta: { label: 'Start shopping', to: '/studentmarketplace' } },
     { kicker: 'No scams. No stress.', title: 'Shop with confidence.', body: 'Pay with M-Pesa on UniHive. Sellers are paid once you confirm delivery.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice().reverse() } : { type: 'image', src: PARTNER_SHOTS[5] } },
     { kicker: 'Experiences worth having', title: 'Nights people talk about.', body: 'We’re intentional about every experience — worth showing up for, worth remembering.', media: { type: 'video', ...VIDEOS.crewCheer2 }, cta: { label: 'See The Buzz', to: '/services' } },
     { kicker: 'We grow together', title: 'When one wins, the Hive wins.', body: 'Open a shop and grow with entrepreneurs, creatives and brands growing with you.', media: productMosaic.length >= 3 ? { type: 'mosaic', srcs: productMosaic.slice(3).concat(productMosaic.slice(0, 3)) } : { type: 'image', src: PARTNER_SHOTS[4] }, cta: { label: 'Open your shop', to: '/myshop' } },
-    { kicker: 'Official partners', title: 'People to possibilities.', body: 'Smirnoff, Red Bull, Little and Harrison’s Pearl Gerar — brands building with the Hive.', media: { type: 'mosaic', srcs: PARTNER_SHOTS } },
+    { kicker: 'Official partners', title: 'People to possibilities.', body: 'Smirnoff, Red Bull, Siwaka Podcast, Charge24 and Harrison’s Pearl Gerar — brands building with the Hive.', media: { type: 'mosaic', srcs: PARTNER_SHOTS } },
     { kicker: 'The culture', title: 'Built by us. For us.', body: 'Not just a platform — a community you’re proud to be part of, online and in person.', media: { type: 'video', ...VIDEOS.neonNight } },
   ];
 };
@@ -38,7 +38,6 @@ export const UNIHIVE_TIPS = [
   'Open your shop in minutes from “My shop”. We grow better together.',
   'Respect the Hive: no harassment, no scams, no exceptions.',
   'THE HIVE: No Going Home — Fri 30 Oct, 6PM–4AM, Sarakasi Dome.',
-  'Ride with Little: code UNIHIVE26 for KSh 200 off rides to and from the Hive.',
 ];
 
 // Slides stay at least AUTO_MS; video slides stay until the clip has played

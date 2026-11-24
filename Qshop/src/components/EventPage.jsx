@@ -553,11 +553,11 @@ const EventPage = ({ token }) => {
   const soldOut = spotsLeft !== null && spotsLeft <= 0;
   const tiers = event?.ticket_tiers || [];
   const hasTiers = tiers.length > 0;
-  // Paid tickets sell on UniHive only for events with sell_tickets_on_unihive;
-  // otherwise they're sold on Little Events (partnership).
+  // Paid tickets sell on UniHive for events with sell_tickets_on_unihive;
+  // otherwise the event's own ticket link (events.ticket_url) is shown.
   const unihiveSales = !!event?.sell_tickets_on_unihive;
   const isFreeEvent = hasTiers ? tiers.every((t) => Number(t.price) === 0) : Number(event?.price || 0) === 0;
-  const littleUrl = event?.ticket_url || null;
+  const ticketUrl = event?.ticket_url || null;
 
   // --- Pricing helpers (single source of truth for the purchase flow) ---
   const isGroupTier = (selectedTier?.admits || 1) > 1;
@@ -743,12 +743,6 @@ const EventPage = ({ token }) => {
                   >
                     HIVE Wallet
                   </button>
-                  <button
-                    onClick={() => navigate(`/claim/${event.id}`)}
-                    className="text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                  >
-                    Claim a Little Events ticket
-                  </button>
                 </div>
               </div>
             )}
@@ -868,17 +862,17 @@ const EventPage = ({ token }) => {
                             </ul>
                           )}
 
-                          {littleUrl ? (
+                          {ticketUrl ? (
                             <a
-                              href={littleUrl}
+                              href={ticketUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="w-full text-center bg-primary text-primary-foreground font-bold py-2.5 rounded-xl hover:opacity-90 mt-auto"
                             >
-                              Buy on Little ↗
+                              Get it ↗
                             </a>
                           ) : (
-                            <p className="w-full text-center text-sm font-semibold text-foreground/50 py-2.5 mt-auto">On Little Events soon</p>
+                            <p className="w-full text-center text-sm font-semibold text-foreground/50 py-2.5 mt-auto">Coming soon</p>
                           )}
                         </div>
                       );
@@ -928,21 +922,17 @@ const EventPage = ({ token }) => {
               </div>
 
             ) : !isFreeEvent && !unihiveSales ? (
-              /* ── Paid tickets live on Little ── */
+              /* ── Paid tickets sold through the event's ticket link ── */
               <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 text-center">
                 <Ticket className="w-8 h-8 mx-auto text-primary mb-2" aria-hidden="true" />
-                <p className="font-semibold text-lg text-foreground">Tickets are sold exclusively on Little Events</p>
-                <p className="text-sm text-foreground/55 mt-1">Bought yours? Claim it on UniHive to unlock your wallet and perks.</p>
-                {littleUrl ? (
-                  <a href={littleUrl} target="_blank" rel="noreferrer" className="inline-flex mt-5 bg-primary text-primary-foreground font-bold px-7 py-3 rounded-xl hover:opacity-90">
-                    Get tickets on Little ↗
+                <p className="font-semibold text-lg text-foreground">Tickets</p>
+                {ticketUrl ? (
+                  <a href={ticketUrl} target="_blank" rel="noreferrer" className="inline-flex mt-5 bg-primary text-primary-foreground font-bold px-7 py-3 rounded-xl hover:opacity-90">
+                    Get tickets ↗
                   </a>
                 ) : (
                   <p className="mt-5 text-sm font-semibold text-foreground/60">Ticket link dropping soon.</p>
                 )}
-                <button onClick={() => navigate(`/claim/${event.slug || event.id}`)} className="block mx-auto mt-4 text-sm text-primary hover:underline font-medium">
-                  Already have a Little ticket? Claim it →
-                </button>
               </div>
             ) : step === 'select' ? (
               /* ── Tier selection (free events only) ── */

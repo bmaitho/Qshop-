@@ -1,12 +1,11 @@
 // Official partners strip for Home — minimal brand cards.
 import { Link } from 'react-router-dom';
 import { Mic } from 'lucide-react';
-import { HIVE_SLUG, LITTLE } from './hiveMedia';
+import { HIVE_SLUG } from './hiveMedia';
 
 const PARTNERS = [
   { name: 'Smirnoff', line: 'Official drinks partner', img: '/hive/products/smirnoff-vodka-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=smirnoff` },
   { name: 'Red Bull', line: 'Energy for the night', img: '/hive/products/redbull-webs.webp', to: `/events/${HIVE_SLUG}?tab=shop&brand=redbull` },
-  { name: 'Little', line: 'Tickets & rides', img: null, href: LITTLE.tickets },
   { name: 'Siwaka Podcast', line: 'Official media outlet · TikTok', img: '/media/siwaka/still-1.webp', badge: '/partners/siwaka-podcast.png', to: '/hive/siwaka' },
   { name: 'Charge24', line: 'Official power-bank charging station', img: '/partners/charge24.png', logo: true, to: '/events/the-hive-no-going-home?tab=night' },
   { name: 'Harrison’s Pearl Gerar', line: 'Shawarma & hotdogs', img: '/hive/products/shawarma.png', to: `/events/${HIVE_SLUG}?tab=shop&brand=harrisons` },
@@ -19,7 +18,7 @@ export default function OfficialPartners() {
         <p className="text-[11px] tracking-[0.35em] uppercase text-[#b8963a]">Official partners</p>
         <h2 className="text-3xl font-serif font-bold mt-2 text-[#113b1e] dark:text-white">Brands growing with the Hive</h2>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {PARTNERS.map((p) => {
           const inner = (
             <>
@@ -34,13 +33,7 @@ export default function OfficialPartners() {
                 </div>
               ) : p.img ? (
                 <img src={p.img} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              ) : (
-                // Little's official logo (white wordmark, made for dark backgrounds).
-                <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_100%_0%,rgba(245,183,0,0.22),transparent_60%),linear-gradient(160deg,#16120a,#060504)] flex flex-col items-center justify-center gap-4 pb-14 px-5">
-                  <img src="/partners/little.png" alt="Little" loading="lazy" className="w-[72%] max-w-[180px] h-auto object-contain transition-transform duration-700 group-hover:scale-105" />
-                  <span className="text-[#f5b700] text-xs sm:text-sm font-bold tracking-[0.2em] border border-dashed border-[#f5b700]/60 rounded-lg px-3 py-1">{LITTLE.code}</span>
-                </div>
-              )}
+              ) : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
               {p.badge && <img src={p.badge} alt={`${p.name} logo`} loading="lazy" className="absolute top-3 left-3 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg ring-1 ring-white/20" />}
               <div className="absolute inset-x-0 bottom-0 p-4">

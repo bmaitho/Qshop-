@@ -29,8 +29,9 @@ down for everyone.
 
 ## Product rules
 
-- Paid tickets and specials are sold only on Little Events; UniHive never sells
-  admission. Free RSVPs on UniHive are fine.
+- Paid tickets sell on UniHive's own checkout (`/events/:slug/tickets`, switched
+  on per event with `events.sell_tickets_on_unihive`). UniHive no longer works
+  with Little; don't add Little links, logos or codes. Free RSVPs are fine.
 - Never invent prices, sponsor items or line-ups; only show what is confirmed.
 - First-time visitors who need an account land on sign-up (`/auth` routes new
   devices to `/auth/signup`), and after log-in or sign-up people return to the

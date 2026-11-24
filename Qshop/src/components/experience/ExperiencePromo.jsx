@@ -1,5 +1,5 @@
 // Promo card for a live experience, shown on THE HIVE page. Separate event,
-// free RSVP — clearly distinct from the paid night (tickets on Little).
+// free RSVP — clearly distinct from the paid night.
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, MapPin, Ticket } from 'lucide-react';
 import { liveExperiences } from './experiences';
@@ -32,7 +32,7 @@ export default function ExperiencePromo() {
                 {x.name} <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
             </div>
-            <p className="text-white/40 text-xs mt-3">Free entry, {x.age}. THE HIVE: NO GOING HOME on 30 Oct is a separate, paid event — tickets on Little.</p>
+            <p className="text-white/40 text-xs mt-3">Free entry, {x.age}. THE HIVE: NO GOING HOME on 30 Oct is a separate, paid event.</p>
           </div>
         </section>
       ))}

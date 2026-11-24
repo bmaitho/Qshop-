@@ -61,9 +61,6 @@ export default function BuzzAdmin() {
           <button onClick={run('draft', async () => { await call('/draft', 'POST'); return 'New draft ready.'; })} disabled={!!busy} className={`${btn} bg-[#E7C65F] text-[#0D2B20]`}>
             {busy === 'draft' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Write a new issue
           </button>
-          <button onClick={run('followup', async () => { await call('/followup', 'POST', { kind: 'pre-party-thanks' }); return 'Thank-you draft ready for the pre-party RSVPs — preview it, send yourself a test, then approve.'; })} disabled={!!busy} className={`${btn} border border-[#E7C65F]/50 text-[#E7C65F]`}>
-            {busy === 'followup' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Thank pre-party RSVPs
-          </button>
           <button onClick={run('send', async () => { const j = await call('/send', 'POST'); return j.note || `Sent ${j.sent}.`; })} disabled={!!busy} className={`${btn} border border-white/20`}>
             {busy === 'send' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send today’s batch now
           </button>

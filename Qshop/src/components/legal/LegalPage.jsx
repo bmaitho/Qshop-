@@ -129,8 +129,7 @@ export function TermsPage() {
 
       <S id="events" title="8. Events, THE HIVE & tickets">
         <L items={[
-          <>Event admission tickets for THE HIVE are sold <strong>exclusively by Little Events</strong> (Little). Buying, transferring and refunding tickets is governed by Little&rsquo;s terms, and Little runs entry checks at the door. UniHive does not sell admission.</>,
-          'You can claim a Little ticket on UniHive to link it to your account and unlock the HIVE Wallet and perks. You may only claim tickets that belong to you.',
+          'Event tickets sold on UniHive are paid with M-Pesa and issued as a QR pass in My Tickets and by email. The ticket page for each event shows its tiers and prices. Entry is checked by scanning your pass at the door.',
           'Event details (line-up, times, venue, partners, offers) may change. We will update the event page when they do.',
           'At events: follow staff and venue instructions, drink responsibly, and respect other guests. We or the venue may refuse service or remove anyone who is intoxicated, unsafe, under age or breaking these Terms, without a refund from UniHive.',
           'Offers from partners (for example ride discount codes) are provided by those partners and are subject to their terms.',
@@ -164,7 +163,7 @@ export function TermsPage() {
 
       <S id="liability" title="13. Liability & indemnity">
         <L items={[
-          'UniHive is not responsible for the conduct of buyers, sellers, providers, partners or other guests; for the quality, safety or legality of third-party goods and services; for delivery failures by third parties; or for outages of third-party services (such as M-Pesa, Little or hosting providers).',
+          'UniHive is not responsible for the conduct of buyers, sellers, providers, partners or other guests; for the quality, safety or legality of third-party goods and services; for delivery failures by third parties; or for outages of third-party services (such as M-Pesa or hosting providers).',
           'To the extent allowed by law, our total liability for any claim is limited to the value of the transaction in question, and we are not liable for indirect or consequential losses.',
           'You agree to cover UniHive and Nexalon Group Ltd for claims and losses that arise from your listings, content, conduct or breach of these Terms.',
           'Nothing in these Terms limits rights you have under Kenyan consumer protection law that cannot be excluded.',
@@ -237,7 +236,7 @@ export function PrivacyPage() {
         ]} />
         <H>Events & THE HIVE</H>
         <L items={[
-          'Tickets you claim from Little Events, including the ticket details Little provides to us (such as ticket code, ticket type and the name, phone or email on the ticket) so we can match the ticket to you.',
+          'Tickets you buy or hold on UniHive, including the ticket code, ticket type and the name, phone or email on the ticket.',
           'HIVE Wallet top-ups, balance and purchases; the QR codes issued to you; and when, where and by which stand each code was redeemed.',
           'Votes in polls on the site.',
           'Photos and videos taken at our events (see Terms section 11).',
@@ -255,7 +254,7 @@ export function PrivacyPage() {
           'To create and run your account and keep it secure.',
           'To process payments, orders, bookings, payouts, deliveries, wallet purchases and redemptions.',
           'To let buyers and sellers communicate, and to resolve disputes and prevent fraud.',
-          'To run events: matching your Little ticket, issuing and redeeming QR codes, and showing partner brands the sales of their own items.',
+          'To run events: issuing tickets, issuing and redeeming QR codes, and showing partner brands the sales of their own items.',
           'To send service messages — order and payment updates, account and security notices, and practical updates to sellers about their store (for example, preparing for busy periods).',
           'To understand how UniHive is used in aggregate so we can improve it.',
           'To meet legal, tax and regulatory obligations.',
@@ -279,7 +278,6 @@ export function PrivacyPage() {
           <><strong>Other users</strong> — buyers and sellers see the details needed to complete an order (for example name, phone number and delivery details). Your public shop and listings are visible to everyone.</>,
           <><strong>Partner brands</strong> — see the items sold and redeemed at their stands (item, quantity and time). When scanning a QR code, their staff see the buyer’s first name and initial to hand over the item. They do not see your phone number or email.</>,
           <><strong>Event staff</strong> — see the ticket or item being redeemed and the holder&rsquo;s name.</>,
-          <><strong>Little Events</strong> — sells tickets and runs entry; we exchange ticket details with Little to link tickets to UniHive accounts. Little is responsible for the data you give Little directly.</>,
           <><strong>Service providers that process data for us</strong>: Supabase (database, sign-in and file storage), Vercel (website hosting and analytics), Render (application server), Safaricom M-Pesa (payments), Resend (email delivery), Google (Sign in with Google), and PickUp Mtaani (deliveries).</>,
           <><strong>Authorities</strong> — when required by law, or to protect the safety and rights of users and UniHive.</>,
         ]} />

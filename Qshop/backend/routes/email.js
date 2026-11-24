@@ -990,7 +990,7 @@ router.post('/guest-ticket-init', async (req, res) => {
       return res.status(400).json({ success: false, error: 'This event is not accepting ticket sales' });
     }
     if (!event.sell_tickets_on_unihive) {
-      return res.status(410).json({ success: false, error: 'Tickets for this event are sold on Little Events' });
+      return res.status(410).json({ success: false, error: 'Tickets for this event aren’t on sale on UniHive' });
     }
 
     const tier = (event.ticket_tiers || []).find(t => t.name === tierName);
